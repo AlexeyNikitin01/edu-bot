@@ -1,0 +1,16 @@
+psql:
+  user: ""
+  pass: ""
+  host: ""
+  port: 5555
+  dbname: ""
+  sslMode: ""
+  maxIdleCons: 50
+  maxOpenCons: 50
+  migration: ""
+  migrationApply: true
+  connectTimeout: 3s
+  blacklist:
+    - test
+    - gopg_migrations
+    - goose_db_version

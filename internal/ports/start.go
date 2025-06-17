@@ -1,7 +1,7 @@
 package ports
 
 import (
-	"log"
+	"fmt"
 
 	"gopkg.in/telebot.v3"
 
@@ -10,10 +10,11 @@ import (
 
 func start(_ *app.App) telebot.HandlerFunc {
 	return func(ctx telebot.Context) error {
-		log.Println("start")
-		if err := ctx.Send("hello world"); err != nil {
+
+		if err := ctx.Send(fmt.Printf("Привет %s!", ctx.Sender().FirstName)); err != nil {
 			return err
 		}
+
 		return nil
 	}
 }
