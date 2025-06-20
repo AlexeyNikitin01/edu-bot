@@ -3,6 +3,7 @@ package ports
 import (
 	"context"
 	"log"
+	"math/rand"
 	"sync"
 	"time"
 
@@ -92,10 +93,9 @@ func (d *QuestionDispatcher) worker(userID int64, ch chan *edu.UsersQuestion) {
 		case uq := <-ch:
 			d.mu.Lock()
 			if d.waitingForAnswer[userID] {
-				// ждем ответ — откладываем вопрос обратно
+				// ждем ответ
 				d.mu.Unlock()
 				time.Sleep(2 * time.Second)
-				//go func() { ch <- uq }()
 				continue
 			}
 			d.waitingForAnswer[userID] = true
@@ -113,10 +113,20 @@ func (d *QuestionDispatcher) worker(userID int64, ch chan *edu.UsersQuestion) {
 }
 
 func (d *QuestionDispatcher) sendPoll(userID int64, uq *edu.UsersQuestion) error {
-	options := make([]telebot.PollOption, len(uq.R.GetQuestion().R.GetAnswers()))
+	answers := uq.R.GetQuestion().R.GetAnswers()
+
+	shuffled := make([]*edu.Answer, len(answers))
+	copy(shuffled, answers)
+
+	rand.Seed(time.Now().UnixNano())
+	rand.Shuffle(len(shuffled), func(i, j int) {
+		shuffled[i], shuffled[j] = shuffled[j], shuffled[i]
+	})
+
+	options := make([]telebot.PollOption, len(shuffled))
 	correctIndex := -1
 
-	for i, ans := range uq.R.GetQuestion().R.GetAnswers() {
+	for i, ans := range shuffled {
 		options[i] = telebot.PollOption{Text: ans.Answer}
 		if ans.IsCorrect {
 			correctIndex = i
