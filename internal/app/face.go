@@ -8,7 +8,7 @@ import (
 
 type Apper interface {
 	GetQuestionsAnswers(ctx context.Context, userID int64) (edu.UsersQuestionSlice, error)
-	UpdateRepeatTime(ctx context.Context, question *edu.UsersQuestion) error
+	UpdateRepeatTime(ctx context.Context, question *edu.UsersQuestion, correct bool) error
 }
 
 type App struct {

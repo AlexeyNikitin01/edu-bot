@@ -6,7 +6,6 @@ import (
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"gopkg.in/telebot.v3"
 
-	"bot/internal/app"
 	"bot/internal/repo/edu"
 )
 
@@ -19,7 +18,7 @@ type QuestionDraft struct {
 
 var drafts = make(map[int64]*QuestionDraft)
 
-func add(domain *app.App) telebot.HandlerFunc {
+func add() telebot.HandlerFunc {
 	return func(ctx telebot.Context) error {
 		tgUser := ctx.Sender()
 		userID := tgUser.ID

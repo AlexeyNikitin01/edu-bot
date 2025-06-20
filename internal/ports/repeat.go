@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"gopkg.in/telebot.v3"
 
@@ -94,7 +95,7 @@ func (d *QuestionDispatcher) worker(userID int64, ch chan *edu.UsersQuestion) {
 				// ждем ответ — откладываем вопрос обратно
 				d.mu.Unlock()
 				time.Sleep(2 * time.Second)
-				go func() { ch <- uq }()
+				//go func() { ch <- uq }()
 				continue
 			}
 			d.waitingForAnswer[userID] = true
@@ -133,10 +134,17 @@ func (d *QuestionDispatcher) sendPoll(userID int64, uq *edu.UsersQuestion) error
 	}
 
 	recipient := &telebot.User{ID: userID}
-	_, err := d.bot.Send(recipient, poll)
+	msg, err := d.bot.Send(recipient, poll)
 	if err != nil {
 		return err
 	}
+
+	uq.PollID = null.StringFrom(msg.Poll.ID)
+	uq.CorrectAnswer = null.Int64From(int64(correctIndex))
+	if _, err = uq.Update(d.ctx, boil.GetContextDB(), boil.Whitelist(edu.UsersQuestionColumns.PollID)); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -146,6 +154,18 @@ func (d *QuestionDispatcher) RegisterPollAnswerHandler() {
 		userID := poll.Sender.ID
 
 		log.Printf("Ответ от пользователя %d получен", userID)
+
+		uq, err := edu.UsersQuestions(edu.UsersQuestionWhere.PollID.EQ(null.StringFrom(poll.PollID))).
+			One(d.ctx, boil.GetContextDB())
+		if err != nil {
+			return err
+		}
+
+		correct := int(uq.CorrectAnswer.Int64) == poll.Options[0]
+
+		if err = d.domain.UpdateRepeatTime(d.ctx, uq, correct); err != nil {
+			return err
+		}
 
 		d.mu.Lock()
 		d.waitingForAnswer[userID] = false

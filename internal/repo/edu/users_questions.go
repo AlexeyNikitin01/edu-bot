@@ -24,93 +24,208 @@ import (
 
 // UsersQuestion is an object representing the database table.
 type UsersQuestion struct {
-	ID           int64     `boil:"id" json:"id" toml:"id" yaml:"id"`
-	QuestionID   int64     `boil:"question_id" json:"question_id" toml:"question_id" yaml:"question_id"`
-	UserID       int64     `boil:"user_id" json:"user_id" toml:"user_id" yaml:"user_id"`
-	TotalCorrect int64     `boil:"total_correct" json:"total_correct" toml:"total_correct" yaml:"total_correct"`
-	TotalWrong   int64     `boil:"total_wrong" json:"total_wrong" toml:"total_wrong" yaml:"total_wrong"`
-	IsEdu        bool      `boil:"is_edu" json:"is_edu" toml:"is_edu" yaml:"is_edu"`
-	TimeRepeat   time.Time `boil:"time_repeat" json:"time_repeat" toml:"time_repeat" yaml:"time_repeat"`
-	CreatedAt    time.Time `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
-	UpdatedAt    time.Time `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
-	DeletedAt    null.Time `boil:"deleted_at" json:"deleted_at,omitempty" toml:"deleted_at" yaml:"deleted_at,omitempty"`
+	ID            int64       `boil:"id" json:"id" toml:"id" yaml:"id"`
+	QuestionID    int64       `boil:"question_id" json:"question_id" toml:"question_id" yaml:"question_id"`
+	UserID        int64       `boil:"user_id" json:"user_id" toml:"user_id" yaml:"user_id"`
+	TotalCorrect  int64       `boil:"total_correct" json:"total_correct" toml:"total_correct" yaml:"total_correct"`
+	TotalWrong    int64       `boil:"total_wrong" json:"total_wrong" toml:"total_wrong" yaml:"total_wrong"`
+	IsEdu         bool        `boil:"is_edu" json:"is_edu" toml:"is_edu" yaml:"is_edu"`
+	PollID        null.String `boil:"poll_id" json:"poll_id,omitempty" toml:"poll_id" yaml:"poll_id,omitempty"`
+	TimeRepeat    time.Time   `boil:"time_repeat" json:"time_repeat" toml:"time_repeat" yaml:"time_repeat"`
+	TotalSerial   int64       `boil:"total_serial" json:"total_serial" toml:"total_serial" yaml:"total_serial"`
+	CorrectAnswer null.Int64  `boil:"correct_answer" json:"correct_answer,omitempty" toml:"correct_answer" yaml:"correct_answer,omitempty"`
+	CreatedAt     time.Time   `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
+	UpdatedAt     time.Time   `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
+	DeletedAt     null.Time   `boil:"deleted_at" json:"deleted_at,omitempty" toml:"deleted_at" yaml:"deleted_at,omitempty"`
 
 	R *usersQuestionR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L usersQuestionL  `boil:"-" json:"-" toml:"-" yaml:"-"`
 }
 
 var UsersQuestionColumns = struct {
-	ID           string
-	QuestionID   string
-	UserID       string
-	TotalCorrect string
-	TotalWrong   string
-	IsEdu        string
-	TimeRepeat   string
-	CreatedAt    string
-	UpdatedAt    string
-	DeletedAt    string
+	ID            string
+	QuestionID    string
+	UserID        string
+	TotalCorrect  string
+	TotalWrong    string
+	IsEdu         string
+	PollID        string
+	TimeRepeat    string
+	TotalSerial   string
+	CorrectAnswer string
+	CreatedAt     string
+	UpdatedAt     string
+	DeletedAt     string
 }{
-	ID:           "id",
-	QuestionID:   "question_id",
-	UserID:       "user_id",
-	TotalCorrect: "total_correct",
-	TotalWrong:   "total_wrong",
-	IsEdu:        "is_edu",
-	TimeRepeat:   "time_repeat",
-	CreatedAt:    "created_at",
-	UpdatedAt:    "updated_at",
-	DeletedAt:    "deleted_at",
+	ID:            "id",
+	QuestionID:    "question_id",
+	UserID:        "user_id",
+	TotalCorrect:  "total_correct",
+	TotalWrong:    "total_wrong",
+	IsEdu:         "is_edu",
+	PollID:        "poll_id",
+	TimeRepeat:    "time_repeat",
+	TotalSerial:   "total_serial",
+	CorrectAnswer: "correct_answer",
+	CreatedAt:     "created_at",
+	UpdatedAt:     "updated_at",
+	DeletedAt:     "deleted_at",
 }
 
 var UsersQuestionTableColumns = struct {
-	ID           string
-	QuestionID   string
-	UserID       string
-	TotalCorrect string
-	TotalWrong   string
-	IsEdu        string
-	TimeRepeat   string
-	CreatedAt    string
-	UpdatedAt    string
-	DeletedAt    string
+	ID            string
+	QuestionID    string
+	UserID        string
+	TotalCorrect  string
+	TotalWrong    string
+	IsEdu         string
+	PollID        string
+	TimeRepeat    string
+	TotalSerial   string
+	CorrectAnswer string
+	CreatedAt     string
+	UpdatedAt     string
+	DeletedAt     string
 }{
-	ID:           "users_questions.id",
-	QuestionID:   "users_questions.question_id",
-	UserID:       "users_questions.user_id",
-	TotalCorrect: "users_questions.total_correct",
-	TotalWrong:   "users_questions.total_wrong",
-	IsEdu:        "users_questions.is_edu",
-	TimeRepeat:   "users_questions.time_repeat",
-	CreatedAt:    "users_questions.created_at",
-	UpdatedAt:    "users_questions.updated_at",
-	DeletedAt:    "users_questions.deleted_at",
+	ID:            "users_questions.id",
+	QuestionID:    "users_questions.question_id",
+	UserID:        "users_questions.user_id",
+	TotalCorrect:  "users_questions.total_correct",
+	TotalWrong:    "users_questions.total_wrong",
+	IsEdu:         "users_questions.is_edu",
+	PollID:        "users_questions.poll_id",
+	TimeRepeat:    "users_questions.time_repeat",
+	TotalSerial:   "users_questions.total_serial",
+	CorrectAnswer: "users_questions.correct_answer",
+	CreatedAt:     "users_questions.created_at",
+	UpdatedAt:     "users_questions.updated_at",
+	DeletedAt:     "users_questions.deleted_at",
 }
 
 // Generated where
 
+type whereHelpernull_String struct{ field string }
+
+func (w whereHelpernull_String) EQ(x null.String) qm.QueryMod {
+	return qmhelper.WhereNullEQ(w.field, false, x)
+}
+func (w whereHelpernull_String) NEQ(x null.String) qm.QueryMod {
+	return qmhelper.WhereNullEQ(w.field, true, x)
+}
+func (w whereHelpernull_String) LT(x null.String) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.LT, x)
+}
+func (w whereHelpernull_String) LTE(x null.String) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.LTE, x)
+}
+func (w whereHelpernull_String) GT(x null.String) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.GT, x)
+}
+func (w whereHelpernull_String) GTE(x null.String) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.GTE, x)
+}
+func (w whereHelpernull_String) LIKE(x null.String) qm.QueryMod {
+	return qm.Where(w.field+" LIKE ?", x)
+}
+func (w whereHelpernull_String) NLIKE(x null.String) qm.QueryMod {
+	return qm.Where(w.field+" NOT LIKE ?", x)
+}
+func (w whereHelpernull_String) ILIKE(x null.String) qm.QueryMod {
+	return qm.Where(w.field+" ILIKE ?", x)
+}
+func (w whereHelpernull_String) NILIKE(x null.String) qm.QueryMod {
+	return qm.Where(w.field+" NOT ILIKE ?", x)
+}
+func (w whereHelpernull_String) SIMILAR(x null.String) qm.QueryMod {
+	return qm.Where(w.field+" SIMILAR TO ?", x)
+}
+func (w whereHelpernull_String) NSIMILAR(x null.String) qm.QueryMod {
+	return qm.Where(w.field+" NOT SIMILAR TO ?", x)
+}
+func (w whereHelpernull_String) IN(slice []string) qm.QueryMod {
+	values := make([]interface{}, 0, len(slice))
+	for _, value := range slice {
+		values = append(values, value)
+	}
+	return qm.WhereIn(fmt.Sprintf("%s IN ?", w.field), values...)
+}
+func (w whereHelpernull_String) NIN(slice []string) qm.QueryMod {
+	values := make([]interface{}, 0, len(slice))
+	for _, value := range slice {
+		values = append(values, value)
+	}
+	return qm.WhereNotIn(fmt.Sprintf("%s NOT IN ?", w.field), values...)
+}
+
+func (w whereHelpernull_String) IsNull() qm.QueryMod    { return qmhelper.WhereIsNull(w.field) }
+func (w whereHelpernull_String) IsNotNull() qm.QueryMod { return qmhelper.WhereIsNotNull(w.field) }
+
+type whereHelpernull_Int64 struct{ field string }
+
+func (w whereHelpernull_Int64) EQ(x null.Int64) qm.QueryMod {
+	return qmhelper.WhereNullEQ(w.field, false, x)
+}
+func (w whereHelpernull_Int64) NEQ(x null.Int64) qm.QueryMod {
+	return qmhelper.WhereNullEQ(w.field, true, x)
+}
+func (w whereHelpernull_Int64) LT(x null.Int64) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.LT, x)
+}
+func (w whereHelpernull_Int64) LTE(x null.Int64) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.LTE, x)
+}
+func (w whereHelpernull_Int64) GT(x null.Int64) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.GT, x)
+}
+func (w whereHelpernull_Int64) GTE(x null.Int64) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.GTE, x)
+}
+func (w whereHelpernull_Int64) IN(slice []int64) qm.QueryMod {
+	values := make([]interface{}, 0, len(slice))
+	for _, value := range slice {
+		values = append(values, value)
+	}
+	return qm.WhereIn(fmt.Sprintf("%s IN ?", w.field), values...)
+}
+func (w whereHelpernull_Int64) NIN(slice []int64) qm.QueryMod {
+	values := make([]interface{}, 0, len(slice))
+	for _, value := range slice {
+		values = append(values, value)
+	}
+	return qm.WhereNotIn(fmt.Sprintf("%s NOT IN ?", w.field), values...)
+}
+
+func (w whereHelpernull_Int64) IsNull() qm.QueryMod    { return qmhelper.WhereIsNull(w.field) }
+func (w whereHelpernull_Int64) IsNotNull() qm.QueryMod { return qmhelper.WhereIsNotNull(w.field) }
+
 var UsersQuestionWhere = struct {
-	ID           whereHelperint64
-	QuestionID   whereHelperint64
-	UserID       whereHelperint64
-	TotalCorrect whereHelperint64
-	TotalWrong   whereHelperint64
-	IsEdu        whereHelperbool
-	TimeRepeat   whereHelpertime_Time
-	CreatedAt    whereHelpertime_Time
-	UpdatedAt    whereHelpertime_Time
-	DeletedAt    whereHelpernull_Time
+	ID            whereHelperint64
+	QuestionID    whereHelperint64
+	UserID        whereHelperint64
+	TotalCorrect  whereHelperint64
+	TotalWrong    whereHelperint64
+	IsEdu         whereHelperbool
+	PollID        whereHelpernull_String
+	TimeRepeat    whereHelpertime_Time
+	TotalSerial   whereHelperint64
+	CorrectAnswer whereHelpernull_Int64
+	CreatedAt     whereHelpertime_Time
+	UpdatedAt     whereHelpertime_Time
+	DeletedAt     whereHelpernull_Time
 }{
-	ID:           whereHelperint64{field: "\"users_questions\".\"id\""},
-	QuestionID:   whereHelperint64{field: "\"users_questions\".\"question_id\""},
-	UserID:       whereHelperint64{field: "\"users_questions\".\"user_id\""},
-	TotalCorrect: whereHelperint64{field: "\"users_questions\".\"total_correct\""},
-	TotalWrong:   whereHelperint64{field: "\"users_questions\".\"total_wrong\""},
-	IsEdu:        whereHelperbool{field: "\"users_questions\".\"is_edu\""},
-	TimeRepeat:   whereHelpertime_Time{field: "\"users_questions\".\"time_repeat\""},
-	CreatedAt:    whereHelpertime_Time{field: "\"users_questions\".\"created_at\""},
-	UpdatedAt:    whereHelpertime_Time{field: "\"users_questions\".\"updated_at\""},
-	DeletedAt:    whereHelpernull_Time{field: "\"users_questions\".\"deleted_at\""},
+	ID:            whereHelperint64{field: "\"users_questions\".\"id\""},
+	QuestionID:    whereHelperint64{field: "\"users_questions\".\"question_id\""},
+	UserID:        whereHelperint64{field: "\"users_questions\".\"user_id\""},
+	TotalCorrect:  whereHelperint64{field: "\"users_questions\".\"total_correct\""},
+	TotalWrong:    whereHelperint64{field: "\"users_questions\".\"total_wrong\""},
+	IsEdu:         whereHelperbool{field: "\"users_questions\".\"is_edu\""},
+	PollID:        whereHelpernull_String{field: "\"users_questions\".\"poll_id\""},
+	TimeRepeat:    whereHelpertime_Time{field: "\"users_questions\".\"time_repeat\""},
+	TotalSerial:   whereHelperint64{field: "\"users_questions\".\"total_serial\""},
+	CorrectAnswer: whereHelpernull_Int64{field: "\"users_questions\".\"correct_answer\""},
+	CreatedAt:     whereHelpertime_Time{field: "\"users_questions\".\"created_at\""},
+	UpdatedAt:     whereHelpertime_Time{field: "\"users_questions\".\"updated_at\""},
+	DeletedAt:     whereHelpernull_Time{field: "\"users_questions\".\"deleted_at\""},
 }
 
 // UsersQuestionRels is where relationship names are stored.
@@ -151,9 +266,9 @@ func (r *usersQuestionR) GetUser() *User {
 type usersQuestionL struct{}
 
 var (
-	usersQuestionAllColumns            = []string{"id", "question_id", "user_id", "total_correct", "total_wrong", "is_edu", "time_repeat", "created_at", "updated_at", "deleted_at"}
+	usersQuestionAllColumns            = []string{"id", "question_id", "user_id", "total_correct", "total_wrong", "is_edu", "poll_id", "time_repeat", "total_serial", "correct_answer", "created_at", "updated_at", "deleted_at"}
 	usersQuestionColumnsWithoutDefault = []string{}
-	usersQuestionColumnsWithDefault    = []string{"id", "question_id", "user_id", "total_correct", "total_wrong", "is_edu", "time_repeat", "created_at", "updated_at", "deleted_at"}
+	usersQuestionColumnsWithDefault    = []string{"id", "question_id", "user_id", "total_correct", "total_wrong", "is_edu", "poll_id", "time_repeat", "total_serial", "correct_answer", "created_at", "updated_at", "deleted_at"}
 	usersQuestionPrimaryKeyColumns     = []string{"id"}
 	usersQuestionGeneratedColumns      = []string{}
 )

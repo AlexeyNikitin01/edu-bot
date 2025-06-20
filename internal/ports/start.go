@@ -6,11 +6,10 @@ import (
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"gopkg.in/telebot.v3"
 
-	"bot/internal/app"
 	"bot/internal/repo/edu"
 )
 
-func start(_ *app.App) telebot.HandlerFunc {
+func start() telebot.HandlerFunc {
 	return func(ctx telebot.Context) error {
 		tgUser := ctx.Sender()
 		chatUser := ctx.Chat()

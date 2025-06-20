@@ -7,7 +7,7 @@ import (
 )
 
 func routers(b *telebot.Bot, domain *app.App) {
-	b.Handle("/start", start(domain))
-	b.Handle("/add", add(domain))
-	b.Handle(telebot.OnText, add(domain))
+	b.Handle("/start", start())
+	b.Handle("/add", add())
+	b.Handle(telebot.OnText, add())
 }
