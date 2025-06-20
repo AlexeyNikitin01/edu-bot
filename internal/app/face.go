@@ -1,17 +1,19 @@
 package app
 
 import (
-	"bot/internal/adapters"
+	"context"
+
+	"bot/internal/repo/edu"
 )
 
 type Apper interface {
-	questions()
+	GetQuestionsAnswers(ctx context.Context, userID int64) (edu.UsersQuestionSlice, error)
+	UpdateRepeatTime(ctx context.Context, question *edu.UsersQuestion) error
 }
 
 type App struct {
-	DB adapters.Face
 }
 
-func NewApp(DB adapters.Face) *App {
-	return &App{DB: DB}
+func NewApp() *App {
+	return &App{}
 }

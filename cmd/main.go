@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"time"
 
@@ -16,6 +17,8 @@ import (
 func main() {
 	log.Println("Starting bot...")
 
+	ctx := context.Background()
+
 	db, err := adapters.OpenConnectPostgres(&adapters.Config{
 		Host:   "localhost",
 		Port:   "7878",
@@ -27,10 +30,9 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	pg := adapters.NewPostgres(db)
-	domain := app.NewApp(pg)
-
 	boil.SetDB(db)
+
+	domain := app.NewApp()
 
 	// TODO config
 	pref := telebot.Settings{
@@ -44,5 +46,5 @@ func main() {
 		return
 	}
 
-	ports.StartBot(b, domain)
+	ports.StartBot(ctx, b, domain)
 }

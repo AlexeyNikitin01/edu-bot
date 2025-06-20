@@ -1,16 +1,11 @@
 package adapters
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 )
-
-type Face interface {
-	GetQuestions(ctx context.Context) (any, error)
-}
 
 type Config struct {
 	Host   string `json:"host,omitempty" yaml:"host"`
@@ -33,12 +28,4 @@ func OpenConnectPostgres(cfg *Config) (*sqlx.DB, error) {
 	}
 
 	return db, nil
-}
-
-type Postgres struct {
-	DB *sqlx.DB
-}
-
-func NewPostgres(DB *sqlx.DB) Face {
-	return &Postgres{DB: DB}
 }

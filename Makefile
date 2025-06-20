@@ -9,3 +9,6 @@ down:
 
 reset:
 	pgmigrate -c config.yml -o reset
+
+entity:
+	sqlboiler psql -c etc/config.yml -p edu -o internal/repo/edu
