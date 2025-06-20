@@ -25,40 +25,34 @@ func add() telebot.HandlerFunc {
 
 		u, err := edu.Users(edu.UserWhere.TGUserID.EQ(userID)).One(GetContext(ctx), boil.GetContextDB())
 		if err != nil {
-			return ctx.Send("Вы не зарегистрированы.")
+			return ctx.Send("⚠️ Вы не зарегистрированы.")
 		}
 
 		msg := ctx.Message().Text
-
-		if msg == "/add" {
-			drafts[userID] = &QuestionDraft{Step: 1}
-			return ctx.Send("Введите текст вопроса:")
-		}
-
 		draft, exists := drafts[userID]
 		if !exists {
-			return ctx.Send("Начните с команды /add")
+			return ctx.Send("ℹ️ Начните с команды /add или выберите «➕ Добавить вопрос» в меню.")
 		}
 
 		switch draft.Step {
 		case 1:
 			draft.Question = msg
 			draft.Step++
-			return ctx.Send("Теперь введите тэг:")
+			return ctx.Send("🏷 Введите тэг вопроса:")
 		case 2:
 			draft.Tag = msg
 			draft.Step++
-			return ctx.Send("Теперь введите правильный ответ:")
+			return ctx.Send("✅ Введите правильный ответ:")
 		case 3:
 			draft.Answers = append(draft.Answers, msg) // правильный
 			draft.Step++
-			return ctx.Send("Введите неправильный ответ 1 (или /done, чтобы завершить):")
+			return ctx.Send("❌ Введите неправильный ответ 1 (или /done, чтобы завершить):")
 		case 4:
 			if msg == "/done" {
 				goto Save
 			}
 			draft.Answers = append(draft.Answers, msg)
-			return ctx.Send("Введите ещё неправильный ответ (или /done):")
+			return ctx.Send("❌ Ещё неправильный ответ (или /done):")
 		}
 
 	Save:
@@ -66,10 +60,9 @@ func add() telebot.HandlerFunc {
 			Question: draft.Question,
 			Tag:      draft.Tag,
 		}
-		err = q.Insert(GetContext(ctx), boil.GetContextDB(), boil.Infer())
-		if err != nil {
+		if err := q.Insert(GetContext(ctx), boil.GetContextDB(), boil.Infer()); err != nil {
 			delete(drafts, userID)
-			return ctx.Send("Ошибка при сохранении вопроса.")
+			return ctx.Send("❗ Ошибка при сохранении вопроса.")
 		}
 
 		for i, answer := range draft.Answers {
@@ -78,9 +71,9 @@ func add() telebot.HandlerFunc {
 				Answer:     answer,
 				IsCorrect:  i == 0,
 			}
-			if err = a.Insert(GetContext(ctx), boil.GetContextDB(), boil.Infer()); err != nil {
+			if err := a.Insert(GetContext(ctx), boil.GetContextDB(), boil.Infer()); err != nil {
 				delete(drafts, userID)
-				return ctx.Send("Ошибка при сохранении ответа.")
+				return ctx.Send("❗ Ошибка при сохранении ответа.")
 			}
 		}
 
@@ -90,12 +83,12 @@ func add() telebot.HandlerFunc {
 			IsEdu:      true,
 			TimeRepeat: time.Now().Add(time.Minute * 5),
 		}
-		if err = uq.Insert(GetContext(ctx), boil.GetContextDB(), boil.Infer()); err != nil {
+		if err := uq.Insert(GetContext(ctx), boil.GetContextDB(), boil.Infer()); err != nil {
 			delete(drafts, userID)
-			return ctx.Send("Ошибка при привязке вопроса к пользователю.")
+			return ctx.Send("❗ Ошибка при привязке вопроса к пользователю.")
 		}
 
 		delete(drafts, userID)
-		return ctx.Send("Ваш вопрос был добавлен.")
+		return ctx.Send("✅ Вопрос успешно добавлен!", mainMenu())
 	}
 }
