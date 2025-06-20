@@ -805,7 +805,7 @@ func testUsersQuestionsSelect(t *testing.T) {
 }
 
 var (
-	usersQuestionDBTypes = map[string]string{`ID`: `bigint`, `QuestionID`: `bigint`, `UserID`: `bigint`, `TotalCorrect`: `bigint`, `TotalWrong`: `bigint`, `IsEdu`: `boolean`, `PollID`: `text`, `TimeRepeat`: `timestamp with time zone`, `TotalSerial`: `bigint`, `CorrectAnswer`: `bigint`, `CreatedAt`: `timestamp with time zone`, `UpdatedAt`: `timestamp with time zone`, `DeletedAt`: `timestamp with time zone`}
+	usersQuestionDBTypes = map[string]string{`ID`: `bigint`, `QuestionID`: `bigint`, `UserID`: `bigint`, `TotalCorrect`: `bigint`, `TotalWrong`: `bigint`, `IsEdu`: `boolean`, `PollID`: `text`, `TimeRepeat`: `timestamp with time zone`, `TotalSerial`: `bigint`, `CorrectAnswer`: `bigint`, `IsPause`: `boolean`, `CreatedAt`: `timestamp with time zone`, `UpdatedAt`: `timestamp with time zone`, `DeletedAt`: `timestamp with time zone`}
 	_                    = bytes.MinRead
 )
 

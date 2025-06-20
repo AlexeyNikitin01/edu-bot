@@ -41,6 +41,7 @@ CREATE TABLE users_questions
     time_repeat    TIMESTAMP WITH TIME ZONE                                                 NOT NULL DEFAULT now(),
     total_serial   BIGINT                                                                   NOT NULL DEFAULT 0,
     correct_answer BIGINT,
+    is_pause       BOOLEAN                                                                  NOT NULL DEFAULT false,
     created_at     TIMESTAMP WITH TIME ZONE                                                 NOT NULL DEFAULT now(),
     updated_at     TIMESTAMP WITH TIME ZONE                                                 NOT NULL DEFAULT now(),
     deleted_at     TIMESTAMP WITH TIME ZONE NULL

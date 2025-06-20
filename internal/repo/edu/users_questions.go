@@ -34,6 +34,7 @@ type UsersQuestion struct {
 	TimeRepeat    time.Time   `boil:"time_repeat" json:"time_repeat" toml:"time_repeat" yaml:"time_repeat"`
 	TotalSerial   int64       `boil:"total_serial" json:"total_serial" toml:"total_serial" yaml:"total_serial"`
 	CorrectAnswer null.Int64  `boil:"correct_answer" json:"correct_answer,omitempty" toml:"correct_answer" yaml:"correct_answer,omitempty"`
+	IsPause       bool        `boil:"is_pause" json:"is_pause" toml:"is_pause" yaml:"is_pause"`
 	CreatedAt     time.Time   `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
 	UpdatedAt     time.Time   `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
 	DeletedAt     null.Time   `boil:"deleted_at" json:"deleted_at,omitempty" toml:"deleted_at" yaml:"deleted_at,omitempty"`
@@ -53,6 +54,7 @@ var UsersQuestionColumns = struct {
 	TimeRepeat    string
 	TotalSerial   string
 	CorrectAnswer string
+	IsPause       string
 	CreatedAt     string
 	UpdatedAt     string
 	DeletedAt     string
@@ -67,6 +69,7 @@ var UsersQuestionColumns = struct {
 	TimeRepeat:    "time_repeat",
 	TotalSerial:   "total_serial",
 	CorrectAnswer: "correct_answer",
+	IsPause:       "is_pause",
 	CreatedAt:     "created_at",
 	UpdatedAt:     "updated_at",
 	DeletedAt:     "deleted_at",
@@ -83,6 +86,7 @@ var UsersQuestionTableColumns = struct {
 	TimeRepeat    string
 	TotalSerial   string
 	CorrectAnswer string
+	IsPause       string
 	CreatedAt     string
 	UpdatedAt     string
 	DeletedAt     string
@@ -97,6 +101,7 @@ var UsersQuestionTableColumns = struct {
 	TimeRepeat:    "users_questions.time_repeat",
 	TotalSerial:   "users_questions.total_serial",
 	CorrectAnswer: "users_questions.correct_answer",
+	IsPause:       "users_questions.is_pause",
 	CreatedAt:     "users_questions.created_at",
 	UpdatedAt:     "users_questions.updated_at",
 	DeletedAt:     "users_questions.deleted_at",
@@ -209,6 +214,7 @@ var UsersQuestionWhere = struct {
 	TimeRepeat    whereHelpertime_Time
 	TotalSerial   whereHelperint64
 	CorrectAnswer whereHelpernull_Int64
+	IsPause       whereHelperbool
 	CreatedAt     whereHelpertime_Time
 	UpdatedAt     whereHelpertime_Time
 	DeletedAt     whereHelpernull_Time
@@ -223,6 +229,7 @@ var UsersQuestionWhere = struct {
 	TimeRepeat:    whereHelpertime_Time{field: "\"users_questions\".\"time_repeat\""},
 	TotalSerial:   whereHelperint64{field: "\"users_questions\".\"total_serial\""},
 	CorrectAnswer: whereHelpernull_Int64{field: "\"users_questions\".\"correct_answer\""},
+	IsPause:       whereHelperbool{field: "\"users_questions\".\"is_pause\""},
 	CreatedAt:     whereHelpertime_Time{field: "\"users_questions\".\"created_at\""},
 	UpdatedAt:     whereHelpertime_Time{field: "\"users_questions\".\"updated_at\""},
 	DeletedAt:     whereHelpernull_Time{field: "\"users_questions\".\"deleted_at\""},
@@ -266,9 +273,9 @@ func (r *usersQuestionR) GetUser() *User {
 type usersQuestionL struct{}
 
 var (
-	usersQuestionAllColumns            = []string{"id", "question_id", "user_id", "total_correct", "total_wrong", "is_edu", "poll_id", "time_repeat", "total_serial", "correct_answer", "created_at", "updated_at", "deleted_at"}
+	usersQuestionAllColumns            = []string{"id", "question_id", "user_id", "total_correct", "total_wrong", "is_edu", "poll_id", "time_repeat", "total_serial", "correct_answer", "is_pause", "created_at", "updated_at", "deleted_at"}
 	usersQuestionColumnsWithoutDefault = []string{}
-	usersQuestionColumnsWithDefault    = []string{"id", "question_id", "user_id", "total_correct", "total_wrong", "is_edu", "poll_id", "time_repeat", "total_serial", "correct_answer", "created_at", "updated_at", "deleted_at"}
+	usersQuestionColumnsWithDefault    = []string{"id", "question_id", "user_id", "total_correct", "total_wrong", "is_edu", "poll_id", "time_repeat", "total_serial", "correct_answer", "is_pause", "created_at", "updated_at", "deleted_at"}
 	usersQuestionPrimaryKeyColumns     = []string{"id"}
 	usersQuestionGeneratedColumns      = []string{}
 )

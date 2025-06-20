@@ -2,3 +2,4 @@
 vendor
 /.idea/
 etc/config.yml
+migrations/data.sql

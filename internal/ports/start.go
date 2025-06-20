@@ -45,10 +45,13 @@ func mainMenu() *telebot.ReplyMarkup {
 	btnAdd := menu.Text("➕ Добавить вопрос")
 	btnMark := menu.Text("📚 Повторение")
 	btnDelete := menu.Text("🗑 Удалить вопрос")
+	btnPause := menu.Text("⏸️ Пауза")
+	btnResume := menu.Text("▶️ Старт")
 
 	menu.Reply(
 		menu.Row(btnAdd),
 		menu.Row(btnMark, btnDelete),
+		menu.Row(btnPause, btnResume),
 	)
 
 	return menu

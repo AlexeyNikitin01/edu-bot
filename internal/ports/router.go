@@ -20,6 +20,7 @@ func routers(b *telebot.Bot, domain *app.App) {
 			return add()(ctx)
 		}
 
+		// TODO: нужно смотреть если пауза у пользователя, чтобы ничего не ломать
 		switch ctx.Text() {
 		case "/add", "➕ Добавить вопрос":
 			drafts[userID] = &QuestionDraft{Step: 1}
@@ -28,6 +29,10 @@ func routers(b *telebot.Bot, domain *app.App) {
 			return showRepeatList()(ctx)
 		case "🗑 Удалить вопрос":
 			return deleteList()(ctx)
+		case "⏸️ Пауза":
+			return pause()(ctx)
+		case "▶️ Старт":
+			return resume()(ctx)
 		default:
 			return ctx.Send("⚠️ Неизвестная команда. Используйте меню ниже.", mainMenu())
 		}
