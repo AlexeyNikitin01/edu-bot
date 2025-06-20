@@ -35,6 +35,21 @@ func start() telebot.HandlerFunc {
 			return err
 		}
 
-		return nil
+		return ctx.Send("Добро пожаловать! Выберите действие:", mainMenu())
 	}
+}
+
+func mainMenu() *telebot.ReplyMarkup {
+	menu := &telebot.ReplyMarkup{ResizeKeyboard: true}
+
+	btnAdd := menu.Text("➕ Добавить вопрос")
+	btnMark := menu.Text("📚 Повторение")
+	btnDelete := menu.Text("🗑 Удалить вопрос")
+
+	menu.Reply(
+		menu.Row(btnAdd),
+		menu.Row(btnMark, btnDelete),
+	)
+
+	return menu
 }
