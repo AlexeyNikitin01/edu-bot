@@ -2,12 +2,19 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"time"
 
+	"github.com/golang-migrate/migrate/v4"
+	"github.com/jmoiron/sqlx"
+	"github.com/pkg/errors"
 	"gopkg.in/telebot.v3"
 
 	"github.com/volatiletech/sqlboiler/v4/boil"
+
+	postgresMigrate "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 
 	"bot/internal/adapters"
 	"bot/internal/app"
@@ -20,8 +27,8 @@ func main() {
 	ctx := context.Background()
 
 	db, err := adapters.OpenConnectPostgres(&adapters.Config{
-		Host:   "localhost",
-		Port:   "7878",
+		Host:   "db",
+		Port:   "5432",
 		User:   "postgres",
 		Dbname: "edu",
 		Pass:   "pass",
@@ -31,6 +38,10 @@ func main() {
 		log.Fatal(err)
 	}
 	boil.SetDB(db)
+
+	if err = runMigrations(db); err != nil {
+		log.Fatal(err)
+	}
 
 	domain := app.NewApp()
 
@@ -47,4 +58,27 @@ func main() {
 	}
 
 	ports.StartBot(ctx, b, domain)
+}
+
+func runMigrations(db *sqlx.DB) error {
+	driver, err := postgresMigrate.WithInstance(db.DB, &postgresMigrate.Config{})
+	if err != nil {
+		return fmt.Errorf("failed to create migration driver: %w", err)
+	}
+
+	m, err := migrate.NewWithDatabaseInstance(
+		"file://migrations/postgres",
+		"postgres",
+		driver,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create migration instance: %w", err)
+	}
+
+	if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+		return fmt.Errorf("failed to apply migrations: %w", err)
+	}
+
+	log.Println("Migrations applied successfully")
+	return nil
 }

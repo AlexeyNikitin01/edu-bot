@@ -1,0 +1,29 @@
+version: '3.9'
+
+services:
+  db:
+    image: postgres:15
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: edu
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: pass
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  edu-bot:
+    build: .
+    depends_on:
+      - db
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./etc/config_example.yml:/app/config.yml:ro
+    environment:
+      CONFIG_PATH: /app/config.yml
+    restart: unless-stopped
+
+volumes:
+  pgdata:
