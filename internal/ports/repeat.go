@@ -64,7 +64,7 @@ func (d *QuestionDispatcher) checkAndDispatch() {
 		d.mu.Lock()
 		ch, exists := d.workers[userID]
 		if !exists {
-			ch = make(chan *edu.UsersQuestion, 10) // буферизированный канал
+			ch = make(chan *edu.UsersQuestion, 1) // буферизированный канал
 			d.workers[userID] = ch
 			go d.worker(userID, ch)
 		}

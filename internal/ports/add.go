@@ -44,10 +44,16 @@ func add() telebot.HandlerFunc {
 			draft.Step++
 			return ctx.Send("✅ Введите правильный ответ:")
 		case 3:
+			if len(draft.Answers) > 100 {
+				return ctx.Send("ℹ️ нельзя больше 100 символов в ответе")
+			}
 			draft.Answers = append(draft.Answers, msg) // правильный
 			draft.Step++
 			return ctx.Send("❌ Введите неправильный ответ 1 (или /done, чтобы завершить):")
 		case 4:
+			if len(draft.Answers) > 100 {
+				return ctx.Send("ℹ️ нельзя больше 100 символов в ответе")
+			}
 			if msg == "/done" {
 				goto Save
 			}
