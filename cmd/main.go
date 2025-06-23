@@ -39,9 +39,8 @@ func main() {
 
 	domain := app.NewApp()
 
-	// TODO config
 	pref := telebot.Settings{
-		Token:  "7700250115:AAFnBqR2zs7yHqBIhxVHwfgQiFv-33iHY8g",
+		Token:  getToken(),
 		Poller: &telebot.LongPoller{Timeout: 10 * time.Second},
 	}
 
@@ -91,4 +90,13 @@ func getPostgresCfg() *adapters.Config {
 		Pass:   config.PSQL.Password,
 		SSL:    config.PSQL.SSLmode,
 	}
+}
+
+func getToken() string {
+	config, err := cfg.NewToken()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return config.Token
 }

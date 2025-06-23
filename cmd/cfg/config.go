@@ -35,3 +35,23 @@ func NewCfgPostgres() (*Config, error) {
 
 	return config, nil
 }
+
+type Token struct {
+	Token string `yaml:"token"`
+}
+
+func NewToken() (*Token, error) {
+	yamlFile, err := os.ReadFile("./etc/config.yml")
+	if err != nil {
+		return nil, errors.Wrap(err, "read file config")
+	}
+
+	var config *Token
+
+	err = yaml.Unmarshal(yamlFile, &config)
+	if err != nil {
+		return nil, errors.Wrap(err, "unmarshal")
+	}
+
+	return config, nil
+}
