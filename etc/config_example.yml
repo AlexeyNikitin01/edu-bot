@@ -2,7 +2,7 @@ psql:
   user: ""
   pass: ""
   host: ""
-  port: 5555
+  port: ""
   dbname: ""
   sslMode: ""
   maxIdleCons: 50
@@ -14,3 +14,5 @@ psql:
     - test
     - gopg_migrations
     - goose_db_version
+
+token: ""
