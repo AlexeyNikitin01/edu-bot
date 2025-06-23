@@ -151,7 +151,8 @@ func (d *QuestionDispatcher) sendPoll(userID int64, uq *edu.UsersQuestion) error
 
 	uq.PollID = null.StringFrom(msg.Poll.ID)
 	uq.CorrectAnswer = null.Int64From(int64(correctIndex))
-	if _, err = uq.Update(d.ctx, boil.GetContextDB(), boil.Whitelist(edu.UsersQuestionColumns.PollID)); err != nil {
+	if _, err = uq.Update(d.ctx, boil.GetContextDB(),
+		boil.Whitelist(edu.UsersQuestionColumns.PollID, edu.UsersQuestionColumns.CorrectAnswer)); err != nil {
 		return err
 	}
 

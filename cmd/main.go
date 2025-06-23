@@ -27,8 +27,8 @@ func main() {
 	ctx := context.Background()
 
 	db, err := adapters.OpenConnectPostgres(&adapters.Config{
-		Host:   "db",
-		Port:   "5432",
+		Host:   "localhost",
+		Port:   "1212",
 		User:   "postgres",
 		Dbname: "edu",
 		Pass:   "pass",
