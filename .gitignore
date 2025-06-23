@@ -2,4 +2,5 @@
 vendor
 /.idea/
 etc/config.yml
+etc/config.docker.yml
 migrations/data.sql

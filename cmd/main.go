@@ -16,6 +16,7 @@ import (
 	postgresMigrate "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 
+	"bot/cmd/cfg"
 	"bot/internal/adapters"
 	"bot/internal/app"
 	"bot/internal/ports"
@@ -26,14 +27,7 @@ func main() {
 
 	ctx := context.Background()
 
-	db, err := adapters.OpenConnectPostgres(&adapters.Config{
-		Host:   "localhost",
-		Port:   "1212",
-		User:   "postgres",
-		Dbname: "edu",
-		Pass:   "pass",
-		SSL:    "disable",
-	})
+	db, err := adapters.OpenConnectPostgres(getPostgresCfg())
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -81,4 +75,20 @@ func runMigrations(db *sqlx.DB) error {
 
 	log.Println("Migrations applied successfully")
 	return nil
+}
+
+func getPostgresCfg() *adapters.Config {
+	config, err := cfg.NewCfgPostgres()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return &adapters.Config{
+		Host:   config.PSQL.Host,
+		Port:   config.PSQL.Port,
+		User:   config.PSQL.User,
+		Dbname: config.PSQL.DBName,
+		Pass:   config.PSQL.Password,
+		SSL:    config.PSQL.SSLmode,
+	}
 }
