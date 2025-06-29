@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"time"
 
@@ -69,6 +70,64 @@ func (a *App) UpdateRepeatTime(ctx context.Context, question *edu.UsersQuestion,
 		))
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// GetUniqueTags Функция для получения уникальных тегов
+func (a *App) GetUniqueTags(ctx context.Context, userID int64) ([]string, error) {
+	ts, err := edu.Questions(
+		qm.InnerJoin(
+			fmt.Sprintf("%s ON %s = %s",
+				edu.TableNames.UsersQuestions,
+				edu.UsersQuestionTableColumns.QuestionID,
+				edu.QuestionTableColumns.ID),
+		),
+		qm.Select(fmt.Sprintf("DISTINCT %s", edu.QuestionColumns.Tag)),
+		edu.QuestionWhere.Tag.NEQ(""),
+		edu.UsersQuestionWhere.UserID.EQ(userID),
+	).All(ctx, boil.GetContextDB())
+	if err != nil {
+		return nil, err
+	}
+
+	var uniqueTags []string
+	for _, t := range ts {
+		uniqueTags = append(uniqueTags, t.Tag)
+	}
+
+	return uniqueTags, nil
+}
+
+func (a *App) SaveQuestions(ctx context.Context, question, tag string, answers []string, userID int64) (err error) {
+	q := &edu.Question{
+		Question: question,
+		Tag:      tag,
+	}
+	if err = q.Insert(ctx, boil.GetContextDB(), boil.Infer()); err != nil {
+		return err
+	}
+
+	for i, answer := range answers {
+		a := edu.Answer{
+			QuestionID: q.ID,
+			Answer:     answer,
+			IsCorrect:  i == 0,
+		}
+		if err = a.Insert(ctx, boil.GetContextDB(), boil.Infer()); err != nil {
+			return err
+		}
+	}
+
+	uq := edu.UsersQuestion{
+		QuestionID: q.ID,
+		UserID:     userID,
+		IsEdu:      true,
+		TimeRepeat: time.Now().Add(time.Minute * 5),
+	}
+	if err = uq.Insert(ctx, boil.GetContextDB(), boil.Infer()); err != nil {
+		return
 	}
 
 	return nil
