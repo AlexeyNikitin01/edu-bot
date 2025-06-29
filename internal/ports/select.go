@@ -7,20 +7,50 @@ import (
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"gopkg.in/telebot.v3"
 
+	"bot/internal/app"
 	"bot/internal/repo/edu"
 )
 
-func showRepeatList() telebot.HandlerFunc {
+func showRepeatTagList(domain app.Apper) telebot.HandlerFunc {
 	return func(ctx telebot.Context) error {
-		tgUser := ctx.Sender()
-		userID := tgUser.ID
+		u := GetUserFromContext(ctx)
 
-		u, err := edu.Users(edu.UserWhere.TGUserID.EQ(userID)).One(GetContext(ctx), boil.GetContextDB())
+		uniqueTags, err := domain.GetUniqueTags(GetContext(ctx), u.TGUserID)
 		if err != nil {
-			return ctx.Send("Вы не зарегистрированы.")
+			return ctx.Send("Ошибка при получении тегов.")
 		}
 
-		uqs, err := edu.UsersQuestions(edu.UsersQuestionWhere.UserID.EQ(u.TGUserID)).
+		if len(uniqueTags) == 0 {
+			return nil
+		}
+
+		var tagButtons [][]telebot.InlineButton
+
+		for _, tag := range uniqueTags {
+			btn := telebot.InlineButton{
+				Unique: "select_tag",
+				Text:   tag,
+				Data:   tag,
+			}
+			tagButtons = append(tagButtons, []telebot.InlineButton{btn})
+		}
+
+		allBtn := telebot.InlineButton{
+			Unique: "select_tag",
+			Text:   "Все вопросы",
+			Data:   "all",
+		}
+		tagButtons = append(tagButtons, []telebot.InlineButton{allBtn})
+
+		return ctx.Send("Выберите тег для просмотра вопросов:", &telebot.ReplyMarkup{
+			InlineKeyboard: tagButtons,
+		})
+	}
+}
+
+func questionByTag(tag string) telebot.HandlerFunc {
+	return func(ctx telebot.Context) error {
+		uqs, err := edu.UsersQuestions(edu.UsersQuestionWhere.UserID.EQ(GetUserFromContext(ctx).TGUserID)).
 			All(GetContext(ctx), boil.GetContextDB())
 		if err != nil || len(uqs) == 0 {
 			return ctx.Send("У вас нет вопросов.")
@@ -29,7 +59,10 @@ func showRepeatList() telebot.HandlerFunc {
 		var btns [][]telebot.InlineButton
 
 		for _, uq := range uqs {
-			q, err := edu.Questions(edu.QuestionWhere.ID.EQ(uq.QuestionID)).One(GetContext(ctx), boil.GetContextDB())
+			q, err := edu.Questions(
+				edu.QuestionWhere.Tag.EQ(tag),
+				edu.QuestionWhere.ID.EQ(uq.QuestionID),
+			).One(GetContext(ctx), boil.GetContextDB())
 			if err != nil {
 				continue
 			}
@@ -54,6 +87,7 @@ func showRepeatList() telebot.HandlerFunc {
 	}
 }
 
+// handleToggleRepeat выбор учить или не учить вопрос.
 func handleToggleRepeat() telebot.HandlerFunc {
 	return func(ctx telebot.Context) error {
 		qidStr := ctx.Data() // получаем questionID из callback data

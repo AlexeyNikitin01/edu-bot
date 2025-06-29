@@ -12,6 +12,7 @@ const (
 	TAGS = "getTags"
 
 	ADD_QUESTION = "➕ Добавить вопрос"
+	REPEAT       = "📚 Повторение"
 )
 
 func routers(ctx context.Context, b *telebot.Bot, domain *app.App) {
@@ -21,6 +22,11 @@ func routers(ctx context.Context, b *telebot.Bot, domain *app.App) {
 	b.Handle(&telebot.InlineButton{Unique: "delete_repeat"}, deleteRepeat())
 	b.Handle(&telebot.InlineButton{Unique: TAGS}, func(c telebot.Context) error {
 		return add(domain)(c)
+	})
+
+	b.Handle(&telebot.InlineButton{Unique: "select_tag"}, func(ctx telebot.Context) error {
+		tag := ctx.Data()
+		return questionByTag(tag)(ctx)
 	})
 
 	b.Handle(telebot.OnText, func(ctx telebot.Context) error {
@@ -39,8 +45,8 @@ func routers(ctx context.Context, b *telebot.Bot, domain *app.App) {
 			}
 			drafts[userID] = &QuestionDraft{Step: 1}
 			return add(domain)(ctx)
-		case "📚 Повторение":
-			return showRepeatList()(ctx)
+		case REPEAT:
+			return showRepeatTagList(domain)(ctx)
 		case "🗑 Удалить вопрос":
 			return deleteList()(ctx)
 		case "⏸️ Пауза":
