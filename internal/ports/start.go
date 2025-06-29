@@ -9,6 +9,8 @@ import (
 	"bot/internal/repo/edu"
 )
 
+const MSG_GRETING = "Добро пожаловать! Выберите действие:"
+
 func start() telebot.HandlerFunc {
 	return func(ctx telebot.Context) error {
 		tgUser := ctx.Sender()
@@ -35,21 +37,22 @@ func start() telebot.HandlerFunc {
 			return err
 		}
 
-		return ctx.Send("Добро пожаловать! Выберите действие:", mainMenu())
+		return ctx.Send(MSG_GRETING, mainMenu())
 	}
 }
 
 func mainMenu() *telebot.ReplyMarkup {
 	menu := &telebot.ReplyMarkup{ResizeKeyboard: true}
 
-	btnAdd := menu.Text("➕ Добавить вопрос")
-	btnMark := menu.Text("📚 Повторение")
-	btnDelete := menu.Text("🗑 Удалить вопрос")
-	btnPause := menu.Text("⏸️ Пауза")
-	btnResume := menu.Text("▶️ Старт")
+	btnAdd := menu.Text(BTN_ADD_QUESTION)
+	btnMark := menu.Text(BTN_REPEAT)
+	btnDelete := menu.Text(BTN_DEL_QUESTION)
+	btnPause := menu.Text(BTN_PAUSE)
+	btnResume := menu.Text(BTN_RESUME)
+	btnCSV := menu.Text(BTN_ADD_CSV)
 
 	menu.Reply(
-		menu.Row(btnAdd),
+		menu.Row(btnAdd, btnCSV),
 		menu.Row(btnMark, btnDelete),
 		menu.Row(btnPause, btnResume),
 	)

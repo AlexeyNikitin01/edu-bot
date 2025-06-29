@@ -9,20 +9,34 @@ import (
 )
 
 const (
-	TAGS = "getTags"
+	INLINE_BTN_TAGS   = "getTags"
+	INLINE_BTN_REPEAT = "toggle_repeat"
+	INLINE_BTN_DELETE = "delete_repeat"
 
-	ADD_QUESTION = "➕ Добавить вопрос"
-	REPEAT       = "📚 Повторение"
+	BTN_ADD_QUESTION = "➕ Добавить вопрос"
+	BTN_REPEAT       = "📚 Управлять вопросами"
+	BTN_ADD_CSV      = "📁 Добавить вопросы через CSV"
+	BTN_DEL_QUESTION = "🗑 Удалить вопросы"
+	BTN_PAUSE        = "⏸️ Выключить вопросы"
+	BTN_RESUME       = "▶️ Включить вопросы"
+
+	MSG_WRONG_BTN = "⚠️ Неизвестная команда. Используйте меню ниже."
+
+	CMD_START         = "/start"
+	CMD_DONE   string = "/done"
+	CMD_CANCEL string = "/cancel"
 )
 
 func routers(ctx context.Context, b *telebot.Bot, domain *app.App) {
-	b.Handle("/start", start())
+	b.Handle(CMD_START, start())
 
-	b.Handle(&telebot.InlineButton{Unique: "toggle_repeat"}, handleToggleRepeat())
-	b.Handle(&telebot.InlineButton{Unique: "delete_repeat"}, deleteRepeat())
-	b.Handle(&telebot.InlineButton{Unique: TAGS}, func(c telebot.Context) error {
+	b.Handle(&telebot.InlineButton{Unique: INLINE_BTN_REPEAT}, handleToggleRepeat())
+	b.Handle(&telebot.InlineButton{Unique: INLINE_BTN_DELETE}, deleteRepeat())
+	b.Handle(&telebot.InlineButton{Unique: INLINE_BTN_TAGS}, func(c telebot.Context) error {
 		return add(domain)(c)
 	})
+
+	b.Handle(telebot.OnDocument, setQuestionsByCSV(domain))
 
 	b.Handle(&telebot.InlineButton{Unique: "select_tag"}, func(ctx telebot.Context) error {
 		tag := ctx.Data()
@@ -39,22 +53,28 @@ func routers(ctx context.Context, b *telebot.Bot, domain *app.App) {
 
 		// TODO: нужно смотреть если пауза у пользователя, чтобы ничего не ломать
 		switch ctx.Text() {
-		case ADD_QUESTION:
+		case BTN_ADD_QUESTION:
 			if err := getTags(ctx, GetUserFromContext(ctx).TGUserID, domain); err != nil {
 				return err
 			}
 			drafts[userID] = &QuestionDraft{Step: 1}
 			return add(domain)(ctx)
-		case REPEAT:
+		case BTN_REPEAT:
 			return showRepeatTagList(domain)(ctx)
-		case "🗑 Удалить вопрос":
+		case BTN_ADD_CSV:
+			return ctx.Send("📤 Отправьте CSV файл с вопросами в формате:\n\n"+
+				"<code>Вопрос;Тег;Правильный ответ;Неправильный1;Неправильный2</code>\n\n"+
+				"Пример:\n"+
+				"<code>Что такое GPT?;AI;Generative Pre-trained Transformer;General Purpose Technology</code>",
+				telebot.ModeHTML)
+		case BTN_DEL_QUESTION:
 			return deleteList()(ctx)
-		case "⏸️ Пауза":
+		case BTN_PAUSE:
 			return pause()(ctx)
-		case "▶️ Старт":
+		case BTN_RESUME:
 			return resume()(ctx)
 		default:
-			return ctx.Send("⚠️ Неизвестная команда. Используйте меню ниже.", mainMenu())
+			return ctx.Send(MSG_WRONG_BTN, mainMenu())
 		}
 	})
 

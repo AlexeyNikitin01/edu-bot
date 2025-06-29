@@ -43,7 +43,7 @@ func deleteList() telebot.HandlerFunc {
 
 			// Кнопка удаления (можно добавить toggle отдельно при необходимости)
 			btn := telebot.InlineButton{
-				Unique: "delete_repeat",
+				Unique: INLINE_BTN_DELETE,
 				Text:   label + " " + q.Question,
 				Data:   fmt.Sprintf("%d", uq.QuestionID),
 			}
@@ -103,7 +103,7 @@ func deleteRepeat() telebot.HandlerFunc {
 			}
 
 			btn := telebot.InlineButton{
-				Unique: "delete_repeat",
+				Unique: INLINE_BTN_DELETE,
 				Text:   label + " " + q.Question,
 				Data:   fmt.Sprintf("%d", uq.QuestionID),
 			}

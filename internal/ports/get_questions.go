@@ -73,7 +73,7 @@ func questionByTag(tag string) telebot.HandlerFunc {
 			}
 
 			btn := telebot.InlineButton{
-				Unique: "toggle_repeat",
+				Unique: INLINE_BTN_REPEAT,
 				Text:   label + " " + q.Question,
 				Data:   fmt.Sprintf("%d", uq.QuestionID),
 			}
@@ -139,7 +139,7 @@ func handleToggleRepeat() telebot.HandlerFunc {
 			}
 
 			btn := telebot.InlineButton{
-				Unique: "toggle_repeat",
+				Unique: INLINE_BTN_REPEAT,
 				Text:   label + " " + q.Question,
 				Data:   fmt.Sprintf("%d", uq.QuestionID),
 			}

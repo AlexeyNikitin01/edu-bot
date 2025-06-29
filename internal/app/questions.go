@@ -110,12 +110,12 @@ func (a *App) SaveQuestions(ctx context.Context, question, tag string, answers [
 	}
 
 	for i, answer := range answers {
-		a := edu.Answer{
+		answr := edu.Answer{
 			QuestionID: q.ID,
 			Answer:     answer,
 			IsCorrect:  i == 0,
 		}
-		if err = a.Insert(ctx, boil.GetContextDB(), boil.Infer()); err != nil {
+		if err = answr.Insert(ctx, boil.GetContextDB(), boil.Infer()); err != nil {
 			return err
 		}
 	}
