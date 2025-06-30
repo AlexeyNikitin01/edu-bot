@@ -109,6 +109,10 @@ func (a *App) SaveQuestions(ctx context.Context, question, tag string, answers [
 		return err
 	}
 
+	if err = q.Reload(ctx, boil.GetContextDB()); err != nil {
+		return err
+	}
+
 	for i, answer := range answers {
 		answr := edu.Answer{
 			QuestionID: q.ID,
