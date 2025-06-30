@@ -2,6 +2,7 @@ package ports
 
 import (
 	"context"
+	"strings"
 
 	"gopkg.in/telebot.v3"
 
@@ -9,9 +10,10 @@ import (
 )
 
 const (
-	INLINE_BTN_TAGS   = "getTags"
-	INLINE_BTN_REPEAT = "toggle_repeat"
-	INLINE_BTN_DELETE = "delete_repeat"
+	INLINE_BTN_TAGS            = "tags"
+	INLINE_BTN_REPEAT          = "toggle_repeat"
+	INLINE_BTN_DELETE          = "delete_repeat"
+	INLINE_BTN_QUESTION_BY_TAG = "question_by_tag"
 
 	BTN_ADD_QUESTION = "➕ Добавить вопрос"
 	BTN_REPEAT       = "📚 Управлять вопросами"
@@ -21,6 +23,10 @@ const (
 	BTN_RESUME       = "▶️ Включить вопросы"
 
 	MSG_WRONG_BTN = "⚠️ Неизвестная команда. Используйте меню ниже."
+	MSG_CSV       = "📤 Отправьте CSV файл с вопросами в формате:\n\n" +
+		"<code>Вопрос;Тег;Правильный ответ;Неправильный1;Неправильный2</code>\n\n" +
+		"Пример:\n" +
+		"<code>Что такое GPT?;AI;Generative Pre-trained Transformer;General Purpose Technology</code>"
 
 	CMD_START         = "/start"
 	CMD_DONE   string = "/done"
@@ -35,19 +41,16 @@ func routers(ctx context.Context, b *telebot.Bot, domain *app.App) {
 	b.Handle(&telebot.InlineButton{Unique: INLINE_BTN_TAGS}, func(c telebot.Context) error {
 		return add(domain)(c)
 	})
-
 	b.Handle(telebot.OnDocument, setQuestionsByCSV(domain))
 
-	b.Handle(&telebot.InlineButton{Unique: "select_tag"}, func(ctx telebot.Context) error {
-		tag := ctx.Data()
-		return questionByTag(tag)(ctx)
+	b.Handle(&telebot.InlineButton{Unique: INLINE_BTN_QUESTION_BY_TAG}, func(ctx telebot.Context) error {
+		datas := strings.Split(ctx.Data(), ";")
+		return questionByTag(datas[0], datas[1])(ctx)
 	})
 
 	b.Handle(telebot.OnText, func(ctx telebot.Context) error {
-		userID := ctx.Sender().ID
-
 		// Если пользователь в процессе добавления вопроса
-		if draft, ok := drafts[userID]; ok && draft.Step > 0 {
+		if draft, ok := drafts[GetUserFromContext(ctx).TGUserID]; ok && draft.Step > 0 {
 			return add(domain)(ctx)
 		}
 
@@ -57,18 +60,14 @@ func routers(ctx context.Context, b *telebot.Bot, domain *app.App) {
 			if err := getTags(ctx, GetUserFromContext(ctx).TGUserID, domain); err != nil {
 				return err
 			}
-			drafts[userID] = &QuestionDraft{Step: 1}
+			drafts[GetUserFromContext(ctx).TGUserID] = &QuestionDraft{Step: 1}
 			return add(domain)(ctx)
 		case BTN_REPEAT:
-			return showRepeatTagList(domain)(ctx)
+			return showRepeatTagList(domain, INLINE_BTN_REPEAT)(ctx)
 		case BTN_ADD_CSV:
-			return ctx.Send("📤 Отправьте CSV файл с вопросами в формате:\n\n"+
-				"<code>Вопрос;Тег;Правильный ответ;Неправильный1;Неправильный2</code>\n\n"+
-				"Пример:\n"+
-				"<code>Что такое GPT?;AI;Generative Pre-trained Transformer;General Purpose Technology</code>",
-				telebot.ModeHTML)
+			return ctx.Send(MSG_CSV, telebot.ModeHTML)
 		case BTN_DEL_QUESTION:
-			return deleteList()(ctx)
+			return showRepeatTagList(domain, INLINE_BTN_DELETE)(ctx)
 		case BTN_PAUSE:
 			return pause()(ctx)
 		case BTN_RESUME:

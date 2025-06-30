@@ -5,13 +5,14 @@ import (
 	"strconv"
 
 	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 	"gopkg.in/telebot.v3"
 
 	"bot/internal/app"
 	"bot/internal/repo/edu"
 )
 
-func showRepeatTagList(domain app.Apper) telebot.HandlerFunc {
+func showRepeatTagList(domain app.Apper, action string) telebot.HandlerFunc {
 	return func(ctx telebot.Context) error {
 		u := GetUserFromContext(ctx)
 
@@ -28,19 +29,12 @@ func showRepeatTagList(domain app.Apper) telebot.HandlerFunc {
 
 		for _, tag := range uniqueTags {
 			btn := telebot.InlineButton{
-				Unique: "select_tag",
+				Unique: INLINE_BTN_QUESTION_BY_TAG,
 				Text:   tag,
-				Data:   tag,
+				Data:   tag + ";" + action,
 			}
 			tagButtons = append(tagButtons, []telebot.InlineButton{btn})
 		}
-
-		allBtn := telebot.InlineButton{
-			Unique: "select_tag",
-			Text:   "Все вопросы",
-			Data:   "all",
-		}
-		tagButtons = append(tagButtons, []telebot.InlineButton{allBtn})
 
 		return ctx.Send("Выберите тег для просмотра вопросов:", &telebot.ReplyMarkup{
 			InlineKeyboard: tagButtons,
@@ -48,41 +42,10 @@ func showRepeatTagList(domain app.Apper) telebot.HandlerFunc {
 	}
 }
 
-func questionByTag(tag string) telebot.HandlerFunc {
+func questionByTag(tag, action string) telebot.HandlerFunc {
 	return func(ctx telebot.Context) error {
-		uqs, err := edu.UsersQuestions(edu.UsersQuestionWhere.UserID.EQ(GetUserFromContext(ctx).TGUserID)).
-			All(GetContext(ctx), boil.GetContextDB())
-		if err != nil || len(uqs) == 0 {
-			return ctx.Send("У вас нет вопросов.")
-		}
-
-		var btns [][]telebot.InlineButton
-
-		for _, uq := range uqs {
-			q, err := edu.Questions(
-				edu.QuestionWhere.Tag.EQ(tag),
-				edu.QuestionWhere.ID.EQ(uq.QuestionID),
-			).One(GetContext(ctx), boil.GetContextDB())
-			if err != nil {
-				continue
-			}
-
-			label := "☑️"
-			if uq.IsEdu {
-				label = "✅"
-			}
-
-			btn := telebot.InlineButton{
-				Unique: INLINE_BTN_REPEAT,
-				Text:   label + " " + q.Question,
-				Data:   fmt.Sprintf("%d", uq.QuestionID),
-			}
-
-			btns = append(btns, []telebot.InlineButton{btn})
-		}
-
 		return ctx.Send("Выберите вопросы для повторения:", &telebot.ReplyMarkup{
-			InlineKeyboard: btns,
+			InlineKeyboard: getQuestionBtns(ctx, tag, action),
 		})
 	}
 }
@@ -96,17 +59,10 @@ func handleToggleRepeat() telebot.HandlerFunc {
 			return ctx.Respond(&telebot.CallbackResponse{Text: "Ошибка данных."})
 		}
 
-		tgUser := ctx.Sender()
-		userID := tgUser.ID
-
-		u, err := edu.Users(edu.UserWhere.TGUserID.EQ(userID)).One(GetContext(ctx), boil.GetContextDB())
-		if err != nil {
-			return ctx.Respond(&telebot.CallbackResponse{Text: "Вы не зарегистрированы."})
-		}
-
 		uq, err := edu.UsersQuestions(
-			edu.UsersQuestionWhere.UserID.EQ(u.TGUserID),
+			edu.UsersQuestionWhere.UserID.EQ(GetUserFromContext(ctx).TGUserID),
 			edu.UsersQuestionWhere.QuestionID.EQ(int64(questionID)),
+			qm.Load(edu.UsersQuestionRels.Question),
 		).One(GetContext(ctx), boil.GetContextDB())
 		if err != nil {
 			return ctx.Respond(&telebot.CallbackResponse{Text: "Вопрос не найден."})
@@ -118,36 +74,43 @@ func handleToggleRepeat() telebot.HandlerFunc {
 			return ctx.Respond(&telebot.CallbackResponse{Text: "Не удалось обновить."})
 		}
 
-		// Получаем все вопросы заново, чтобы обновить inline-клавиатуру
-		uqs, err := edu.UsersQuestions(edu.UsersQuestionWhere.UserID.EQ(u.TGUserID)).
-			All(GetContext(ctx), boil.GetContextDB())
-		if err != nil || len(uqs) == 0 {
-			return ctx.Edit("У вас нет вопросов.")
-		}
-
-		var btns [][]telebot.InlineButton
-		for _, uq := range uqs {
-			q, err := edu.Questions(edu.QuestionWhere.ID.EQ(uq.QuestionID)).
-				One(GetContext(ctx), boil.GetContextDB())
-			if err != nil {
-				continue
-			}
-
-			label := "☑️"
-			if uq.IsEdu {
-				label = "✅"
-			}
-
-			btn := telebot.InlineButton{
-				Unique: INLINE_BTN_REPEAT,
-				Text:   label + " " + q.Question,
-				Data:   fmt.Sprintf("%d", uq.QuestionID),
-			}
-			btns = append(btns, []telebot.InlineButton{btn})
-		}
-
 		return ctx.Edit(&telebot.ReplyMarkup{
-			InlineKeyboard: btns,
+			InlineKeyboard: getQuestionBtns(ctx, uq.R.GetQuestion().Tag, INLINE_BTN_REPEAT),
 		})
 	}
+}
+
+func getQuestionBtns(ctx telebot.Context, tag string, action string) [][]telebot.InlineButton {
+	uqs, err := edu.UsersQuestions(edu.UsersQuestionWhere.UserID.EQ(GetUserFromContext(ctx).TGUserID)).
+		All(GetContext(ctx), boil.GetContextDB())
+	if err != nil || len(uqs) == 0 {
+		return nil
+	}
+
+	var btns [][]telebot.InlineButton
+
+	for _, uq := range uqs {
+		q, err := edu.Questions(
+			edu.QuestionWhere.Tag.EQ(tag),
+			edu.QuestionWhere.ID.EQ(uq.QuestionID),
+		).One(GetContext(ctx), boil.GetContextDB())
+		if err != nil {
+			continue
+		}
+
+		label := "☑️"
+		if uq.IsEdu {
+			label = "✅"
+		}
+
+		btn := telebot.InlineButton{
+			Unique: action,
+			Text:   label + " " + q.Question,
+			Data:   fmt.Sprintf("%d", uq.QuestionID),
+		}
+
+		btns = append(btns, []telebot.InlineButton{btn})
+	}
+
+	return btns
 }
