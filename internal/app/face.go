@@ -11,7 +11,8 @@ type Apper interface {
 	UpdateRepeatTime(context.Context, *edu.UsersQuestion, bool) error
 	GetUniqueTags(context.Context, int64) ([]string, error)
 	SaveQuestions(context.Context, string, string, []string, int64) error
-	GetOrCreate(context.Context, int64, int64, string) (*edu.User, error)
+	GetUser(context.Context, int64) (*edu.User, error)
+	CreateUser(context.Context, int64, int64, string) (*edu.User, error)
 }
 
 type App struct {

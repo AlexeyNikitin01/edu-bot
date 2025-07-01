@@ -17,15 +17,40 @@ func AuthMiddleware(ctx context.Context, domain app.Apper) telebot.MiddlewareFun
 				return next(c)
 			}
 
+			// ищем пользователя
 			sender := c.Sender()
-			chat := c.Chat()
 
-			user, err := domain.GetOrCreate(ctx, sender.ID, chat.ID, sender.FirstName)
+			user, err := domain.GetUser(ctx, sender.ID)
 			if err != nil {
+				return c.Reply("Произошла ошибка при авторизации: невозможно получить пользователя")
+			}
+
+			if user != nil {
+				c.Set("user", user)
+				return next(c)
+			}
+
+			// Пытаемся создать пользователя
+			chatUser := c.Chat()
+
+			if chatUser == nil {
+				return c.Reply("Произошла ошибка при авторизации: пустой чат")
+			}
+
+			user, err = domain.CreateUser(ctx, sender.ID, chatUser.ID, sender.FirstName)
+			if err != nil {
+				return c.Reply("Произошла ошибка при авторизации: невозможно создать или обновить пользователя")
+			}
+
+			if user == nil {
 				return c.Reply("Произошла ошибка при авторизации")
 			}
 
 			c.Set("user", user)
+
+			if err = c.Send(MSG_GRETING, mainMenu()); err != nil {
+				return c.Reply("Произошла ошибка при отправке приветствия")
+			}
 
 			return next(c)
 		}
