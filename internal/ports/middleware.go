@@ -13,7 +13,7 @@ import (
 func AuthMiddleware(ctx context.Context, domain app.Apper) telebot.MiddlewareFunc {
 	return func(next telebot.HandlerFunc) telebot.HandlerFunc {
 		return func(c telebot.Context) error {
-			if c.Message().Text == "/start" {
+			if c.Message() != nil && c.Message().Text == "/start" {
 				return next(c)
 			}
 
