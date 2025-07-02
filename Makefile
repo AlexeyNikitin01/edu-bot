@@ -12,3 +12,6 @@ reset:
 
 entity:
 	sqlboiler psql -c etc/config.yml -p edu -o internal/repo/edu
+
+ssh:
+	ssh -i home/.ssh/id_ed25519 -l aleksey 51.250.98.75

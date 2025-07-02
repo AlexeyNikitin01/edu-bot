@@ -7,8 +7,12 @@ import (
 )
 
 type Apper interface {
-	GetQuestionsAnswers(ctx context.Context, userID int64) (edu.UsersQuestionSlice, error)
-	UpdateRepeatTime(ctx context.Context, question *edu.UsersQuestion, correct bool) error
+	GetQuestionsAnswers(context.Context, int64) (edu.UsersQuestionSlice, error)
+	UpdateRepeatTime(context.Context, *edu.UsersQuestion, bool) error
+	GetUniqueTags(context.Context, int64) ([]string, error)
+	SaveQuestions(context.Context, string, string, []string, int64) error
+	GetUser(context.Context, int64) (*edu.User, error)
+	CreateUser(context.Context, int64, int64, string) (*edu.User, error)
 }
 
 type App struct {
