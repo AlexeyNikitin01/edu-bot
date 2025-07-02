@@ -4,13 +4,15 @@
 package edu
 
 var TableNames = struct {
-	Answers        string
-	Questions      string
-	Users          string
-	UsersQuestions string
+	Answers          string
+	Questions        string
+	SchemaMigrations string
+	Users            string
+	UsersQuestions   string
 }{
-	Answers:        "answers",
-	Questions:      "questions",
-	Users:          "users",
-	UsersQuestions: "users_questions",
+	Answers:          "answers",
+	Questions:        "questions",
+	SchemaMigrations: "schema_migrations",
+	Users:            "users",
+	UsersQuestions:   "users_questions",
 }

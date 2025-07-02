@@ -28,7 +28,7 @@ func deleteQuestion() telebot.HandlerFunc {
 		_, err = edu.UsersQuestions(
 			edu.UsersQuestionWhere.UserID.EQ(GetUserFromContext(ctx).TGUserID),
 			edu.UsersQuestionWhere.QuestionID.EQ(int64(questionID)),
-		).DeleteAll(GetContext(ctx), boil.GetContextDB())
+		).DeleteAll(GetContext(ctx), boil.GetContextDB(), false)
 		if err != nil {
 			return ctx.Respond(&telebot.CallbackResponse{Text: "Ошибка удаления"})
 		}
@@ -45,7 +45,7 @@ func deleteQuestionByTag(domain app.Apper) telebot.HandlerFunc {
 		tag := ctx.Data()
 
 		_, err := edu.Questions(
-			edu.QuestionWhere.Tag.EQ(tag)).DeleteAll(GetContext(ctx), boil.GetContextDB())
+			edu.QuestionWhere.Tag.EQ(tag)).DeleteAll(GetContext(ctx), boil.GetContextDB(), false)
 		if err != nil {
 			return ctx.Respond(&telebot.CallbackResponse{Text: "Некорректные данные"})
 		}

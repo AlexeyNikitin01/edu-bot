@@ -667,6 +667,7 @@ func (usersQuestionL) LoadQuestion(ctx context.Context, e boil.ContextExecutor, 
 	query := NewQuery(
 		qm.From(`questions`),
 		qm.WhereIn(`questions.id in ?`, argsSlice...),
+		qmhelper.WhereIsNull(`questions.deleted_at`),
 	)
 	if mods != nil {
 		mods.Apply(query)
@@ -787,6 +788,7 @@ func (usersQuestionL) LoadUser(ctx context.Context, e boil.ContextExecutor, sing
 	query := NewQuery(
 		qm.From(`users`),
 		qm.WhereIn(`users.tg_user_id in ?`, argsSlice...),
+		qmhelper.WhereIsNull(`users.deleted_at`),
 	)
 	if mods != nil {
 		mods.Apply(query)
@@ -943,7 +945,7 @@ func (o *UsersQuestion) SetUser(ctx context.Context, exec boil.ContextExecutor, 
 
 // UsersQuestions retrieves all the records using an executor.
 func UsersQuestions(mods ...qm.QueryMod) usersQuestionQuery {
-	mods = append(mods, qm.From("\"users_questions\""))
+	mods = append(mods, qm.From("\"users_questions\""), qmhelper.WhereIsNull("\"users_questions\".\"deleted_at\""))
 	q := NewQuery(mods...)
 	if len(queries.GetSelect(q)) == 0 {
 		queries.SetSelect(q, []string{"\"users_questions\".*"})
@@ -962,7 +964,7 @@ func FindUsersQuestion(ctx context.Context, exec boil.ContextExecutor, iD int64,
 		sel = strings.Join(strmangle.IdentQuoteSlice(dialect.LQ, dialect.RQ, selectCols), ",")
 	}
 	query := fmt.Sprintf(
-		"select %s from \"users_questions\" where \"id\"=$1", sel,
+		"select %s from \"users_questions\" where \"id\"=$1 and \"deleted_at\" is null", sel,
 	)
 
 	q := queries.Raw(query, iD)
@@ -1337,7 +1339,7 @@ func (o *UsersQuestion) Upsert(ctx context.Context, exec boil.ContextExecutor, u
 
 // Delete deletes a single UsersQuestion record with an executor.
 // Delete will match against the primary key column to find the record to delete.
-func (o *UsersQuestion) Delete(ctx context.Context, exec boil.ContextExecutor) (int64, error) {
+func (o *UsersQuestion) Delete(ctx context.Context, exec boil.ContextExecutor, hardDelete bool) (int64, error) {
 	if o == nil {
 		return 0, errors.New("edu: no UsersQuestion provided for delete")
 	}
@@ -1346,8 +1348,26 @@ func (o *UsersQuestion) Delete(ctx context.Context, exec boil.ContextExecutor) (
 		return 0, err
 	}
 
-	args := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(o)), usersQuestionPrimaryKeyMapping)
-	sql := "DELETE FROM \"users_questions\" WHERE \"id\"=$1"
+	var (
+		sql  string
+		args []interface{}
+	)
+	if hardDelete {
+		args = queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(o)), usersQuestionPrimaryKeyMapping)
+		sql = "DELETE FROM \"users_questions\" WHERE \"id\"=$1"
+	} else {
+		currTime := time.Now().In(boil.GetLocation())
+		o.DeletedAt = null.TimeFrom(currTime)
+		wl := []string{"deleted_at"}
+		sql = fmt.Sprintf("UPDATE \"users_questions\" SET %s WHERE \"id\"=$2",
+			strmangle.SetParamNames("\"", "\"", 1, wl),
+		)
+		valueMapping, err := queries.BindMapping(usersQuestionType, usersQuestionMapping, append(wl, usersQuestionPrimaryKeyColumns...))
+		if err != nil {
+			return 0, err
+		}
+		args = queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(o)), valueMapping)
+	}
 
 	if boil.IsDebug(ctx) {
 		writer := boil.DebugWriterFrom(ctx)
@@ -1372,12 +1392,17 @@ func (o *UsersQuestion) Delete(ctx context.Context, exec boil.ContextExecutor) (
 }
 
 // DeleteAll deletes all matching rows.
-func (q usersQuestionQuery) DeleteAll(ctx context.Context, exec boil.ContextExecutor) (int64, error) {
+func (q usersQuestionQuery) DeleteAll(ctx context.Context, exec boil.ContextExecutor, hardDelete bool) (int64, error) {
 	if q.Query == nil {
 		return 0, errors.New("edu: no usersQuestionQuery provided for delete all")
 	}
 
-	queries.SetDelete(q.Query)
+	if hardDelete {
+		queries.SetDelete(q.Query)
+	} else {
+		currTime := time.Now().In(boil.GetLocation())
+		queries.SetUpdate(q.Query, M{"deleted_at": currTime})
+	}
 
 	result, err := q.Query.ExecContext(ctx, exec)
 	if err != nil {
@@ -1393,7 +1418,7 @@ func (q usersQuestionQuery) DeleteAll(ctx context.Context, exec boil.ContextExec
 }
 
 // DeleteAll deletes all rows in the slice, using an executor.
-func (o UsersQuestionSlice) DeleteAll(ctx context.Context, exec boil.ContextExecutor) (int64, error) {
+func (o UsersQuestionSlice) DeleteAll(ctx context.Context, exec boil.ContextExecutor, hardDelete bool) (int64, error) {
 	if len(o) == 0 {
 		return 0, nil
 	}
@@ -1406,14 +1431,31 @@ func (o UsersQuestionSlice) DeleteAll(ctx context.Context, exec boil.ContextExec
 		}
 	}
 
-	var args []interface{}
-	for _, obj := range o {
-		pkeyArgs := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(obj)), usersQuestionPrimaryKeyMapping)
-		args = append(args, pkeyArgs...)
+	var (
+		sql  string
+		args []interface{}
+	)
+	if hardDelete {
+		for _, obj := range o {
+			pkeyArgs := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(obj)), usersQuestionPrimaryKeyMapping)
+			args = append(args, pkeyArgs...)
+		}
+		sql = "DELETE FROM \"users_questions\" WHERE " +
+			strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), 1, usersQuestionPrimaryKeyColumns, len(o))
+	} else {
+		currTime := time.Now().In(boil.GetLocation())
+		for _, obj := range o {
+			pkeyArgs := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(obj)), usersQuestionPrimaryKeyMapping)
+			args = append(args, pkeyArgs...)
+			obj.DeletedAt = null.TimeFrom(currTime)
+		}
+		wl := []string{"deleted_at"}
+		sql = fmt.Sprintf("UPDATE \"users_questions\" SET %s WHERE "+
+			strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), 2, usersQuestionPrimaryKeyColumns, len(o)),
+			strmangle.SetParamNames("\"", "\"", 1, wl),
+		)
+		args = append([]interface{}{currTime}, args...)
 	}
-
-	sql := "DELETE FROM \"users_questions\" WHERE " +
-		strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), 1, usersQuestionPrimaryKeyColumns, len(o))
 
 	if boil.IsDebug(ctx) {
 		writer := boil.DebugWriterFrom(ctx)
@@ -1468,7 +1510,8 @@ func (o *UsersQuestionSlice) ReloadAll(ctx context.Context, exec boil.ContextExe
 	}
 
 	sql := "SELECT \"users_questions\".* FROM \"users_questions\" WHERE " +
-		strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), 1, usersQuestionPrimaryKeyColumns, len(*o))
+		strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), 1, usersQuestionPrimaryKeyColumns, len(*o)) +
+		"and \"deleted_at\" is null"
 
 	q := queries.Raw(sql, args...)
 
@@ -1485,7 +1528,7 @@ func (o *UsersQuestionSlice) ReloadAll(ctx context.Context, exec boil.ContextExe
 // UsersQuestionExists checks if the UsersQuestion row exists.
 func UsersQuestionExists(ctx context.Context, exec boil.ContextExecutor, iD int64) (bool, error) {
 	var exists bool
-	sql := "select exists(select 1 from \"users_questions\" where \"id\"=$1 limit 1)"
+	sql := "select exists(select 1 from \"users_questions\" where \"id\"=$1 and \"deleted_at\" is null limit 1)"
 
 	if boil.IsDebug(ctx) {
 		writer := boil.DebugWriterFrom(ctx)

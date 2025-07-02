@@ -87,6 +87,7 @@ func (a *App) GetUniqueTags(ctx context.Context, userID int64) ([]string, error)
 		qm.Select(fmt.Sprintf("DISTINCT %s", edu.QuestionColumns.Tag)),
 		edu.QuestionWhere.Tag.NEQ(""),
 		edu.UsersQuestionWhere.UserID.EQ(userID),
+		edu.UsersQuestionWhere.DeletedAt.IsNull(),
 	).All(ctx, boil.GetContextDB())
 	if err != nil {
 		return nil, err
@@ -132,6 +133,25 @@ func (a *App) SaveQuestions(ctx context.Context, question, tag string, answers [
 	}
 	if err = uq.Insert(ctx, boil.GetContextDB(), boil.Infer()); err != nil {
 		return
+	}
+
+	return nil
+}
+
+func (a *App) UpdateIsEduUserQuestion(ctx context.Context, userID, questionID int64) error {
+	uq, err := edu.UsersQuestions(
+		edu.UsersQuestionWhere.UserID.EQ(userID),
+		edu.UsersQuestionWhere.QuestionID.EQ(questionID),
+		qm.Load(edu.UsersQuestionRels.Question),
+	).One(ctx, boil.GetContextDB())
+	if err != nil {
+		return err
+	}
+
+	uq.IsEdu = !uq.IsEdu
+	_, err = uq.Update(ctx, boil.GetContextDB(), boil.Infer())
+	if err != nil {
+		return err
 	}
 
 	return nil

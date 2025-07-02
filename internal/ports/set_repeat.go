@@ -2,6 +2,7 @@ package ports
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"math/rand"
 	"sync"
@@ -37,7 +38,7 @@ func NewDispatcher(ctx context.Context, domain app.Apper, bot *telebot.Bot) *Que
 
 func (d *QuestionDispatcher) StartPollingLoop() {
 	go func() {
-		ticker := time.NewTicker(10 * time.Second)
+		ticker := time.NewTicker(2 * time.Second)
 		defer ticker.Stop()
 
 		for {
@@ -143,8 +144,27 @@ func (d *QuestionDispatcher) sendPoll(userID int64, uq *edu.UsersQuestion) error
 		MultipleAnswers: false,
 	}
 
+	label := "☑️"
+	if uq.IsEdu {
+		label = "✅"
+	}
+
+	repeatBtn := telebot.InlineButton{
+		Unique: INLINE_BTN_REPEAT_QUESTION_AFTER_POLL,
+		Text:   label + " ПОВТОР",
+		Data:   fmt.Sprintf("%d", uq.QuestionID),
+	}
+
+	deleteBtn := telebot.InlineButton{
+		Unique: INLINE_BTN_DELETE_QUESTION_AFTER_POLL,
+		Text:   "🗑️ УДАЛЕНИЕ",
+		Data:   fmt.Sprintf("%d", uq.QuestionID),
+	}
+
 	recipient := &telebot.User{ID: userID}
-	msg, err := d.bot.Send(recipient, poll)
+	msg, err := d.bot.Send(recipient, poll, &telebot.ReplyMarkup{
+		InlineKeyboard: [][]telebot.InlineButton{{repeatBtn, deleteBtn}},
+	})
 	if err != nil {
 		return err
 	}

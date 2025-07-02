@@ -31,6 +31,107 @@ func testAnswers(t *testing.T) {
 	}
 }
 
+func testAnswersSoftDelete(t *testing.T) {
+	t.Parallel()
+
+	seed := randomize.NewSeed()
+	var err error
+	o := &Answer{}
+	if err = randomize.Struct(seed, o, answerDBTypes, true, answerColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize Answer struct: %s", err)
+	}
+
+	ctx := context.Background()
+	tx := MustTx(boil.BeginTx(ctx, nil))
+	defer func() { _ = tx.Rollback() }()
+	if err = o.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Error(err)
+	}
+
+	if rowsAff, err := o.Delete(ctx, tx, false); err != nil {
+		t.Error(err)
+	} else if rowsAff != 1 {
+		t.Error("should only have deleted one row, but affected:", rowsAff)
+	}
+
+	count, err := Answers().Count(ctx, tx)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if count != 0 {
+		t.Error("want zero records, got:", count)
+	}
+}
+
+func testAnswersQuerySoftDeleteAll(t *testing.T) {
+	t.Parallel()
+
+	seed := randomize.NewSeed()
+	var err error
+	o := &Answer{}
+	if err = randomize.Struct(seed, o, answerDBTypes, true, answerColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize Answer struct: %s", err)
+	}
+
+	ctx := context.Background()
+	tx := MustTx(boil.BeginTx(ctx, nil))
+	defer func() { _ = tx.Rollback() }()
+	if err = o.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Error(err)
+	}
+
+	if rowsAff, err := Answers().DeleteAll(ctx, tx, false); err != nil {
+		t.Error(err)
+	} else if rowsAff != 1 {
+		t.Error("should only have deleted one row, but affected:", rowsAff)
+	}
+
+	count, err := Answers().Count(ctx, tx)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if count != 0 {
+		t.Error("want zero records, got:", count)
+	}
+}
+
+func testAnswersSliceSoftDeleteAll(t *testing.T) {
+	t.Parallel()
+
+	seed := randomize.NewSeed()
+	var err error
+	o := &Answer{}
+	if err = randomize.Struct(seed, o, answerDBTypes, true, answerColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize Answer struct: %s", err)
+	}
+
+	ctx := context.Background()
+	tx := MustTx(boil.BeginTx(ctx, nil))
+	defer func() { _ = tx.Rollback() }()
+	if err = o.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Error(err)
+	}
+
+	slice := AnswerSlice{o}
+
+	if rowsAff, err := slice.DeleteAll(ctx, tx, false); err != nil {
+		t.Error(err)
+	} else if rowsAff != 1 {
+		t.Error("should only have deleted one row, but affected:", rowsAff)
+	}
+
+	count, err := Answers().Count(ctx, tx)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if count != 0 {
+		t.Error("want zero records, got:", count)
+	}
+}
+
 func testAnswersDelete(t *testing.T) {
 	t.Parallel()
 
@@ -48,7 +149,7 @@ func testAnswersDelete(t *testing.T) {
 		t.Error(err)
 	}
 
-	if rowsAff, err := o.Delete(ctx, tx); err != nil {
+	if rowsAff, err := o.Delete(ctx, tx, true); err != nil {
 		t.Error(err)
 	} else if rowsAff != 1 {
 		t.Error("should only have deleted one row, but affected:", rowsAff)
@@ -81,7 +182,7 @@ func testAnswersQueryDeleteAll(t *testing.T) {
 		t.Error(err)
 	}
 
-	if rowsAff, err := Answers().DeleteAll(ctx, tx); err != nil {
+	if rowsAff, err := Answers().DeleteAll(ctx, tx, true); err != nil {
 		t.Error(err)
 	} else if rowsAff != 1 {
 		t.Error("should only have deleted one row, but affected:", rowsAff)
@@ -116,7 +217,7 @@ func testAnswersSliceDeleteAll(t *testing.T) {
 
 	slice := AnswerSlice{o}
 
-	if rowsAff, err := slice.DeleteAll(ctx, tx); err != nil {
+	if rowsAff, err := slice.DeleteAll(ctx, tx, true); err != nil {
 		t.Error(err)
 	} else if rowsAff != 1 {
 		t.Error("should only have deleted one row, but affected:", rowsAff)

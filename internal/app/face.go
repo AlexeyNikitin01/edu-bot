@@ -13,6 +13,7 @@ type Apper interface {
 	SaveQuestions(context.Context, string, string, []string, int64) error
 	GetUser(context.Context, int64) (*edu.User, error)
 	CreateUser(context.Context, int64, int64, string) (*edu.User, error)
+	UpdateIsEduUserQuestion(context.Context, int64, int64) error
 }
 
 type App struct {

@@ -14,13 +14,36 @@ import "testing"
 func TestParent(t *testing.T) {
 	t.Run("Answers", testAnswers)
 	t.Run("Questions", testQuestions)
+	t.Run("SchemaMigrations", testSchemaMigrations)
 	t.Run("Users", testUsers)
 	t.Run("UsersQuestions", testUsersQuestions)
+}
+
+func TestSoftDelete(t *testing.T) {
+	t.Run("Answers", testAnswersSoftDelete)
+	t.Run("Questions", testQuestionsSoftDelete)
+	t.Run("Users", testUsersSoftDelete)
+	t.Run("UsersQuestions", testUsersQuestionsSoftDelete)
+}
+
+func TestQuerySoftDeleteAll(t *testing.T) {
+	t.Run("Answers", testAnswersQuerySoftDeleteAll)
+	t.Run("Questions", testQuestionsQuerySoftDeleteAll)
+	t.Run("Users", testUsersQuerySoftDeleteAll)
+	t.Run("UsersQuestions", testUsersQuestionsQuerySoftDeleteAll)
+}
+
+func TestSliceSoftDeleteAll(t *testing.T) {
+	t.Run("Answers", testAnswersSliceSoftDeleteAll)
+	t.Run("Questions", testQuestionsSliceSoftDeleteAll)
+	t.Run("Users", testUsersSliceSoftDeleteAll)
+	t.Run("UsersQuestions", testUsersQuestionsSliceSoftDeleteAll)
 }
 
 func TestDelete(t *testing.T) {
 	t.Run("Answers", testAnswersDelete)
 	t.Run("Questions", testQuestionsDelete)
+	t.Run("SchemaMigrations", testSchemaMigrationsDelete)
 	t.Run("Users", testUsersDelete)
 	t.Run("UsersQuestions", testUsersQuestionsDelete)
 }
@@ -28,6 +51,7 @@ func TestDelete(t *testing.T) {
 func TestQueryDeleteAll(t *testing.T) {
 	t.Run("Answers", testAnswersQueryDeleteAll)
 	t.Run("Questions", testQuestionsQueryDeleteAll)
+	t.Run("SchemaMigrations", testSchemaMigrationsQueryDeleteAll)
 	t.Run("Users", testUsersQueryDeleteAll)
 	t.Run("UsersQuestions", testUsersQuestionsQueryDeleteAll)
 }
@@ -35,6 +59,7 @@ func TestQueryDeleteAll(t *testing.T) {
 func TestSliceDeleteAll(t *testing.T) {
 	t.Run("Answers", testAnswersSliceDeleteAll)
 	t.Run("Questions", testQuestionsSliceDeleteAll)
+	t.Run("SchemaMigrations", testSchemaMigrationsSliceDeleteAll)
 	t.Run("Users", testUsersSliceDeleteAll)
 	t.Run("UsersQuestions", testUsersQuestionsSliceDeleteAll)
 }
@@ -42,6 +67,7 @@ func TestSliceDeleteAll(t *testing.T) {
 func TestExists(t *testing.T) {
 	t.Run("Answers", testAnswersExists)
 	t.Run("Questions", testQuestionsExists)
+	t.Run("SchemaMigrations", testSchemaMigrationsExists)
 	t.Run("Users", testUsersExists)
 	t.Run("UsersQuestions", testUsersQuestionsExists)
 }
@@ -49,6 +75,7 @@ func TestExists(t *testing.T) {
 func TestFind(t *testing.T) {
 	t.Run("Answers", testAnswersFind)
 	t.Run("Questions", testQuestionsFind)
+	t.Run("SchemaMigrations", testSchemaMigrationsFind)
 	t.Run("Users", testUsersFind)
 	t.Run("UsersQuestions", testUsersQuestionsFind)
 }
@@ -56,6 +83,7 @@ func TestFind(t *testing.T) {
 func TestBind(t *testing.T) {
 	t.Run("Answers", testAnswersBind)
 	t.Run("Questions", testQuestionsBind)
+	t.Run("SchemaMigrations", testSchemaMigrationsBind)
 	t.Run("Users", testUsersBind)
 	t.Run("UsersQuestions", testUsersQuestionsBind)
 }
@@ -63,6 +91,7 @@ func TestBind(t *testing.T) {
 func TestOne(t *testing.T) {
 	t.Run("Answers", testAnswersOne)
 	t.Run("Questions", testQuestionsOne)
+	t.Run("SchemaMigrations", testSchemaMigrationsOne)
 	t.Run("Users", testUsersOne)
 	t.Run("UsersQuestions", testUsersQuestionsOne)
 }
@@ -70,6 +99,7 @@ func TestOne(t *testing.T) {
 func TestAll(t *testing.T) {
 	t.Run("Answers", testAnswersAll)
 	t.Run("Questions", testQuestionsAll)
+	t.Run("SchemaMigrations", testSchemaMigrationsAll)
 	t.Run("Users", testUsersAll)
 	t.Run("UsersQuestions", testUsersQuestionsAll)
 }
@@ -77,6 +107,7 @@ func TestAll(t *testing.T) {
 func TestCount(t *testing.T) {
 	t.Run("Answers", testAnswersCount)
 	t.Run("Questions", testQuestionsCount)
+	t.Run("SchemaMigrations", testSchemaMigrationsCount)
 	t.Run("Users", testUsersCount)
 	t.Run("UsersQuestions", testUsersQuestionsCount)
 }
@@ -84,6 +115,7 @@ func TestCount(t *testing.T) {
 func TestHooks(t *testing.T) {
 	t.Run("Answers", testAnswersHooks)
 	t.Run("Questions", testQuestionsHooks)
+	t.Run("SchemaMigrations", testSchemaMigrationsHooks)
 	t.Run("Users", testUsersHooks)
 	t.Run("UsersQuestions", testUsersQuestionsHooks)
 }
@@ -93,6 +125,8 @@ func TestInsert(t *testing.T) {
 	t.Run("Answers", testAnswersInsertWhitelist)
 	t.Run("Questions", testQuestionsInsert)
 	t.Run("Questions", testQuestionsInsertWhitelist)
+	t.Run("SchemaMigrations", testSchemaMigrationsInsert)
+	t.Run("SchemaMigrations", testSchemaMigrationsInsertWhitelist)
 	t.Run("Users", testUsersInsert)
 	t.Run("Users", testUsersInsertWhitelist)
 	t.Run("UsersQuestions", testUsersQuestionsInsert)
@@ -102,6 +136,7 @@ func TestInsert(t *testing.T) {
 func TestReload(t *testing.T) {
 	t.Run("Answers", testAnswersReload)
 	t.Run("Questions", testQuestionsReload)
+	t.Run("SchemaMigrations", testSchemaMigrationsReload)
 	t.Run("Users", testUsersReload)
 	t.Run("UsersQuestions", testUsersQuestionsReload)
 }
@@ -109,6 +144,7 @@ func TestReload(t *testing.T) {
 func TestReloadAll(t *testing.T) {
 	t.Run("Answers", testAnswersReloadAll)
 	t.Run("Questions", testQuestionsReloadAll)
+	t.Run("SchemaMigrations", testSchemaMigrationsReloadAll)
 	t.Run("Users", testUsersReloadAll)
 	t.Run("UsersQuestions", testUsersQuestionsReloadAll)
 }
@@ -116,6 +152,7 @@ func TestReloadAll(t *testing.T) {
 func TestSelect(t *testing.T) {
 	t.Run("Answers", testAnswersSelect)
 	t.Run("Questions", testQuestionsSelect)
+	t.Run("SchemaMigrations", testSchemaMigrationsSelect)
 	t.Run("Users", testUsersSelect)
 	t.Run("UsersQuestions", testUsersQuestionsSelect)
 }
@@ -123,6 +160,7 @@ func TestSelect(t *testing.T) {
 func TestUpdate(t *testing.T) {
 	t.Run("Answers", testAnswersUpdate)
 	t.Run("Questions", testQuestionsUpdate)
+	t.Run("SchemaMigrations", testSchemaMigrationsUpdate)
 	t.Run("Users", testUsersUpdate)
 	t.Run("UsersQuestions", testUsersQuestionsUpdate)
 }
@@ -130,6 +168,7 @@ func TestUpdate(t *testing.T) {
 func TestSliceUpdateAll(t *testing.T) {
 	t.Run("Answers", testAnswersSliceUpdateAll)
 	t.Run("Questions", testQuestionsSliceUpdateAll)
+	t.Run("SchemaMigrations", testSchemaMigrationsSliceUpdateAll)
 	t.Run("Users", testUsersSliceUpdateAll)
 	t.Run("UsersQuestions", testUsersQuestionsSliceUpdateAll)
 }
