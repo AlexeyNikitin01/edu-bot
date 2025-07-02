@@ -137,8 +137,8 @@ func handleToggleRepeatAfterPoll(domain app.Apper) telebot.HandlerFunc {
 				int64(questionID),
 				INLINE_BTN_REPEAT_QUESTION_AFTER_POLL,
 				INLINE_NAME_REPEAT_AFTER_POLL,
-				INLINE_BTN_DELETE_QUESTION_AFTER_POLL,
 				INLINE_NAME_DELETE_AFTER_POLL,
+				INLINE_BTN_DELETE_QUESTION_AFTER_POLL,
 			)},
 		})
 	}

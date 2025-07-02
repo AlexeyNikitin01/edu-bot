@@ -10,6 +10,10 @@ import (
 	"bot/internal/repo/edu"
 )
 
+const (
+	MSG_SUCESS_DELETE_QUESTION = "🤫Вопрос удален👁"
+)
+
 // deleteQuestion Обрабатывает нажатие на кнопку удаления
 func deleteQuestion() telebot.HandlerFunc {
 	return func(ctx telebot.Context) error {
@@ -36,6 +40,31 @@ func deleteQuestion() telebot.HandlerFunc {
 		return ctx.Edit(&telebot.ReplyMarkup{
 			InlineKeyboard: getQuestionBtns(ctx, q.Tag),
 		})
+	}
+}
+
+// deleteQuestionAfterPoll Обрабатывает нажатие на кнопку удаления
+func deleteQuestionAfterPoll() telebot.HandlerFunc {
+	return func(ctx telebot.Context) error {
+		qidStr := ctx.Data()
+		questionID, err := strconv.Atoi(qidStr)
+		if err != nil {
+			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
+		}
+
+		_, err = edu.UsersQuestions(
+			edu.UsersQuestionWhere.UserID.EQ(GetUserFromContext(ctx).TGUserID),
+			edu.UsersQuestionWhere.QuestionID.EQ(int64(questionID)),
+		).DeleteAll(GetContext(ctx), boil.GetContextDB(), false)
+		if err != nil {
+			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
+		}
+
+		if err = ctx.Delete(); err != nil {
+			return ctx.Send(err.Error())
+		}
+
+		return ctx.Send(MSG_SUCESS_DELETE_QUESTION)
 	}
 }
 

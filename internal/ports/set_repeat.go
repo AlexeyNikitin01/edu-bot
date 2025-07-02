@@ -151,13 +151,13 @@ func (d *QuestionDispatcher) sendPoll(userID int64, uq *edu.UsersQuestion) error
 
 	repeatBtn := telebot.InlineButton{
 		Unique: INLINE_BTN_REPEAT_QUESTION_AFTER_POLL,
-		Text:   label + " ПОВТОР",
+		Text:   label + INLINE_NAME_REPEAT_AFTER_POLL,
 		Data:   fmt.Sprintf("%d", uq.QuestionID),
 	}
 
 	deleteBtn := telebot.InlineButton{
 		Unique: INLINE_BTN_DELETE_QUESTION_AFTER_POLL,
-		Text:   "🗑️ УДАЛЕНИЕ",
+		Text:   INLINE_NAME_DELETE_AFTER_POLL,
 		Data:   fmt.Sprintf("%d", uq.QuestionID),
 	}
 
