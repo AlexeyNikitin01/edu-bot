@@ -16,16 +16,12 @@ func mainMenu() *telebot.ReplyMarkup {
 	menu := &telebot.ReplyMarkup{ResizeKeyboard: true}
 
 	btnAdd := menu.Text(BTN_ADD_QUESTION)
-	btnMark := menu.Text(BTN_REPEAT)
-	btnDelete := menu.Text(BTN_DEL_QUESTION)
-	btnPause := menu.Text(BTN_PAUSE)
-	btnResume := menu.Text(BTN_RESUME)
+	btnMark := menu.Text(BTN_MANAGMENT_QUESTION)
 	btnCSV := menu.Text(BTN_ADD_CSV)
 
 	menu.Reply(
 		menu.Row(btnAdd, btnCSV),
-		menu.Row(btnMark, btnDelete),
-		menu.Row(btnPause, btnResume),
+		menu.Row(btnMark),
 	)
 
 	return menu

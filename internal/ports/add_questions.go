@@ -109,6 +109,7 @@ func setTags(ctx telebot.Context) (string, error) {
 	return "", nil
 }
 
+// getTags todo: дублирование логики
 func getTags(ctx telebot.Context, userID int64, domain app.Apper) error {
 	ts, err := domain.GetUniqueTags(GetContext(ctx), userID)
 	if err != nil {

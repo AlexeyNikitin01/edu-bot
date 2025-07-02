@@ -28,24 +28,29 @@ func showRepeatTagList(domain app.Apper, action string) telebot.HandlerFunc {
 		var tagButtons [][]telebot.InlineButton
 
 		for _, tag := range uniqueTags {
-			btn := telebot.InlineButton{
+			tagBtn := telebot.InlineButton{
 				Unique: INLINE_BTN_QUESTION_BY_TAG,
 				Text:   tag,
-				Data:   tag + ";" + action,
+				Data:   tag,
 			}
-			tagButtons = append(tagButtons, []telebot.InlineButton{btn})
+			deleteBtn := telebot.InlineButton{
+				Unique: INLINE_BTN_DELETE_QUESTION_BY_TAG,
+				Text:   "🗑️",
+				Data:   tag,
+			}
+			tagButtons = append(tagButtons, []telebot.InlineButton{tagBtn, deleteBtn})
 		}
 
-		return ctx.Send("Выберите тег для просмотра вопросов:", &telebot.ReplyMarkup{
+		return ctx.Send("ТЭГИ: ", &telebot.ReplyMarkup{
 			InlineKeyboard: tagButtons,
 		})
 	}
 }
 
-func questionByTag(tag, action string) telebot.HandlerFunc {
+func questionByTag(tag string) telebot.HandlerFunc {
 	return func(ctx telebot.Context) error {
-		return ctx.Send("Выберите вопросы для повторения:", &telebot.ReplyMarkup{
-			InlineKeyboard: getQuestionBtns(ctx, tag, action),
+		return ctx.Send("ВОПРОСЫ: ", &telebot.ReplyMarkup{
+			InlineKeyboard: getQuestionBtns(ctx, tag),
 		})
 	}
 }
@@ -75,12 +80,12 @@ func handleToggleRepeat() telebot.HandlerFunc {
 		}
 
 		return ctx.Edit(&telebot.ReplyMarkup{
-			InlineKeyboard: getQuestionBtns(ctx, uq.R.GetQuestion().Tag, INLINE_BTN_REPEAT),
+			InlineKeyboard: getQuestionBtns(ctx, uq.R.GetQuestion().Tag),
 		})
 	}
 }
 
-func getQuestionBtns(ctx telebot.Context, tag string, action string) [][]telebot.InlineButton {
+func getQuestionBtns(ctx telebot.Context, tag string) [][]telebot.InlineButton {
 	uqs, err := edu.UsersQuestions(edu.UsersQuestionWhere.UserID.EQ(GetUserFromContext(ctx).TGUserID)).
 		All(GetContext(ctx), boil.GetContextDB())
 	if err != nil || len(uqs) == 0 {
@@ -103,13 +108,19 @@ func getQuestionBtns(ctx telebot.Context, tag string, action string) [][]telebot
 			label = "✅"
 		}
 
-		btn := telebot.InlineButton{
-			Unique: action,
+		repeatBtn := telebot.InlineButton{
+			Unique: INLINE_BTN_REPEAT_QUESTION,
 			Text:   label + " " + q.Question,
 			Data:   fmt.Sprintf("%d", uq.QuestionID),
 		}
 
-		btns = append(btns, []telebot.InlineButton{btn})
+		deleteBtn := telebot.InlineButton{
+			Unique: INLINE_BTN_DELETE_QUESTION,
+			Text:   "🗑️",
+			Data:   fmt.Sprintf("%d", uq.QuestionID),
+		}
+
+		btns = append(btns, []telebot.InlineButton{repeatBtn, deleteBtn})
 	}
 
 	return btns
