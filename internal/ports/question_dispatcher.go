@@ -128,7 +128,7 @@ func (d *QuestionDispatcher) sendQuestion(userID int64, uq *edu.UsersQuestion) e
 	return d.questionWithTest(userID, uq)
 }
 
-func (d *QuestionDispatcher) questionWithHigh(id int64, q *edu.Question, answer *edu.Answer, ) error {
+func (d *QuestionDispatcher) questionWithHigh(id int64, q *edu.Question, answer *edu.Answer) error {
 	forgot := telebot.InlineButton{
 		Unique: INLINE_FORGOT_HIGH_QUESTION,
 		Text:   MSG_FORGOT,
@@ -144,9 +144,11 @@ func (d *QuestionDispatcher) questionWithHigh(id int64, q *edu.Question, answer 
 	rec := &telebot.User{ID: id}
 	_, err := d.bot.Send(
 		rec,
-		fmt.Sprintf("%s \n\n %s", q.Question, answer.Answer),
+		fmt.Sprintf("%s \n\n || %s ||", q.Question, answer.Answer),
 		telebot.ModeMarkdownV2,
-		[][]telebot.InlineButton{{forgot, easy}},
+		&telebot.ReplyMarkup{
+			InlineKeyboard: [][]telebot.InlineButton{{easy, forgot}},
+		},
 	)
 	return err
 }

@@ -20,6 +20,7 @@ func (a *App) GetQuestionsAnswers(ctx context.Context, userID int64) (edu.UsersQ
 		edu.UsersQuestionWhere.TimeRepeat.LTE(now),
 		edu.UsersQuestionWhere.UserID.EQ(userID),
 		edu.UsersQuestionWhere.IsEdu.EQ(true),
+		edu.UsersQuestionWhere.DeletedAt.IsNull(),
 	).All(ctx, boil.GetContextDB())
 
 	if err != nil {

@@ -52,8 +52,8 @@ func routers(ctx context.Context, b *telebot.Bot, domain *app.App) {
 	b.Handle(&telebot.InlineButton{Unique: INLINE_BTN_QUESTION_BY_TAG}, func(ctx telebot.Context) error {
 		return questionByTag(ctx.Data())(ctx)
 	})
-	b.Handle(&telebot.InlineButton{Unique: INLINE_FORGOT_HIGH_QUESTION}, (domain))
-	b.Handle(&telebot.InlineButton{Unique: INLINE_REMEMBER_HIGH_QUESTION}, deleteQuestionByTag(domain))
+	b.Handle(&telebot.InlineButton{Unique: INLINE_FORGOT_HIGH_QUESTION}, resetTime(domain))
+	b.Handle(&telebot.InlineButton{Unique: INLINE_REMEMBER_HIGH_QUESTION}, incTotalSerialQuestion(domain))
 
 	// ADD CSV
 	b.Handle(telebot.OnDocument, setQuestionsByCSV(domain))

@@ -12,6 +12,7 @@ import (
 
 const (
 	MSG_SUCESS_DELETE_QUESTION = "🤫Вопрос удален👁"
+	MSG_RESET_QUESTION         = "серия правильных ответов сброшена"
 )
 
 // deleteQuestion Обрабатывает нажатие на кнопку удаления
@@ -80,5 +81,27 @@ func deleteQuestionByTag(domain app.Apper) telebot.HandlerFunc {
 		}
 
 		return getTags(ctx, GetUserFromContext(ctx).TGUserID, domain)
+	}
+}
+
+func resetTime(domain app.Apper) telebot.HandlerFunc {
+	return func(ctx telebot.Context) error {
+		qidStr := ctx.Data()
+		questionID, err := strconv.Atoi(qidStr)
+		if err != nil {
+			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
+		}
+
+		_, err = edu.UsersQuestions(
+			edu.UsersQuestionWhere.UserID.EQ(GetUserFromContext(ctx).TGUserID),
+			edu.UsersQuestionWhere.QuestionID.EQ(int64(questionID)),
+		).UpdateAll(GetContext(ctx), boil.GetContextDB(), edu.M{
+			edu.UsersQuestionColumns.TotalSerial: 0,
+		})
+		if err != nil {
+			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
+		}
+
+		return ctx.Send(MSG_RESET_QUESTION)
 	}
 }

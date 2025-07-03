@@ -7,9 +7,11 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/volatiletech/sqlboiler/v4/boil"
 	"gopkg.in/telebot.v3"
 
 	"bot/internal/app"
+	"bot/internal/repo/edu"
 )
 
 var (
@@ -203,5 +205,31 @@ func setQuestionsByCSV(domain app.Apper) telebot.HandlerFunc {
 				"\nУспешно: " + strconv.Itoa(successCount) +
 				"\nОшибок: " + strconv.Itoa(errorCount),
 		)
+	}
+}
+
+func incTotalSerialQuestion(domain app.Apper) telebot.HandlerFunc {
+	return func(ctx telebot.Context) error {
+		qidStr := ctx.Data()
+		questionID, err := strconv.Atoi(qidStr)
+		if err != nil {
+			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
+		}
+
+		uq, err := edu.UsersQuestions(
+			edu.UsersQuestionWhere.UserID.EQ(GetUserFromContext(ctx).TGUserID),
+			edu.UsersQuestionWhere.QuestionID.EQ(int64(questionID)),
+		).One(GetContext(ctx), boil.GetContextDB())
+		if err != nil {
+			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
+		}
+		uq.TotalSerial++
+		if _, err = uq.Update(
+			GetContext(ctx), boil.GetContextDB(), boil.Whitelist(edu.UsersQuestionColumns.TotalSerial),
+		); err != nil {
+			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
+		}
+
+		return nil
 	}
 }

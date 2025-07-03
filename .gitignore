@@ -4,3 +4,4 @@ vendor
 etc/config.yml
 etc/config.docker.yml
 migrations/data.sql
+bot.code-workspace
