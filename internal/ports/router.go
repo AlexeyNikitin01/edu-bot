@@ -16,6 +16,8 @@ const (
 	INLINE_BTN_DELETE_QUESTION_AFTER_POLL = "delete_question_after_poll"
 	INLINE_BTN_REPEAT_QUESTION_AFTER_POLL = "delete_question_after_poll"
 	INLINE_BTN_QUESTION_BY_TAG            = "question_by_tag"
+	INLINE_FORGOT_HIGH_QUESTION           = "forgot_high_question"
+	INLINE_REMEMBER_HIGH_QUESTION         = "remember_high_question"
 
 	BTN_ADD_QUESTION       = "➕ Добавить вопрос"
 	BTN_MANAGMENT_QUESTION = "📚 Управлять вопросами"
@@ -50,6 +52,8 @@ func routers(ctx context.Context, b *telebot.Bot, domain *app.App) {
 	b.Handle(&telebot.InlineButton{Unique: INLINE_BTN_QUESTION_BY_TAG}, func(ctx telebot.Context) error {
 		return questionByTag(ctx.Data())(ctx)
 	})
+	b.Handle(&telebot.InlineButton{Unique: INLINE_FORGOT_HIGH_QUESTION}, (domain))
+	b.Handle(&telebot.InlineButton{Unique: INLINE_REMEMBER_HIGH_QUESTION}, deleteQuestionByTag(domain))
 
 	// ADD CSV
 	b.Handle(telebot.OnDocument, setQuestionsByCSV(domain))

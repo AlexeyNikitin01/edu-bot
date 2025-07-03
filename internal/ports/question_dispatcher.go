@@ -16,6 +16,11 @@ import (
 	"bot/internal/repo/edu"
 )
 
+const (
+	MSG_FORGOT   = "СЛОЖНО"
+	MSG_REMEMBER = "ЛЕГКО"
+)
+
 type QuestionDispatcher struct {
 	mu               sync.Mutex
 	workers          map[int64]chan *edu.UsersQuestion
@@ -102,7 +107,7 @@ func (d *QuestionDispatcher) worker(userID int64, ch chan *edu.UsersQuestion) {
 			d.waitingForAnswer[userID] = true
 			d.mu.Unlock()
 
-			if err := d.sendPoll(userID, uq); err != nil {
+			if err := d.sendQuestion(userID, uq); err != nil {
 				log.Printf("Ошибка отправки вопроса пользователю %d: %v", userID, err)
 
 				d.mu.Lock()
@@ -113,7 +118,40 @@ func (d *QuestionDispatcher) worker(userID int64, ch chan *edu.UsersQuestion) {
 	}
 }
 
-func (d *QuestionDispatcher) sendPoll(userID int64, uq *edu.UsersQuestion) error {
+func (d *QuestionDispatcher) sendQuestion(userID int64, uq *edu.UsersQuestion) error {
+	answers := uq.R.GetQuestion().R.GetAnswers()
+
+	if len(answers) == 1 || uq.TotalSerial > 4 {
+		return d.questionWithHigh(userID, uq.R.GetQuestion(), answers[0])
+	}
+
+	return d.questionWithTest(userID, uq)
+}
+
+func (d *QuestionDispatcher) questionWithHigh(id int64, q *edu.Question, answer *edu.Answer, ) error {
+	forgot := telebot.InlineButton{
+		Unique: INLINE_FORGOT_HIGH_QUESTION,
+		Text:   MSG_FORGOT,
+		Data:   fmt.Sprintf("%d", q.ID),
+	}
+
+	easy := telebot.InlineButton{
+		Unique: INLINE_REMEMBER_HIGH_QUESTION,
+		Text:   MSG_REMEMBER,
+		Data:   fmt.Sprintf("%d", q.ID),
+	}
+
+	rec := &telebot.User{ID: id}
+	_, err := d.bot.Send(
+		rec,
+		fmt.Sprintf("%s \n\n %s", q.Question, answer.Answer),
+		telebot.ModeMarkdownV2,
+		[][]telebot.InlineButton{{forgot, easy}},
+	)
+	return err
+}
+
+func (d *QuestionDispatcher) questionWithTest(userID int64, uq *edu.UsersQuestion) error {
 	answers := uq.R.GetQuestion().R.GetAnswers()
 
 	shuffled := make([]*edu.Answer, len(answers))
