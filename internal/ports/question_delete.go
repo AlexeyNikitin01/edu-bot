@@ -62,7 +62,7 @@ func deleteQuestionByTag(domain app.Apper) telebot.HandlerFunc {
 			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
 		}
 
-		return showRepeatTagList(domain, INLINE_BTN_REPEAT_QUESTION)(ctx)
+		return showRepeatTagList(domain)(ctx)
 	}
 }
 

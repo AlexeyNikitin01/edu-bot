@@ -17,36 +17,36 @@ const (
 	MSG_LIST_TAGS     = "ТЭГИ: "
 )
 
-func showRepeatTagList(domain app.Apper, action string) telebot.HandlerFunc {
+func showRepeatTagList(domain app.Apper) telebot.HandlerFunc {
 	return func(ctx telebot.Context) error {
 		u := GetUserFromContext(ctx)
 
-		uniqueTags, err := domain.GetUniqueTags(GetContext(ctx), u.TGUserID)
+		tags, err := domain.GetUniqueTags(GetContext(ctx), u.TGUserID)
 		if err != nil {
 			return ctx.Send(err.Error())
 		}
 
-		if len(uniqueTags) == 0 {
+		if len(tags) == 0 {
 			return nil
 		}
 
 		var tagButtons [][]telebot.InlineButton
 
-		for _, tag := range uniqueTags {
+		for _, tag := range tags {
 			tagBtn := telebot.InlineButton{
 				Unique: INLINE_BTN_QUESTION_BY_TAG,
-				Text:   tag,
-				Data:   tag,
+				Text:   tag.Tag,
+				Data:   tag.Tag,
 			}
 			deleteBtn := telebot.InlineButton{
 				Unique: INLINE_BTN_DELETE_QUESTIONS_BY_TAG,
 				Text:   INLINE_NAME_DELETE,
-				Data:   tag,
+				Data:   tag.Tag,
 			}
 			editBtn := telebot.InlineButton{
-				//Unique: INLINE_BTN_EDIT_TAG,
-				Text: "✏️", // Иконка карандаша для редактирования
-				Data: tag,
+				Unique: INLINE_EDIT_TAG,
+				Text:   "✏️",
+				Data:   fmt.Sprintf("%d", tag.ID),
 			}
 			tagButtons = append(tagButtons, []telebot.InlineButton{tagBtn, deleteBtn, editBtn})
 		}

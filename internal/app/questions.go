@@ -91,7 +91,7 @@ func (a *App) UpdateRepeatTime(ctx context.Context, question *edu.UsersQuestion,
 }
 
 // GetUniqueTags Функция для получения уникальных тегов
-func (a *App) GetUniqueTags(ctx context.Context, userID int64) ([]string, error) {
+func (a *App) GetUniqueTags(ctx context.Context, userID int64) ([]*edu.Tag, error) {
 	ts, err := edu.Tags(
 		qm.InnerJoin(
 			fmt.Sprintf("%s ON %s = %s",
@@ -113,12 +113,7 @@ func (a *App) GetUniqueTags(ctx context.Context, userID int64) ([]string, error)
 		return nil, err
 	}
 
-	var uniqueTags []string
-	for _, t := range ts {
-		uniqueTags = append(uniqueTags, t.Tag)
-	}
-
-	return uniqueTags, nil
+	return ts, nil
 }
 
 func (a *App) SaveQuestions(ctx context.Context, question, tag string, answers []string, userID int64) (err error) {
@@ -188,6 +183,21 @@ func (a *App) UpdateIsEduUserQuestion(ctx context.Context, userID, questionID in
 	uq.IsEdu = !uq.IsEdu
 	_, err = uq.Update(ctx, boil.GetContextDB(), boil.Infer())
 	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (a *App) UpdateTag(ctx context.Context, tagID int64, s string) error {
+	tag, err := edu.FindTag(ctx, boil.GetContextDB(), tagID)
+	if err != nil {
+		return err
+	}
+
+	tag.Tag = s
+
+	if _, err = tag.Update(ctx, boil.GetContextDB(), boil.Whitelist(edu.TagColumns.Tag)); err != nil {
 		return err
 	}
 

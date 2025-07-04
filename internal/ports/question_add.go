@@ -10,6 +10,7 @@ import (
 	"gopkg.in/telebot.v3"
 
 	"bot/internal/app"
+	"bot/internal/repo/edu"
 )
 
 var (
@@ -36,16 +37,19 @@ type QuestionDraft struct {
 	Tag      string
 	Answers  []string
 	High     bool
+	TagID    int64
 }
 
 var drafts = make(map[int64]*QuestionDraft)
 
 const (
-	MSG_TEST          = "Вопрос с тестом"
-	MSG_HIGH_QUESTION = "Вопрос с развернутым ответом"
-	MSG_TYPE_QUESTION = "Выберите тип вопроса"
-	MSG_CHOOSE_HIGH   = "Выбран вопрос с развернутым ответом"
-	MSG_CHOOSE_SIMPLE = "Выбран вопрос с вариантами ответа"
+	MSG_TEST               = "Вопрос с тестом"
+	MSG_HIGH_QUESTION      = "Вопрос с развернутым ответом"
+	MSG_TYPE_QUESTION      = "Выберите тип вопроса"
+	MSG_CHOOSE_HIGH        = "Выбран вопрос с развернутым ответом"
+	MSG_CHOOSE_SIMPLE      = "Выбран вопрос с вариантами ответа"
+	MSG_EDIT               = "Введите новое значение для: "
+	MSG_SUCCESS_UPDATE_TAG = "Тэг обновлен"
 )
 
 func setHigh(b bool, msg string, a app.Apper) telebot.HandlerFunc {
@@ -53,6 +57,7 @@ func setHigh(b bool, msg string, a app.Apper) telebot.HandlerFunc {
 		draft, exists := drafts[GetUserFromContext(ctx).TGUserID]
 		if !exists {
 			drafts[GetUserFromContext(ctx).TGUserID] = &QuestionDraft{Step: 1}
+			draft, _ = drafts[GetUserFromContext(ctx).TGUserID]
 		}
 
 		if draft == nil {
@@ -73,6 +78,33 @@ func setHigh(b bool, msg string, a app.Apper) telebot.HandlerFunc {
 	}
 }
 
+func setEdit(field string) telebot.HandlerFunc {
+	return func(ctx telebot.Context) (err error) {
+		strID := ctx.Data()
+		id, err := strconv.Atoi(strID)
+		if err != nil {
+			return err
+		}
+
+		draft, exists := drafts[GetUserFromContext(ctx).TGUserID]
+		if !exists {
+			drafts[GetUserFromContext(ctx).TGUserID] = &QuestionDraft{Step: 1}
+			draft, _ = drafts[GetUserFromContext(ctx).TGUserID]
+		}
+
+		if draft == nil {
+			return nil
+		}
+
+		switch field {
+		case edu.TableNames.Tags:
+			draft.TagID = int64(id)
+		}
+
+		return ctx.Send(MSG_EDIT + edu.TableNames.Tags)
+	}
+}
+
 func add(domain app.Apper) telebot.HandlerFunc {
 	return func(ctx telebot.Context) (err error) {
 		msg := strings.TrimSpace(ctx.Message().Text)
@@ -87,6 +119,15 @@ func add(domain app.Apper) telebot.HandlerFunc {
 			selector.Inline(selector.Row(btnSimple), selector.Row(btnComplex))
 
 			return ctx.Send(MSG_TYPE_QUESTION, selector)
+		}
+
+		//todo: править
+		if draft.TagID != 0 {
+			if err = domain.UpdateTag(GetContext(ctx), draft.TagID, msg); err != nil {
+				return err
+			}
+			delete(drafts, u.TGUserID)
+			return ctx.Send(MSG_SUCCESS_UPDATE_TAG)
 		}
 
 		if msg == CMD_CANCEL {
@@ -164,8 +205,8 @@ func getTags(ctx telebot.Context, userID int64, domain app.Apper) error {
 	for _, t := range ts {
 		btn := telebot.InlineButton{
 			Unique: INLINE_BTN_TAGS,
-			Text:   t,
-			Data:   t,
+			Text:   t.Tag,
+			Data:   t.Tag,
 		}
 		btns = append(btns, []telebot.InlineButton{btn})
 	}
