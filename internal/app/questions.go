@@ -2,6 +2,8 @@ package app
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"time"
@@ -90,15 +92,19 @@ func (a *App) UpdateRepeatTime(ctx context.Context, question *edu.UsersQuestion,
 
 // GetUniqueTags Функция для получения уникальных тегов
 func (a *App) GetUniqueTags(ctx context.Context, userID int64) ([]string, error) {
-	ts, err := edu.Questions(
+	ts, err := edu.Tags(
+		qm.InnerJoin(
+			fmt.Sprintf("%s ON %s = %s",
+				edu.TableNames.Questions,
+				edu.TagTableColumns.ID,
+				edu.QuestionTableColumns.TagID),
+		),
 		qm.InnerJoin(
 			fmt.Sprintf("%s ON %s = %s",
 				edu.TableNames.UsersQuestions,
 				edu.UsersQuestionTableColumns.QuestionID,
 				edu.QuestionTableColumns.ID),
 		),
-		qm.Select(fmt.Sprintf("DISTINCT %s", edu.QuestionColumns.Tag)),
-		edu.QuestionWhere.Tag.NEQ(""),
 		edu.UsersQuestionWhere.UserID.EQ(userID),
 		edu.UsersQuestionWhere.DeletedAt.IsNull(),
 	).All(ctx, boil.GetContextDB())
@@ -115,9 +121,25 @@ func (a *App) GetUniqueTags(ctx context.Context, userID int64) ([]string, error)
 }
 
 func (a *App) SaveQuestions(ctx context.Context, question, tag string, answers []string, userID int64) (err error) {
+	eduTag, err := edu.Tags(
+		edu.TagWhere.Tag.EQ(tag)).One(ctx, boil.GetContextDB())
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return err
+	} else if errors.Is(err, sql.ErrNoRows) {
+		eduTag = &edu.Tag{
+			Tag: tag,
+		}
+		if err = eduTag.Insert(ctx, boil.GetContextDB(), boil.Infer()); err != nil {
+			return err
+		}
+		if err = eduTag.Reload(ctx, boil.GetContextDB()); err != nil {
+			return err
+		}
+	}
+
 	q := &edu.Question{
 		Question: question,
-		Tag:      tag,
+		TagID:    eduTag.ID,
 	}
 	if err = q.Insert(ctx, boil.GetContextDB(), boil.Infer()); err != nil {
 		return err

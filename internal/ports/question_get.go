@@ -43,7 +43,12 @@ func showRepeatTagList(domain app.Apper, action string) telebot.HandlerFunc {
 				Text:   INLINE_NAME_DELETE,
 				Data:   tag,
 			}
-			tagButtons = append(tagButtons, []telebot.InlineButton{tagBtn, deleteBtn})
+			editBtn := telebot.InlineButton{
+				//Unique: INLINE_BTN_EDIT_TAG,
+				Text: "✏️", // Иконка карандаша для редактирования
+				Data: tag,
+			}
+			tagButtons = append(tagButtons, []telebot.InlineButton{tagBtn, deleteBtn, editBtn})
 		}
 
 		return ctx.Send(MSG_LIST_TAGS, &telebot.ReplyMarkup{
@@ -73,13 +78,14 @@ func handleToggleRepeat(domain app.Apper) telebot.HandlerFunc {
 			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
 		}
 
-		t, err := edu.FindQuestion(GetContext(ctx), boil.GetContextDB(), int64(questionID), edu.QuestionColumns.Tag)
+		t, err := edu.Questions(edu.QuestionWhere.ID.EQ(int64(questionID)),
+			qm.Load(edu.QuestionRels.Tag)).One(GetContext(ctx), boil.GetContextDB())
 		if err != nil {
 			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
 		}
 
 		return ctx.Edit(&telebot.ReplyMarkup{
-			InlineKeyboard: getQuestionBtns(ctx, t.Tag),
+			InlineKeyboard: getQuestionBtns(ctx, t.R.GetTag().Tag),
 		})
 	}
 }
@@ -90,8 +96,12 @@ func getQuestionBtns(ctx telebot.Context, tag string) [][]telebot.InlineButton {
 			edu.QuestionTableColumns.ID,
 			edu.UsersQuestionTableColumns.QuestionID,
 		)),
+		qm.InnerJoin(fmt.Sprintf("%s ON %s = %s", edu.TableNames.Tags,
+			edu.TagTableColumns.ID,
+			edu.QuestionTableColumns.TagID,
+		)),
 		edu.UsersQuestionWhere.UserID.EQ(GetUserFromContext(ctx).TGUserID),
-		edu.QuestionWhere.Tag.EQ(tag),
+		edu.TagWhere.Tag.EQ(tag),
 		edu.UsersQuestionWhere.DeletedAt.IsNull(),
 	).All(GetContext(ctx), boil.GetContextDB())
 	if err != nil || len(qs) == 0 {

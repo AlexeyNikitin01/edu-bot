@@ -1,9 +1,11 @@
 package ports
 
 import (
+	"fmt"
 	"strconv"
 
 	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 	"gopkg.in/telebot.v3"
 
 	"bot/internal/app"
@@ -24,7 +26,8 @@ func deleteQuestion() telebot.HandlerFunc {
 		}
 
 		q, err := edu.Questions(
-			edu.QuestionWhere.ID.EQ(int64(questionID))).One(GetContext(ctx), boil.GetContextDB())
+			edu.QuestionWhere.ID.EQ(int64(questionID)),
+			qm.Load(edu.QuestionRels.Tag)).One(GetContext(ctx), boil.GetContextDB())
 		if err != nil {
 			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
 		}
@@ -38,7 +41,7 @@ func deleteQuestion() telebot.HandlerFunc {
 		}
 
 		return ctx.Edit(&telebot.ReplyMarkup{
-			InlineKeyboard: getQuestionBtns(ctx, q.Tag),
+			InlineKeyboard: getQuestionBtns(ctx, q.R.GetTag().Tag),
 		})
 	}
 }
@@ -49,7 +52,12 @@ func deleteQuestionByTag(domain app.Apper) telebot.HandlerFunc {
 		tag := ctx.Data()
 
 		_, err := edu.Questions(
-			edu.QuestionWhere.Tag.EQ(tag)).DeleteAll(GetContext(ctx), boil.GetContextDB(), false)
+			qm.InnerJoin(
+				fmt.Sprintf("%s ON %s = %s",
+					edu.TableNames.Tags,
+					edu.QuestionTableColumns.TagID,
+					edu.TagTableColumns.ID)),
+			edu.TagWhere.Tag.EQ(tag)).DeleteAll(GetContext(ctx), boil.GetContextDB(), false)
 		if err != nil {
 			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
 		}

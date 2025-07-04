@@ -11,7 +11,7 @@ reset:
 	pgmigrate -c config.yml -o reset
 
 entity:
-	sqlboiler psql -c etc/config.yml -p edu -o internal/repo/edu --add-soft-deletes
+	sqlboiler psql -c etc/config.yml -p edu -o internal/repo/edu --add-soft-deletes --tag db,pg --no-tests --wipe psql
 
 ssh:
 	ssh -i home/.ssh/id_ed25519 -l aleksey 51.250.98.75

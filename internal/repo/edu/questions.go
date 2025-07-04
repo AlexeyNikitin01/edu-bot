@@ -24,12 +24,12 @@ import (
 
 // Question is an object representing the database table.
 type Question struct {
-	ID        int64      `db:"id" pg:"id" boil:"id" json:"id" toml:"id" yaml:"id"`
-	Question  string     `db:"question" pg:"question" boil:"question" json:"question" toml:"question" yaml:"question"`
-	CreatedAt time.Time  `db:"created_at" pg:"created_at" boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
-	UpdatedAt time.Time  `db:"updated_at" pg:"updated_at" boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
-	DeletedAt null.Time  `db:"deleted_at" pg:"deleted_at" boil:"deleted_at" json:"deleted_at,omitempty" toml:"deleted_at" yaml:"deleted_at,omitempty"`
-	TagID     null.Int64 `db:"tag_id" pg:"tag_id" boil:"tag_id" json:"tag_id,omitempty" toml:"tag_id" yaml:"tag_id,omitempty"`
+	ID        int64     `db:"id" pg:"id" boil:"id" json:"id" toml:"id" yaml:"id"`
+	Question  string    `db:"question" pg:"question" boil:"question" json:"question" toml:"question" yaml:"question"`
+	CreatedAt time.Time `db:"created_at" pg:"created_at" boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
+	UpdatedAt time.Time `db:"updated_at" pg:"updated_at" boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
+	DeletedAt null.Time `db:"deleted_at" pg:"deleted_at" boil:"deleted_at" json:"deleted_at,omitempty" toml:"deleted_at" yaml:"deleted_at,omitempty"`
+	TagID     int64     `db:"tag_id" pg:"tag_id" boil:"tag_id" json:"tag_id" toml:"tag_id" yaml:"tag_id"`
 
 	R *questionR `db:"-" pg:"-" boil:"-" json:"-" toml:"-" yaml:"-"`
 	L questionL  `db:"-" pg:"-" boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -69,58 +69,20 @@ var QuestionTableColumns = struct {
 
 // Generated where
 
-type whereHelpernull_Int64 struct{ field string }
-
-func (w whereHelpernull_Int64) EQ(x null.Int64) qm.QueryMod {
-	return qmhelper.WhereNullEQ(w.field, false, x)
-}
-func (w whereHelpernull_Int64) NEQ(x null.Int64) qm.QueryMod {
-	return qmhelper.WhereNullEQ(w.field, true, x)
-}
-func (w whereHelpernull_Int64) LT(x null.Int64) qm.QueryMod {
-	return qmhelper.Where(w.field, qmhelper.LT, x)
-}
-func (w whereHelpernull_Int64) LTE(x null.Int64) qm.QueryMod {
-	return qmhelper.Where(w.field, qmhelper.LTE, x)
-}
-func (w whereHelpernull_Int64) GT(x null.Int64) qm.QueryMod {
-	return qmhelper.Where(w.field, qmhelper.GT, x)
-}
-func (w whereHelpernull_Int64) GTE(x null.Int64) qm.QueryMod {
-	return qmhelper.Where(w.field, qmhelper.GTE, x)
-}
-func (w whereHelpernull_Int64) IN(slice []int64) qm.QueryMod {
-	values := make([]interface{}, 0, len(slice))
-	for _, value := range slice {
-		values = append(values, value)
-	}
-	return qm.WhereIn(fmt.Sprintf("%s IN ?", w.field), values...)
-}
-func (w whereHelpernull_Int64) NIN(slice []int64) qm.QueryMod {
-	values := make([]interface{}, 0, len(slice))
-	for _, value := range slice {
-		values = append(values, value)
-	}
-	return qm.WhereNotIn(fmt.Sprintf("%s NOT IN ?", w.field), values...)
-}
-
-func (w whereHelpernull_Int64) IsNull() qm.QueryMod    { return qmhelper.WhereIsNull(w.field) }
-func (w whereHelpernull_Int64) IsNotNull() qm.QueryMod { return qmhelper.WhereIsNotNull(w.field) }
-
 var QuestionWhere = struct {
 	ID        whereHelperint64
 	Question  whereHelperstring
 	CreatedAt whereHelpertime_Time
 	UpdatedAt whereHelpertime_Time
 	DeletedAt whereHelpernull_Time
-	TagID     whereHelpernull_Int64
+	TagID     whereHelperint64
 }{
 	ID:        whereHelperint64{field: "\"questions\".\"id\""},
 	Question:  whereHelperstring{field: "\"questions\".\"question\""},
 	CreatedAt: whereHelpertime_Time{field: "\"questions\".\"created_at\""},
 	UpdatedAt: whereHelpertime_Time{field: "\"questions\".\"updated_at\""},
 	DeletedAt: whereHelpernull_Time{field: "\"questions\".\"deleted_at\""},
-	TagID:     whereHelpernull_Int64{field: "\"questions\".\"tag_id\""},
+	TagID:     whereHelperint64{field: "\"questions\".\"tag_id\""},
 }
 
 // QuestionRels is where relationship names are stored.
@@ -172,8 +134,8 @@ type questionL struct{}
 
 var (
 	questionAllColumns            = []string{"id", "question", "created_at", "updated_at", "deleted_at", "tag_id"}
-	questionColumnsWithoutDefault = []string{}
-	questionColumnsWithDefault    = []string{"id", "question", "created_at", "updated_at", "deleted_at", "tag_id"}
+	questionColumnsWithoutDefault = []string{"tag_id"}
+	questionColumnsWithDefault    = []string{"id", "question", "created_at", "updated_at", "deleted_at"}
 	questionPrimaryKeyColumns     = []string{"id"}
 	questionGeneratedColumns      = []string{}
 )
@@ -555,9 +517,7 @@ func (questionL) LoadTag(ctx context.Context, e boil.ContextExecutor, singular b
 		if object.R == nil {
 			object.R = &questionR{}
 		}
-		if !queries.IsNil(object.TagID) {
-			args[object.TagID] = struct{}{}
-		}
+		args[object.TagID] = struct{}{}
 
 	} else {
 		for _, obj := range slice {
@@ -565,9 +525,7 @@ func (questionL) LoadTag(ctx context.Context, e boil.ContextExecutor, singular b
 				obj.R = &questionR{}
 			}
 
-			if !queries.IsNil(obj.TagID) {
-				args[obj.TagID] = struct{}{}
-			}
+			args[obj.TagID] = struct{}{}
 
 		}
 	}
@@ -633,7 +591,7 @@ func (questionL) LoadTag(ctx context.Context, e boil.ContextExecutor, singular b
 
 	for _, local := range slice {
 		for _, foreign := range resultSlice {
-			if queries.Equal(local.TagID, foreign.ID) {
+			if local.TagID == foreign.ID {
 				local.R.Tag = foreign
 				if foreign.R == nil {
 					foreign.R = &tagR{}
@@ -902,7 +860,7 @@ func (o *Question) SetTag(ctx context.Context, exec boil.ContextExecutor, insert
 		return errors.Wrap(err, "failed to update local table")
 	}
 
-	queries.Assign(&o.TagID, related.ID)
+	o.TagID = related.ID
 	if o.R == nil {
 		o.R = &questionR{
 			Tag: related,
@@ -919,39 +877,6 @@ func (o *Question) SetTag(ctx context.Context, exec boil.ContextExecutor, insert
 		related.R.Questions = append(related.R.Questions, o)
 	}
 
-	return nil
-}
-
-// RemoveTag relationship.
-// Sets o.R.Tag to nil.
-// Removes o from all passed in related items' relationships struct.
-func (o *Question) RemoveTag(ctx context.Context, exec boil.ContextExecutor, related *Tag) error {
-	var err error
-
-	queries.SetScanner(&o.TagID, nil)
-	if _, err = o.Update(ctx, exec, boil.Whitelist("tag_id")); err != nil {
-		return errors.Wrap(err, "failed to update local table")
-	}
-
-	if o.R != nil {
-		o.R.Tag = nil
-	}
-	if related == nil || related.R == nil {
-		return nil
-	}
-
-	for i, ri := range related.R.Questions {
-		if queries.Equal(o.TagID, ri.TagID) {
-			continue
-		}
-
-		ln := len(related.R.Questions)
-		if ln > 1 && i < ln-1 {
-			related.R.Questions[i] = related.R.Questions[ln-1]
-		}
-		related.R.Questions = related.R.Questions[:ln-1]
-		break
-	}
 	return nil
 }
 

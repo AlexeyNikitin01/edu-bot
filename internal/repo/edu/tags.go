@@ -532,7 +532,7 @@ func (tagL) LoadQuestions(ctx context.Context, e boil.ContextExecutor, singular 
 
 	for _, foreign := range resultSlice {
 		for _, local := range slice {
-			if queries.Equal(local.ID, foreign.TagID) {
+			if local.ID == foreign.TagID {
 				local.R.Questions = append(local.R.Questions, foreign)
 				if foreign.R == nil {
 					foreign.R = &questionR{}
@@ -554,7 +554,7 @@ func (o *Tag) AddQuestions(ctx context.Context, exec boil.ContextExecutor, inser
 	var err error
 	for _, rel := range related {
 		if insert {
-			queries.Assign(&rel.TagID, o.ID)
+			rel.TagID = o.ID
 			if err = rel.Insert(ctx, exec, boil.Infer()); err != nil {
 				return errors.Wrap(err, "failed to insert into foreign table")
 			}
@@ -575,7 +575,7 @@ func (o *Tag) AddQuestions(ctx context.Context, exec boil.ContextExecutor, inser
 				return errors.Wrap(err, "failed to update foreign table")
 			}
 
-			queries.Assign(&rel.TagID, o.ID)
+			rel.TagID = o.ID
 		}
 	}
 
@@ -596,80 +596,6 @@ func (o *Tag) AddQuestions(ctx context.Context, exec boil.ContextExecutor, inser
 			rel.R.Tag = o
 		}
 	}
-	return nil
-}
-
-// SetQuestions removes all previously related items of the
-// tag replacing them completely with the passed
-// in related items, optionally inserting them as new records.
-// Sets o.R.Tag's Questions accordingly.
-// Replaces o.R.Questions with related.
-// Sets related.R.Tag's Questions accordingly.
-func (o *Tag) SetQuestions(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*Question) error {
-	query := "update \"questions\" set \"tag_id\" = null where \"tag_id\" = $1"
-	values := []interface{}{o.ID}
-	if boil.IsDebug(ctx) {
-		writer := boil.DebugWriterFrom(ctx)
-		fmt.Fprintln(writer, query)
-		fmt.Fprintln(writer, values)
-	}
-	_, err := exec.ExecContext(ctx, query, values...)
-	if err != nil {
-		return errors.Wrap(err, "failed to remove relationships before set")
-	}
-
-	if o.R != nil {
-		for _, rel := range o.R.Questions {
-			queries.SetScanner(&rel.TagID, nil)
-			if rel.R == nil {
-				continue
-			}
-
-			rel.R.Tag = nil
-		}
-		o.R.Questions = nil
-	}
-
-	return o.AddQuestions(ctx, exec, insert, related...)
-}
-
-// RemoveQuestions relationships from objects passed in.
-// Removes related items from R.Questions (uses pointer comparison, removal does not keep order)
-// Sets related.R.Tag.
-func (o *Tag) RemoveQuestions(ctx context.Context, exec boil.ContextExecutor, related ...*Question) error {
-	if len(related) == 0 {
-		return nil
-	}
-
-	var err error
-	for _, rel := range related {
-		queries.SetScanner(&rel.TagID, nil)
-		if rel.R != nil {
-			rel.R.Tag = nil
-		}
-		if _, err = rel.Update(ctx, exec, boil.Whitelist("tag_id")); err != nil {
-			return err
-		}
-	}
-	if o.R == nil {
-		return nil
-	}
-
-	for _, rel := range related {
-		for i, ri := range o.R.Questions {
-			if rel != ri {
-				continue
-			}
-
-			ln := len(o.R.Questions)
-			if ln > 1 && i < ln-1 {
-				o.R.Questions[i] = o.R.Questions[ln-1]
-			}
-			o.R.Questions = o.R.Questions[:ln-1]
-			break
-		}
-	}
-
 	return nil
 }
 
