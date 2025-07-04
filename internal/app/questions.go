@@ -17,12 +17,23 @@ func (a *App) GetQuestionsAnswers(ctx context.Context, userID int64) (edu.UsersQ
 
 	questions, err := edu.UsersQuestions(
 		qm.Load(qm.Rels(edu.UsersQuestionRels.Question, edu.QuestionRels.Answers)),
+		qm.InnerJoin(
+			fmt.Sprintf("%s ON %s = %s",
+				edu.TableNames.Questions,
+				edu.QuestionTableColumns.ID,
+				edu.UsersQuestionTableColumns.QuestionID)),
+		qm.InnerJoin(
+			fmt.Sprintf("%s ON %s = %s",
+				edu.TableNames.Answers,
+				edu.QuestionTableColumns.ID,
+				edu.AnswerTableColumns.QuestionID)),
 		edu.UsersQuestionWhere.TimeRepeat.LTE(now),
 		edu.UsersQuestionWhere.UserID.EQ(userID),
 		edu.UsersQuestionWhere.IsEdu.EQ(true),
 		edu.UsersQuestionWhere.DeletedAt.IsNull(),
+		edu.QuestionWhere.DeletedAt.IsNull(),
+		edu.AnswerWhere.DeletedAt.IsNull(),
 	).All(ctx, boil.GetContextDB())
-
 	if err != nil {
 		log.Println("Ошибка при выборке вопросов:", err)
 		return nil, err
