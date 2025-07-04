@@ -24,16 +24,16 @@ import (
 
 // Answer is an object representing the database table.
 type Answer struct {
-	ID         int64     `boil:"id" json:"id" toml:"id" yaml:"id"`
-	QuestionID int64     `boil:"question_id" json:"question_id" toml:"question_id" yaml:"question_id"`
-	Answer     string    `boil:"answer" json:"answer" toml:"answer" yaml:"answer"`
-	IsCorrect  bool      `boil:"is_correct" json:"is_correct" toml:"is_correct" yaml:"is_correct"`
-	CreatedAt  time.Time `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
-	UpdatedAt  time.Time `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
-	DeletedAt  null.Time `boil:"deleted_at" json:"deleted_at,omitempty" toml:"deleted_at" yaml:"deleted_at,omitempty"`
+	ID         int64     `db:"id" pg:"id" boil:"id" json:"id" toml:"id" yaml:"id"`
+	QuestionID int64     `db:"question_id" pg:"question_id" boil:"question_id" json:"question_id" toml:"question_id" yaml:"question_id"`
+	Answer     string    `db:"answer" pg:"answer" boil:"answer" json:"answer" toml:"answer" yaml:"answer"`
+	IsCorrect  bool      `db:"is_correct" pg:"is_correct" boil:"is_correct" json:"is_correct" toml:"is_correct" yaml:"is_correct"`
+	CreatedAt  time.Time `db:"created_at" pg:"created_at" boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
+	UpdatedAt  time.Time `db:"updated_at" pg:"updated_at" boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
+	DeletedAt  null.Time `db:"deleted_at" pg:"deleted_at" boil:"deleted_at" json:"deleted_at,omitempty" toml:"deleted_at" yaml:"deleted_at,omitempty"`
 
-	R *answerR `boil:"-" json:"-" toml:"-" yaml:"-"`
-	L answerL  `boil:"-" json:"-" toml:"-" yaml:"-"`
+	R *answerR `db:"-" pg:"-" boil:"-" json:"-" toml:"-" yaml:"-"`
+	L answerL  `db:"-" pg:"-" boil:"-" json:"-" toml:"-" yaml:"-"`
 }
 
 var AnswerColumns = struct {
@@ -209,7 +209,7 @@ var AnswerRels = struct {
 
 // answerR is where relationships are stored.
 type answerR struct {
-	Question *Question `boil:"Question" json:"Question" toml:"Question" yaml:"Question"`
+	Question *Question `db:"Question" pg:"Question" boil:"Question" json:"Question" toml:"Question" yaml:"Question"`
 }
 
 // NewStruct creates a new relationship struct

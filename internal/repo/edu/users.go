@@ -24,15 +24,15 @@ import (
 
 // User is an object representing the database table.
 type User struct {
-	TGUserID  int64     `boil:"tg_user_id" json:"tg_user_id" toml:"tg_user_id" yaml:"tg_user_id"`
-	ChatID    int64     `boil:"chat_id" json:"chat_id" toml:"chat_id" yaml:"chat_id"`
-	FirstName string    `boil:"first_name" json:"first_name" toml:"first_name" yaml:"first_name"`
-	CreatedAt time.Time `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
-	UpdatedAt time.Time `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
-	DeletedAt null.Time `boil:"deleted_at" json:"deleted_at,omitempty" toml:"deleted_at" yaml:"deleted_at,omitempty"`
+	TGUserID  int64     `db:"tg_user_id" pg:"tg_user_id" boil:"tg_user_id" json:"tg_user_id" toml:"tg_user_id" yaml:"tg_user_id"`
+	ChatID    int64     `db:"chat_id" pg:"chat_id" boil:"chat_id" json:"chat_id" toml:"chat_id" yaml:"chat_id"`
+	FirstName string    `db:"first_name" pg:"first_name" boil:"first_name" json:"first_name" toml:"first_name" yaml:"first_name"`
+	CreatedAt time.Time `db:"created_at" pg:"created_at" boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
+	UpdatedAt time.Time `db:"updated_at" pg:"updated_at" boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
+	DeletedAt null.Time `db:"deleted_at" pg:"deleted_at" boil:"deleted_at" json:"deleted_at,omitempty" toml:"deleted_at" yaml:"deleted_at,omitempty"`
 
-	R *userR `boil:"-" json:"-" toml:"-" yaml:"-"`
-	L userL  `boil:"-" json:"-" toml:"-" yaml:"-"`
+	R *userR `db:"-" pg:"-" boil:"-" json:"-" toml:"-" yaml:"-"`
+	L userL  `db:"-" pg:"-" boil:"-" json:"-" toml:"-" yaml:"-"`
 }
 
 var UserColumns = struct {
@@ -94,7 +94,7 @@ var UserRels = struct {
 
 // userR is where relationships are stored.
 type userR struct {
-	UsersQuestions UsersQuestionSlice `boil:"UsersQuestions" json:"UsersQuestions" toml:"UsersQuestions" yaml:"UsersQuestions"`
+	UsersQuestions UsersQuestionSlice `db:"UsersQuestions" pg:"UsersQuestions" boil:"UsersQuestions" json:"UsersQuestions" toml:"UsersQuestions" yaml:"UsersQuestions"`
 }
 
 // NewStruct creates a new relationship struct

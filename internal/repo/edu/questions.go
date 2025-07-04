@@ -24,85 +24,133 @@ import (
 
 // Question is an object representing the database table.
 type Question struct {
-	ID        int64     `boil:"id" json:"id" toml:"id" yaml:"id"`
-	Question  string    `boil:"question" json:"question" toml:"question" yaml:"question"`
-	Tag       string    `boil:"tag" json:"tag" toml:"tag" yaml:"tag"`
-	CreatedAt time.Time `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
-	UpdatedAt time.Time `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
-	DeletedAt null.Time `boil:"deleted_at" json:"deleted_at,omitempty" toml:"deleted_at" yaml:"deleted_at,omitempty"`
+	ID        int64      `db:"id" pg:"id" boil:"id" json:"id" toml:"id" yaml:"id"`
+	Question  string     `db:"question" pg:"question" boil:"question" json:"question" toml:"question" yaml:"question"`
+	CreatedAt time.Time  `db:"created_at" pg:"created_at" boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
+	UpdatedAt time.Time  `db:"updated_at" pg:"updated_at" boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
+	DeletedAt null.Time  `db:"deleted_at" pg:"deleted_at" boil:"deleted_at" json:"deleted_at,omitempty" toml:"deleted_at" yaml:"deleted_at,omitempty"`
+	TagID     null.Int64 `db:"tag_id" pg:"tag_id" boil:"tag_id" json:"tag_id,omitempty" toml:"tag_id" yaml:"tag_id,omitempty"`
 
-	R *questionR `boil:"-" json:"-" toml:"-" yaml:"-"`
-	L questionL  `boil:"-" json:"-" toml:"-" yaml:"-"`
+	R *questionR `db:"-" pg:"-" boil:"-" json:"-" toml:"-" yaml:"-"`
+	L questionL  `db:"-" pg:"-" boil:"-" json:"-" toml:"-" yaml:"-"`
 }
 
 var QuestionColumns = struct {
 	ID        string
 	Question  string
-	Tag       string
 	CreatedAt string
 	UpdatedAt string
 	DeletedAt string
+	TagID     string
 }{
 	ID:        "id",
 	Question:  "question",
-	Tag:       "tag",
 	CreatedAt: "created_at",
 	UpdatedAt: "updated_at",
 	DeletedAt: "deleted_at",
+	TagID:     "tag_id",
 }
 
 var QuestionTableColumns = struct {
 	ID        string
 	Question  string
-	Tag       string
 	CreatedAt string
 	UpdatedAt string
 	DeletedAt string
+	TagID     string
 }{
 	ID:        "questions.id",
 	Question:  "questions.question",
-	Tag:       "questions.tag",
 	CreatedAt: "questions.created_at",
 	UpdatedAt: "questions.updated_at",
 	DeletedAt: "questions.deleted_at",
+	TagID:     "questions.tag_id",
 }
 
 // Generated where
 
+type whereHelpernull_Int64 struct{ field string }
+
+func (w whereHelpernull_Int64) EQ(x null.Int64) qm.QueryMod {
+	return qmhelper.WhereNullEQ(w.field, false, x)
+}
+func (w whereHelpernull_Int64) NEQ(x null.Int64) qm.QueryMod {
+	return qmhelper.WhereNullEQ(w.field, true, x)
+}
+func (w whereHelpernull_Int64) LT(x null.Int64) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.LT, x)
+}
+func (w whereHelpernull_Int64) LTE(x null.Int64) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.LTE, x)
+}
+func (w whereHelpernull_Int64) GT(x null.Int64) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.GT, x)
+}
+func (w whereHelpernull_Int64) GTE(x null.Int64) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.GTE, x)
+}
+func (w whereHelpernull_Int64) IN(slice []int64) qm.QueryMod {
+	values := make([]interface{}, 0, len(slice))
+	for _, value := range slice {
+		values = append(values, value)
+	}
+	return qm.WhereIn(fmt.Sprintf("%s IN ?", w.field), values...)
+}
+func (w whereHelpernull_Int64) NIN(slice []int64) qm.QueryMod {
+	values := make([]interface{}, 0, len(slice))
+	for _, value := range slice {
+		values = append(values, value)
+	}
+	return qm.WhereNotIn(fmt.Sprintf("%s NOT IN ?", w.field), values...)
+}
+
+func (w whereHelpernull_Int64) IsNull() qm.QueryMod    { return qmhelper.WhereIsNull(w.field) }
+func (w whereHelpernull_Int64) IsNotNull() qm.QueryMod { return qmhelper.WhereIsNotNull(w.field) }
+
 var QuestionWhere = struct {
 	ID        whereHelperint64
 	Question  whereHelperstring
-	Tag       whereHelperstring
 	CreatedAt whereHelpertime_Time
 	UpdatedAt whereHelpertime_Time
 	DeletedAt whereHelpernull_Time
+	TagID     whereHelpernull_Int64
 }{
 	ID:        whereHelperint64{field: "\"questions\".\"id\""},
 	Question:  whereHelperstring{field: "\"questions\".\"question\""},
-	Tag:       whereHelperstring{field: "\"questions\".\"tag\""},
 	CreatedAt: whereHelpertime_Time{field: "\"questions\".\"created_at\""},
 	UpdatedAt: whereHelpertime_Time{field: "\"questions\".\"updated_at\""},
 	DeletedAt: whereHelpernull_Time{field: "\"questions\".\"deleted_at\""},
+	TagID:     whereHelpernull_Int64{field: "\"questions\".\"tag_id\""},
 }
 
 // QuestionRels is where relationship names are stored.
 var QuestionRels = struct {
+	Tag            string
 	Answers        string
 	UsersQuestions string
 }{
+	Tag:            "Tag",
 	Answers:        "Answers",
 	UsersQuestions: "UsersQuestions",
 }
 
 // questionR is where relationships are stored.
 type questionR struct {
-	Answers        AnswerSlice        `boil:"Answers" json:"Answers" toml:"Answers" yaml:"Answers"`
-	UsersQuestions UsersQuestionSlice `boil:"UsersQuestions" json:"UsersQuestions" toml:"UsersQuestions" yaml:"UsersQuestions"`
+	Tag            *Tag               `db:"Tag" pg:"Tag" boil:"Tag" json:"Tag" toml:"Tag" yaml:"Tag"`
+	Answers        AnswerSlice        `db:"Answers" pg:"Answers" boil:"Answers" json:"Answers" toml:"Answers" yaml:"Answers"`
+	UsersQuestions UsersQuestionSlice `db:"UsersQuestions" pg:"UsersQuestions" boil:"UsersQuestions" json:"UsersQuestions" toml:"UsersQuestions" yaml:"UsersQuestions"`
 }
 
 // NewStruct creates a new relationship struct
 func (*questionR) NewStruct() *questionR {
 	return &questionR{}
+}
+
+func (r *questionR) GetTag() *Tag {
+	if r == nil {
+		return nil
+	}
+	return r.Tag
 }
 
 func (r *questionR) GetAnswers() AnswerSlice {
@@ -123,9 +171,9 @@ func (r *questionR) GetUsersQuestions() UsersQuestionSlice {
 type questionL struct{}
 
 var (
-	questionAllColumns            = []string{"id", "question", "tag", "created_at", "updated_at", "deleted_at"}
+	questionAllColumns            = []string{"id", "question", "created_at", "updated_at", "deleted_at", "tag_id"}
 	questionColumnsWithoutDefault = []string{}
-	questionColumnsWithDefault    = []string{"id", "question", "tag", "created_at", "updated_at", "deleted_at"}
+	questionColumnsWithDefault    = []string{"id", "question", "created_at", "updated_at", "deleted_at", "tag_id"}
 	questionPrimaryKeyColumns     = []string{"id"}
 	questionGeneratedColumns      = []string{}
 )
@@ -435,6 +483,17 @@ func (q questionQuery) Exists(ctx context.Context, exec boil.ContextExecutor) (b
 	return count > 0, nil
 }
 
+// Tag pointed to by the foreign key.
+func (o *Question) Tag(mods ...qm.QueryMod) tagQuery {
+	queryMods := []qm.QueryMod{
+		qm.Where("\"id\" = ?", o.TagID),
+	}
+
+	queryMods = append(queryMods, mods...)
+
+	return Tags(queryMods...)
+}
+
 // Answers retrieves all the answer's Answers with an executor.
 func (o *Question) Answers(mods ...qm.QueryMod) answerQuery {
 	var queryMods []qm.QueryMod
@@ -461,6 +520,131 @@ func (o *Question) UsersQuestions(mods ...qm.QueryMod) usersQuestionQuery {
 	)
 
 	return UsersQuestions(queryMods...)
+}
+
+// LoadTag allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for an N-1 relationship.
+func (questionL) LoadTag(ctx context.Context, e boil.ContextExecutor, singular bool, maybeQuestion interface{}, mods queries.Applicator) error {
+	var slice []*Question
+	var object *Question
+
+	if singular {
+		var ok bool
+		object, ok = maybeQuestion.(*Question)
+		if !ok {
+			object = new(Question)
+			ok = queries.SetFromEmbeddedStruct(&object, &maybeQuestion)
+			if !ok {
+				return errors.New(fmt.Sprintf("failed to set %T from embedded struct %T", object, maybeQuestion))
+			}
+		}
+	} else {
+		s, ok := maybeQuestion.(*[]*Question)
+		if ok {
+			slice = *s
+		} else {
+			ok = queries.SetFromEmbeddedStruct(&slice, maybeQuestion)
+			if !ok {
+				return errors.New(fmt.Sprintf("failed to set %T from embedded struct %T", slice, maybeQuestion))
+			}
+		}
+	}
+
+	args := make(map[interface{}]struct{})
+	if singular {
+		if object.R == nil {
+			object.R = &questionR{}
+		}
+		if !queries.IsNil(object.TagID) {
+			args[object.TagID] = struct{}{}
+		}
+
+	} else {
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &questionR{}
+			}
+
+			if !queries.IsNil(obj.TagID) {
+				args[obj.TagID] = struct{}{}
+			}
+
+		}
+	}
+
+	if len(args) == 0 {
+		return nil
+	}
+
+	argsSlice := make([]interface{}, len(args))
+	i := 0
+	for arg := range args {
+		argsSlice[i] = arg
+		i++
+	}
+
+	query := NewQuery(
+		qm.From(`tags`),
+		qm.WhereIn(`tags.id in ?`, argsSlice...),
+		qmhelper.WhereIsNull(`tags.deleted_at`),
+	)
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.QueryContext(ctx, e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load Tag")
+	}
+
+	var resultSlice []*Tag
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice Tag")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results of eager load for tags")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for tags")
+	}
+
+	if len(tagAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
+				return err
+			}
+		}
+	}
+
+	if len(resultSlice) == 0 {
+		return nil
+	}
+
+	if singular {
+		foreign := resultSlice[0]
+		object.R.Tag = foreign
+		if foreign.R == nil {
+			foreign.R = &tagR{}
+		}
+		foreign.R.Questions = append(foreign.R.Questions, object)
+		return nil
+	}
+
+	for _, local := range slice {
+		for _, foreign := range resultSlice {
+			if queries.Equal(local.TagID, foreign.ID) {
+				local.R.Tag = foreign
+				if foreign.R == nil {
+					foreign.R = &tagR{}
+				}
+				foreign.R.Questions = append(foreign.R.Questions, local)
+				break
+			}
+		}
+	}
+
+	return nil
 }
 
 // LoadAnswers allows an eager lookup of values, cached into the
@@ -688,6 +872,86 @@ func (questionL) LoadUsersQuestions(ctx context.Context, e boil.ContextExecutor,
 		}
 	}
 
+	return nil
+}
+
+// SetTag of the question to the related item.
+// Sets o.R.Tag to related.
+// Adds o to related.R.Questions.
+func (o *Question) SetTag(ctx context.Context, exec boil.ContextExecutor, insert bool, related *Tag) error {
+	var err error
+	if insert {
+		if err = related.Insert(ctx, exec, boil.Infer()); err != nil {
+			return errors.Wrap(err, "failed to insert into foreign table")
+		}
+	}
+
+	updateQuery := fmt.Sprintf(
+		"UPDATE \"questions\" SET %s WHERE %s",
+		strmangle.SetParamNames("\"", "\"", 1, []string{"tag_id"}),
+		strmangle.WhereClause("\"", "\"", 2, questionPrimaryKeyColumns),
+	)
+	values := []interface{}{related.ID, o.ID}
+
+	if boil.IsDebug(ctx) {
+		writer := boil.DebugWriterFrom(ctx)
+		fmt.Fprintln(writer, updateQuery)
+		fmt.Fprintln(writer, values)
+	}
+	if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
+		return errors.Wrap(err, "failed to update local table")
+	}
+
+	queries.Assign(&o.TagID, related.ID)
+	if o.R == nil {
+		o.R = &questionR{
+			Tag: related,
+		}
+	} else {
+		o.R.Tag = related
+	}
+
+	if related.R == nil {
+		related.R = &tagR{
+			Questions: QuestionSlice{o},
+		}
+	} else {
+		related.R.Questions = append(related.R.Questions, o)
+	}
+
+	return nil
+}
+
+// RemoveTag relationship.
+// Sets o.R.Tag to nil.
+// Removes o from all passed in related items' relationships struct.
+func (o *Question) RemoveTag(ctx context.Context, exec boil.ContextExecutor, related *Tag) error {
+	var err error
+
+	queries.SetScanner(&o.TagID, nil)
+	if _, err = o.Update(ctx, exec, boil.Whitelist("tag_id")); err != nil {
+		return errors.Wrap(err, "failed to update local table")
+	}
+
+	if o.R != nil {
+		o.R.Tag = nil
+	}
+	if related == nil || related.R == nil {
+		return nil
+	}
+
+	for i, ri := range related.R.Questions {
+		if queries.Equal(o.TagID, ri.TagID) {
+			continue
+		}
+
+		ln := len(related.R.Questions)
+		if ln > 1 && i < ln-1 {
+			related.R.Questions[i] = related.R.Questions[ln-1]
+		}
+		related.R.Questions = related.R.Questions[:ln-1]
+		break
+	}
 	return nil
 }
 

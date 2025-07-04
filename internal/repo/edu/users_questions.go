@@ -24,23 +24,23 @@ import (
 
 // UsersQuestion is an object representing the database table.
 type UsersQuestion struct {
-	ID            int64       `boil:"id" json:"id" toml:"id" yaml:"id"`
-	QuestionID    int64       `boil:"question_id" json:"question_id" toml:"question_id" yaml:"question_id"`
-	UserID        int64       `boil:"user_id" json:"user_id" toml:"user_id" yaml:"user_id"`
-	TotalCorrect  int64       `boil:"total_correct" json:"total_correct" toml:"total_correct" yaml:"total_correct"`
-	TotalWrong    int64       `boil:"total_wrong" json:"total_wrong" toml:"total_wrong" yaml:"total_wrong"`
-	IsEdu         bool        `boil:"is_edu" json:"is_edu" toml:"is_edu" yaml:"is_edu"`
-	PollID        null.String `boil:"poll_id" json:"poll_id,omitempty" toml:"poll_id" yaml:"poll_id,omitempty"`
-	TimeRepeat    time.Time   `boil:"time_repeat" json:"time_repeat" toml:"time_repeat" yaml:"time_repeat"`
-	TotalSerial   int64       `boil:"total_serial" json:"total_serial" toml:"total_serial" yaml:"total_serial"`
-	CorrectAnswer null.Int64  `boil:"correct_answer" json:"correct_answer,omitempty" toml:"correct_answer" yaml:"correct_answer,omitempty"`
-	IsPause       bool        `boil:"is_pause" json:"is_pause" toml:"is_pause" yaml:"is_pause"`
-	CreatedAt     time.Time   `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
-	UpdatedAt     time.Time   `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
-	DeletedAt     null.Time   `boil:"deleted_at" json:"deleted_at,omitempty" toml:"deleted_at" yaml:"deleted_at,omitempty"`
+	ID            int64       `db:"id" pg:"id" boil:"id" json:"id" toml:"id" yaml:"id"`
+	QuestionID    int64       `db:"question_id" pg:"question_id" boil:"question_id" json:"question_id" toml:"question_id" yaml:"question_id"`
+	UserID        int64       `db:"user_id" pg:"user_id" boil:"user_id" json:"user_id" toml:"user_id" yaml:"user_id"`
+	TotalCorrect  int64       `db:"total_correct" pg:"total_correct" boil:"total_correct" json:"total_correct" toml:"total_correct" yaml:"total_correct"`
+	TotalWrong    int64       `db:"total_wrong" pg:"total_wrong" boil:"total_wrong" json:"total_wrong" toml:"total_wrong" yaml:"total_wrong"`
+	IsEdu         bool        `db:"is_edu" pg:"is_edu" boil:"is_edu" json:"is_edu" toml:"is_edu" yaml:"is_edu"`
+	PollID        null.String `db:"poll_id" pg:"poll_id" boil:"poll_id" json:"poll_id,omitempty" toml:"poll_id" yaml:"poll_id,omitempty"`
+	TimeRepeat    time.Time   `db:"time_repeat" pg:"time_repeat" boil:"time_repeat" json:"time_repeat" toml:"time_repeat" yaml:"time_repeat"`
+	TotalSerial   int64       `db:"total_serial" pg:"total_serial" boil:"total_serial" json:"total_serial" toml:"total_serial" yaml:"total_serial"`
+	CorrectAnswer null.Int64  `db:"correct_answer" pg:"correct_answer" boil:"correct_answer" json:"correct_answer,omitempty" toml:"correct_answer" yaml:"correct_answer,omitempty"`
+	IsPause       bool        `db:"is_pause" pg:"is_pause" boil:"is_pause" json:"is_pause" toml:"is_pause" yaml:"is_pause"`
+	CreatedAt     time.Time   `db:"created_at" pg:"created_at" boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
+	UpdatedAt     time.Time   `db:"updated_at" pg:"updated_at" boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
+	DeletedAt     null.Time   `db:"deleted_at" pg:"deleted_at" boil:"deleted_at" json:"deleted_at,omitempty" toml:"deleted_at" yaml:"deleted_at,omitempty"`
 
-	R *usersQuestionR `boil:"-" json:"-" toml:"-" yaml:"-"`
-	L usersQuestionL  `boil:"-" json:"-" toml:"-" yaml:"-"`
+	R *usersQuestionR `db:"-" pg:"-" boil:"-" json:"-" toml:"-" yaml:"-"`
+	L usersQuestionL  `db:"-" pg:"-" boil:"-" json:"-" toml:"-" yaml:"-"`
 }
 
 var UsersQuestionColumns = struct {
@@ -165,44 +165,6 @@ func (w whereHelpernull_String) NIN(slice []string) qm.QueryMod {
 func (w whereHelpernull_String) IsNull() qm.QueryMod    { return qmhelper.WhereIsNull(w.field) }
 func (w whereHelpernull_String) IsNotNull() qm.QueryMod { return qmhelper.WhereIsNotNull(w.field) }
 
-type whereHelpernull_Int64 struct{ field string }
-
-func (w whereHelpernull_Int64) EQ(x null.Int64) qm.QueryMod {
-	return qmhelper.WhereNullEQ(w.field, false, x)
-}
-func (w whereHelpernull_Int64) NEQ(x null.Int64) qm.QueryMod {
-	return qmhelper.WhereNullEQ(w.field, true, x)
-}
-func (w whereHelpernull_Int64) LT(x null.Int64) qm.QueryMod {
-	return qmhelper.Where(w.field, qmhelper.LT, x)
-}
-func (w whereHelpernull_Int64) LTE(x null.Int64) qm.QueryMod {
-	return qmhelper.Where(w.field, qmhelper.LTE, x)
-}
-func (w whereHelpernull_Int64) GT(x null.Int64) qm.QueryMod {
-	return qmhelper.Where(w.field, qmhelper.GT, x)
-}
-func (w whereHelpernull_Int64) GTE(x null.Int64) qm.QueryMod {
-	return qmhelper.Where(w.field, qmhelper.GTE, x)
-}
-func (w whereHelpernull_Int64) IN(slice []int64) qm.QueryMod {
-	values := make([]interface{}, 0, len(slice))
-	for _, value := range slice {
-		values = append(values, value)
-	}
-	return qm.WhereIn(fmt.Sprintf("%s IN ?", w.field), values...)
-}
-func (w whereHelpernull_Int64) NIN(slice []int64) qm.QueryMod {
-	values := make([]interface{}, 0, len(slice))
-	for _, value := range slice {
-		values = append(values, value)
-	}
-	return qm.WhereNotIn(fmt.Sprintf("%s NOT IN ?", w.field), values...)
-}
-
-func (w whereHelpernull_Int64) IsNull() qm.QueryMod    { return qmhelper.WhereIsNull(w.field) }
-func (w whereHelpernull_Int64) IsNotNull() qm.QueryMod { return qmhelper.WhereIsNotNull(w.field) }
-
 var UsersQuestionWhere = struct {
 	ID            whereHelperint64
 	QuestionID    whereHelperint64
@@ -246,8 +208,8 @@ var UsersQuestionRels = struct {
 
 // usersQuestionR is where relationships are stored.
 type usersQuestionR struct {
-	Question *Question `boil:"Question" json:"Question" toml:"Question" yaml:"Question"`
-	User     *User     `boil:"User" json:"User" toml:"User" yaml:"User"`
+	Question *Question `db:"Question" pg:"Question" boil:"Question" json:"Question" toml:"Question" yaml:"Question"`
+	User     *User     `db:"User" pg:"User" boil:"User" json:"User" toml:"User" yaml:"User"`
 }
 
 // NewStruct creates a new relationship struct
