@@ -57,3 +57,35 @@ func deleteQuestionByTag(domain app.Apper) telebot.HandlerFunc {
 		return getTags(ctx, GetUserFromContext(ctx).TGUserID, domain)
 	}
 }
+
+func deleteQuestionAfterPoll(_ *app.App, dispatcher *QuestionDispatcher) telebot.HandlerFunc {
+	return func(ctx telebot.Context) error {
+		qidStr := ctx.Data()
+		questionID, err := strconv.Atoi(qidStr)
+		if err != nil {
+			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
+		}
+
+		_, err = edu.UsersQuestions(
+			edu.UsersQuestionWhere.UserID.EQ(GetUserFromContext(ctx).TGUserID),
+			edu.UsersQuestionWhere.QuestionID.EQ(int64(questionID)),
+		).DeleteAll(GetContext(ctx), boil.GetContextDB(), false)
+		if err != nil {
+			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
+		}
+
+		if err = ctx.Delete(); err != nil {
+			return ctx.Send(err.Error())
+		}
+
+		if err = ctx.Send(MSG_SUCESS_DELETE_QUESTION); err != nil {
+			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
+		}
+
+		dispatcher.mu.Lock()
+		dispatcher.waitingForAnswer[GetUserFromContext(ctx).TGUserID] = false
+		dispatcher.mu.Unlock()
+
+		return nil
+	}
+}

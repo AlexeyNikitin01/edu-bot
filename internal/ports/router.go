@@ -1,8 +1,6 @@
 package ports
 
 import (
-	"context"
-
 	"gopkg.in/telebot.v3"
 
 	"bot/internal/app"
@@ -40,7 +38,7 @@ const (
 	CMD_CANCEL string = "/cancel"
 )
 
-func routers(ctx context.Context, b *telebot.Bot, domain *app.App) {
+func routers(b *telebot.Bot, domain *app.App, dispatcher *QuestionDispatcher) {
 	b.Handle(CMD_START, func(ctx telebot.Context) error {
 		return ctx.Send(MSG_GRETING, mainMenu())
 	})
@@ -57,8 +55,10 @@ func routers(ctx context.Context, b *telebot.Bot, domain *app.App) {
 	})
 	b.Handle(&telebot.InlineButton{Unique: INLINE_COMPLEX_QUESTION}, setHigh(true, MSG_CHOOSE_HIGH, domain))
 	b.Handle(&telebot.InlineButton{Unique: INLINE_SIMPLE_QUESTION}, setHigh(false, MSG_CHOOSE_SIMPLE, domain))
-	b.Handle(&telebot.InlineButton{Unique: INLINE_SIMPLE_QUESTION}, setHigh(true, MSG_CHOOSE_HIGH, domain))
-	b.Handle(&telebot.InlineButton{Unique: INLINE_SIMPLE_QUESTION}, setHigh(false, MSG_CHOOSE_SIMPLE, domain))
+	b.Handle(&telebot.InlineButton{Unique: INLINE_FORGOT_HIGH_QUESTION}, forgotQuestion(domain, dispatcher))
+	b.Handle(&telebot.InlineButton{Unique: INLINE_REMEMBER_HIGH_QUESTION}, rememberQuestion(domain, dispatcher))
+	b.Handle(&telebot.InlineButton{Unique: INLINE_BTN_REPEAT_QUESTION_AFTER_POLL}, repeatQuestion(domain))
+	b.Handle(&telebot.InlineButton{Unique: INLINE_BTN_DELETE_QUESTION_AFTER_POLL}, deleteQuestionAfterPoll(domain, dispatcher))
 
 	// ADD CSV
 	b.Handle(telebot.OnDocument, setQuestionsByCSV(domain))
@@ -82,9 +82,9 @@ func routers(ctx context.Context, b *telebot.Bot, domain *app.App) {
 		}
 	})
 
-	// TODO: вынести в domain
-	dispatcher := NewDispatcher(ctx, domain, b)
-	dispatcher.RegisterPollAnswerHandler()
+	b.Handle(telebot.OnPollAnswer, checkPollAnswer(domain, dispatcher))
+
+	// Воркер для каждого пользователя, каждые 2 секунды рассылка вопросов для пользователей
 	dispatcher.StartPollingLoop()
 }
 
