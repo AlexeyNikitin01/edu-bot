@@ -21,6 +21,7 @@ const (
 	MSG_REMEMBER            = "ЛЕГКО"
 	MSG_INC_SERIAL_QUESTION = "Отлично, вопрос будет реже вам попадаться🤗🤗🤗"
 	MSG_RESET_QUESTION      = "Ничего страшного, вопрос снова повториться в скором времени👈🤝🕕"
+	MSG_NEXT_QUESTION       = "😎"
 )
 
 type QuestionDispatcher struct {
@@ -237,4 +238,18 @@ func (d *QuestionDispatcher) questionWithTest(userID int64, uq *edu.UsersQuestio
 	}
 
 	return nil
+}
+
+func nextQuestion(dispatcher *QuestionDispatcher) telebot.HandlerFunc {
+	return func(ctx telebot.Context) error {
+		if err := ctx.Send(MSG_NEXT_QUESTION); err != nil {
+			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
+		}
+
+		dispatcher.mu.Lock()
+		dispatcher.waitingForAnswer[GetUserFromContext(ctx).TGUserID] = false
+		dispatcher.mu.Unlock()
+
+		return nil
+	}
 }

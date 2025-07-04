@@ -33,6 +33,7 @@ func (a *App) GetQuestionsAnswers(ctx context.Context, userID int64) (edu.UsersQ
 		edu.UsersQuestionWhere.DeletedAt.IsNull(),
 		edu.QuestionWhere.DeletedAt.IsNull(),
 		edu.AnswerWhere.DeletedAt.IsNull(),
+		qm.OrderBy("RANDOM()"),
 	).All(ctx, boil.GetContextDB())
 	if err != nil {
 		log.Println("Ошибка при выборке вопросов:", err)

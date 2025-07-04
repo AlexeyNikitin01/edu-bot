@@ -20,6 +20,7 @@ const (
 	INLINE_REMEMBER_HIGH_QUESTION              = "remember_high_question"
 	INLINE_COMPLEX_QUESTION                    = "complex"
 	INLINE_SIMPLE_QUESTION                     = "simple"
+	INLINE_NEXT_QUESTION                       = "next_question"
 
 	INLINE_NAME_DELETE_AFTER_POLL = "🗑️ УДАЛЕНИЕ"
 	INLINE_NAME_REPEAT_AFTER_POLL = "️ПОВТОРЕНИЕ"
@@ -28,6 +29,7 @@ const (
 	BTN_ADD_QUESTION       = "➕ Вопрос"
 	BTN_MANAGMENT_QUESTION = "📚 Управление"
 	BTN_ADD_CSV            = "➕ Вопросы CSV"
+	BTN_NEXT_QUESTION      = "🌀 Дальше"
 
 	MSG_WRONG_BTN = "⚠️ Неизвестная команда. Используйте меню ниже."
 	MSG_CSV       = "📤 Отправьте CSV файл с вопросами в формате:\n\n" +
@@ -64,6 +66,7 @@ func routers(b *telebot.Bot, domain *app.App, dispatcher *QuestionDispatcher) {
 	b.Handle(&telebot.InlineButton{Unique: INLINE_BTN_REPEAT_QUESTION_AFTER_POLL_HIGH}, repeatQuestionAfterPollHigh(domain))
 	b.Handle(&telebot.InlineButton{Unique: INLINE_BTN_DELETE_QUESTION_AFTER_POLL}, deleteQuestionAfterPoll(domain, dispatcher))
 	b.Handle(&telebot.InlineButton{Unique: INLINE_BTN_DELETE_QUESTION_AFTER_POLL_HIGH}, deleteQuestionAfterPollHigh(domain, dispatcher))
+	b.Handle(&telebot.InlineButton{Unique: INLINE_NEXT_QUESTION}, nextQuestion(dispatcher))
 
 	// ADD CSV
 	b.Handle(telebot.OnDocument, setQuestionsByCSV(domain))
@@ -82,6 +85,8 @@ func routers(b *telebot.Bot, domain *app.App, dispatcher *QuestionDispatcher) {
 			return showRepeatTagList(domain, INLINE_BTN_REPEAT_QUESTION)(ctx)
 		case BTN_ADD_CSV:
 			return ctx.Send(MSG_CSV, telebot.ModeHTML)
+		case BTN_NEXT_QUESTION:
+			return nextQuestion(dispatcher)(ctx)
 		default:
 			return ctx.Send(MSG_WRONG_BTN, mainMenu())
 		}
@@ -99,10 +104,11 @@ func mainMenu() *telebot.ReplyMarkup {
 	btnAdd := menu.Text(BTN_ADD_QUESTION)
 	btnMark := menu.Text(BTN_MANAGMENT_QUESTION)
 	btnCSV := menu.Text(BTN_ADD_CSV)
+	btnNext := menu.Text(BTN_NEXT_QUESTION)
 
 	menu.Reply(
 		menu.Row(btnAdd, btnCSV),
-		menu.Row(btnMark),
+		menu.Row(btnMark, btnNext),
 	)
 
 	return menu
