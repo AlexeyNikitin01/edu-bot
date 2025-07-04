@@ -7,24 +7,27 @@ import (
 )
 
 const (
-	INLINE_BTN_TAGS                       = "tags"
-	INLINE_BTN_REPEAT_QUESTION            = "toggle_repeat"
-	INLINE_BTN_DELETE_QUESTION            = "delete_question"
-	INLINE_BTN_DELETE_QUESTIONS_BY_TAG    = "delete_tag"
-	INLINE_BTN_DELETE_QUESTION_AFTER_POLL = "delete_question_after_poll"
-	INLINE_BTN_REPEAT_QUESTION_AFTER_POLL = "repeat_question_after_poll"
-	INLINE_BTN_QUESTION_BY_TAG            = "question_by_tag"
-	INLINE_FORGOT_HIGH_QUESTION           = "forgot_high_question"
-	INLINE_REMEMBER_HIGH_QUESTION         = "remember_high_question"
-	INLINE_COMPLEX_QUESTION               = "complex"
-	INLINE_SIMPLE_QUESTION                = "simple"
-	INLINE_NAME_DELETE_AFTER_POLL         = "🗑️ УДАЛЕНИЕ"
-	INLINE_NAME_REPEAT_AFTER_POLL         = "️ПОВТОРЕНИЕ"
-	INLINE_NAME_DELETE                    = "🗑️"
+	INLINE_BTN_TAGS                            = "tags"
+	INLINE_BTN_REPEAT_QUESTION                 = "toggle_repeat"
+	INLINE_BTN_DELETE_QUESTION                 = "delete_question"
+	INLINE_BTN_DELETE_QUESTIONS_BY_TAG         = "delete_tag"
+	INLINE_BTN_DELETE_QUESTION_AFTER_POLL      = "delete_question_after_poll"
+	INLINE_BTN_DELETE_QUESTION_AFTER_POLL_HIGH = "delete_question_after_poll_high"
+	INLINE_BTN_REPEAT_QUESTION_AFTER_POLL      = "repeat_question_after_poll"
+	INLINE_BTN_REPEAT_QUESTION_AFTER_POLL_HIGH = "repeat_question_after_poll_high"
+	INLINE_BTN_QUESTION_BY_TAG                 = "question_by_tag"
+	INLINE_FORGOT_HIGH_QUESTION                = "forgot_high_question"
+	INLINE_REMEMBER_HIGH_QUESTION              = "remember_high_question"
+	INLINE_COMPLEX_QUESTION                    = "complex"
+	INLINE_SIMPLE_QUESTION                     = "simple"
 
-	BTN_ADD_QUESTION       = "➕ Добавить вопрос"
-	BTN_MANAGMENT_QUESTION = "📚 Управлять вопросами"
-	BTN_ADD_CSV            = "📁 Добавить вопросы через CSV"
+	INLINE_NAME_DELETE_AFTER_POLL = "🗑️ УДАЛЕНИЕ"
+	INLINE_NAME_REPEAT_AFTER_POLL = "️ПОВТОРЕНИЕ"
+	INLINE_NAME_DELETE            = "🗑️"
+
+	BTN_ADD_QUESTION       = "➕ Вопрос"
+	BTN_MANAGMENT_QUESTION = "📚 Управление"
+	BTN_ADD_CSV            = "➕ Вопросы CSV"
 
 	MSG_WRONG_BTN = "⚠️ Неизвестная команда. Используйте меню ниже."
 	MSG_CSV       = "📤 Отправьте CSV файл с вопросами в формате:\n\n" +
@@ -57,8 +60,10 @@ func routers(b *telebot.Bot, domain *app.App, dispatcher *QuestionDispatcher) {
 	b.Handle(&telebot.InlineButton{Unique: INLINE_SIMPLE_QUESTION}, setHigh(false, MSG_CHOOSE_SIMPLE, domain))
 	b.Handle(&telebot.InlineButton{Unique: INLINE_FORGOT_HIGH_QUESTION}, forgotQuestion(domain, dispatcher))
 	b.Handle(&telebot.InlineButton{Unique: INLINE_REMEMBER_HIGH_QUESTION}, rememberQuestion(domain, dispatcher))
-	b.Handle(&telebot.InlineButton{Unique: INLINE_BTN_REPEAT_QUESTION_AFTER_POLL}, repeatQuestion(domain))
+	b.Handle(&telebot.InlineButton{Unique: INLINE_BTN_REPEAT_QUESTION_AFTER_POLL}, repeatQuestionAfterPoll(domain))
+	b.Handle(&telebot.InlineButton{Unique: INLINE_BTN_REPEAT_QUESTION_AFTER_POLL_HIGH}, repeatQuestionAfterPollHigh(domain))
 	b.Handle(&telebot.InlineButton{Unique: INLINE_BTN_DELETE_QUESTION_AFTER_POLL}, deleteQuestionAfterPoll(domain, dispatcher))
+	b.Handle(&telebot.InlineButton{Unique: INLINE_BTN_DELETE_QUESTION_AFTER_POLL_HIGH}, deleteQuestionAfterPollHigh(domain, dispatcher))
 
 	// ADD CSV
 	b.Handle(telebot.OnDocument, setQuestionsByCSV(domain))

@@ -109,7 +109,7 @@ func rememberQuestion(domain *app.App, dispatcher *QuestionDispatcher) telebot.H
 	}
 }
 
-func repeatQuestion(domain *app.App) telebot.HandlerFunc {
+func repeatQuestionAfterPoll(domain *app.App) telebot.HandlerFunc {
 	return func(ctx telebot.Context) error {
 		qidStr := ctx.Data() // получаем questionID из callback data
 		questionID, err := strconv.Atoi(qidStr)
@@ -129,6 +129,47 @@ func repeatQuestion(domain *app.App) telebot.HandlerFunc {
 				INLINE_NAME_REPEAT_AFTER_POLL,
 				INLINE_NAME_DELETE_AFTER_POLL,
 				INLINE_BTN_DELETE_QUESTION_AFTER_POLL,
+			)},
+		}); err != nil {
+			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
+		}
+
+		return nil
+	}
+}
+
+func repeatQuestionAfterPollHigh(domain *app.App) telebot.HandlerFunc {
+	return func(ctx telebot.Context) error {
+		qidStr := ctx.Data() // получаем questionID из callback data
+		questionID, err := strconv.Atoi(qidStr)
+		if err != nil {
+			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
+		}
+
+		if err = domain.UpdateIsEduUserQuestion(GetContext(ctx), GetUserFromContext(ctx).TGUserID, int64(questionID)); err != nil {
+			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
+		}
+
+		forgot := telebot.InlineButton{
+			Unique: INLINE_FORGOT_HIGH_QUESTION,
+			Text:   MSG_FORGOT,
+			Data:   fmt.Sprintf("%d", questionID),
+		}
+
+		easy := telebot.InlineButton{
+			Unique: INLINE_REMEMBER_HIGH_QUESTION,
+			Text:   MSG_REMEMBER,
+			Data:   fmt.Sprintf("%d", questionID),
+		}
+
+		if err = ctx.Edit(&telebot.ReplyMarkup{
+			InlineKeyboard: [][]telebot.InlineButton{{easy, forgot}, getQuestionBtn(
+				ctx,
+				int64(questionID),
+				INLINE_BTN_REPEAT_QUESTION_AFTER_POLL_HIGH,
+				INLINE_NAME_REPEAT_AFTER_POLL,
+				INLINE_NAME_DELETE_AFTER_POLL,
+				INLINE_BTN_DELETE_QUESTION_AFTER_POLL_HIGH,
 			)},
 		}); err != nil {
 			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})

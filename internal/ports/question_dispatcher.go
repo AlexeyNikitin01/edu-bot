@@ -124,13 +124,15 @@ func (d *QuestionDispatcher) sendQuestion(userID int64, uq *edu.UsersQuestion) e
 	answers := uq.R.GetQuestion().R.GetAnswers()
 
 	if len(answers) == 1 || uq.TotalSerial > 4 {
-		return d.questionWithHigh(userID, uq.R.GetQuestion(), answers[0])
+		return d.questionWithHigh(userID, uq, uq.R.GetQuestion(), answers[0])
 	}
 
 	return d.questionWithTest(userID, uq)
 }
 
-func (d *QuestionDispatcher) questionWithHigh(id int64, q *edu.Question, answer *edu.Answer) error {
+func (d *QuestionDispatcher) questionWithHigh(
+	id int64, uq *edu.UsersQuestion, q *edu.Question, answer *edu.Answer,
+) error {
 	forgot := telebot.InlineButton{
 		Unique: INLINE_FORGOT_HIGH_QUESTION,
 		Text:   MSG_FORGOT,
@@ -143,13 +145,30 @@ func (d *QuestionDispatcher) questionWithHigh(id int64, q *edu.Question, answer 
 		Data:   fmt.Sprintf("%d", q.ID),
 	}
 
+	label := "☑️"
+	if uq.IsEdu {
+		label = "✅"
+	}
+
+	repeatBtn := telebot.InlineButton{
+		Unique: INLINE_BTN_REPEAT_QUESTION_AFTER_POLL_HIGH,
+		Text:   label + INLINE_NAME_REPEAT_AFTER_POLL,
+		Data:   fmt.Sprintf("%d", uq.QuestionID),
+	}
+
+	deleteBtn := telebot.InlineButton{
+		Unique: INLINE_BTN_DELETE_QUESTION_AFTER_POLL_HIGH,
+		Text:   INLINE_NAME_DELETE_AFTER_POLL,
+		Data:   fmt.Sprintf("%d", uq.QuestionID),
+	}
+
 	rec := &telebot.User{ID: id}
 	_, err := d.bot.Send(
 		rec,
 		fmt.Sprintf("%s \n\n || %s ||", q.Question, answer.Answer),
 		telebot.ModeMarkdownV2,
 		&telebot.ReplyMarkup{
-			InlineKeyboard: [][]telebot.InlineButton{{easy, forgot}},
+			InlineKeyboard: [][]telebot.InlineButton{{easy, forgot}, {repeatBtn, deleteBtn}},
 		},
 	)
 	return err
