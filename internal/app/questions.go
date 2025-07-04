@@ -107,6 +107,7 @@ func (a *App) GetUniqueTags(ctx context.Context, userID int64) ([]string, error)
 		),
 		edu.UsersQuestionWhere.UserID.EQ(userID),
 		edu.UsersQuestionWhere.DeletedAt.IsNull(),
+		qm.GroupBy(edu.TagTableColumns.ID),
 	).All(ctx, boil.GetContextDB())
 	if err != nil {
 		return nil, err
@@ -122,7 +123,8 @@ func (a *App) GetUniqueTags(ctx context.Context, userID int64) ([]string, error)
 
 func (a *App) SaveQuestions(ctx context.Context, question, tag string, answers []string, userID int64) (err error) {
 	eduTag, err := edu.Tags(
-		edu.TagWhere.Tag.EQ(tag)).One(ctx, boil.GetContextDB())
+		edu.TagWhere.Tag.EQ(tag),
+	).One(ctx, boil.GetContextDB())
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return err
 	} else if errors.Is(err, sql.ErrNoRows) {
