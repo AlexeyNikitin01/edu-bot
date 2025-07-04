@@ -13,10 +13,6 @@ import (
 )
 
 const (
-	INLINE_NAME_DELETE_AFTER_POLL = "🗑️ УДАЛЕНИЕ"
-	INLINE_NAME_REPEAT_AFTER_POLL = "️ПОВТОРЕНИЕ"
-	INLINE_NAME_DELETE            = "🗑️"
-
 	MSG_LIST_QUESTION = "ВОПРОСЫ: "
 	MSG_LIST_TAGS     = "ТЭГИ: "
 )
@@ -116,32 +112,6 @@ func getQuestionBtns(ctx telebot.Context, tag string) [][]telebot.InlineButton {
 	}
 
 	return btns
-}
-
-// handleToggleRepeatAfterPoll выбор учить или не учить вопрос рядом с опросом.
-func handleToggleRepeatAfterPoll(domain app.Apper) telebot.HandlerFunc {
-	return func(ctx telebot.Context) error {
-		qidStr := ctx.Data() // получаем questionID из callback data
-		questionID, err := strconv.Atoi(qidStr)
-		if err != nil {
-			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
-		}
-
-		if err = domain.UpdateIsEduUserQuestion(GetContext(ctx), GetUserFromContext(ctx).TGUserID, int64(questionID)); err != nil {
-			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
-		}
-
-		return ctx.Edit(&telebot.ReplyMarkup{
-			InlineKeyboard: [][]telebot.InlineButton{getQuestionBtn(
-				ctx,
-				int64(questionID),
-				INLINE_BTN_REPEAT_QUESTION_AFTER_POLL,
-				INLINE_NAME_REPEAT_AFTER_POLL,
-				INLINE_NAME_DELETE_AFTER_POLL,
-				INLINE_BTN_DELETE_QUESTION_AFTER_POLL,
-			)},
-		})
-	}
 }
 
 func getQuestionBtn(

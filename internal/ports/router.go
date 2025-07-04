@@ -14,10 +14,15 @@ const (
 	INLINE_BTN_DELETE_QUESTION            = "delete_question"
 	INLINE_BTN_DELETE_QUESTIONS_BY_TAG    = "delete_tag"
 	INLINE_BTN_DELETE_QUESTION_AFTER_POLL = "delete_question_after_poll"
-	INLINE_BTN_REPEAT_QUESTION_AFTER_POLL = "delete_question_after_poll"
+	INLINE_BTN_REPEAT_QUESTION_AFTER_POLL = "repeat_question_after_poll"
 	INLINE_BTN_QUESTION_BY_TAG            = "question_by_tag"
 	INLINE_FORGOT_HIGH_QUESTION           = "forgot_high_question"
 	INLINE_REMEMBER_HIGH_QUESTION         = "remember_high_question"
+	INLINE_COMPLEX_QUESTION               = "complex"
+	INLINE_SIMPLE_QUESTION                = "simple"
+	INLINE_NAME_DELETE_AFTER_POLL         = "🗑️ УДАЛЕНИЕ"
+	INLINE_NAME_REPEAT_AFTER_POLL         = "️ПОВТОРЕНИЕ"
+	INLINE_NAME_DELETE                    = "🗑️"
 
 	BTN_ADD_QUESTION       = "➕ Добавить вопрос"
 	BTN_MANAGMENT_QUESTION = "📚 Управлять вопросами"
@@ -42,9 +47,7 @@ func routers(ctx context.Context, b *telebot.Bot, domain *app.App) {
 
 	// INLINES BUTTONS
 	b.Handle(&telebot.InlineButton{Unique: INLINE_BTN_REPEAT_QUESTION}, handleToggleRepeat(domain))
-	b.Handle(&telebot.InlineButton{Unique: INLINE_BTN_REPEAT_QUESTION_AFTER_POLL}, handleToggleRepeatAfterPoll(domain))
 	b.Handle(&telebot.InlineButton{Unique: INLINE_BTN_DELETE_QUESTION}, deleteQuestion())
-	b.Handle(&telebot.InlineButton{Unique: INLINE_BTN_DELETE_QUESTION_AFTER_POLL}, deleteQuestionAfterPoll())
 	b.Handle(&telebot.InlineButton{Unique: INLINE_BTN_DELETE_QUESTIONS_BY_TAG}, deleteQuestionByTag(domain))
 	b.Handle(&telebot.InlineButton{Unique: INLINE_BTN_TAGS}, func(c telebot.Context) error {
 		return add(domain)(c)
@@ -52,8 +55,10 @@ func routers(ctx context.Context, b *telebot.Bot, domain *app.App) {
 	b.Handle(&telebot.InlineButton{Unique: INLINE_BTN_QUESTION_BY_TAG}, func(ctx telebot.Context) error {
 		return questionByTag(ctx.Data())(ctx)
 	})
-	b.Handle(&telebot.InlineButton{Unique: INLINE_FORGOT_HIGH_QUESTION}, resetTime(domain))
-	b.Handle(&telebot.InlineButton{Unique: INLINE_REMEMBER_HIGH_QUESTION}, incTotalSerialQuestion(domain))
+	b.Handle(&telebot.InlineButton{Unique: INLINE_COMPLEX_QUESTION}, setHigh(true, MSG_CHOOSE_HIGH, domain))
+	b.Handle(&telebot.InlineButton{Unique: INLINE_SIMPLE_QUESTION}, setHigh(false, MSG_CHOOSE_SIMPLE, domain))
+	b.Handle(&telebot.InlineButton{Unique: INLINE_SIMPLE_QUESTION}, setHigh(true, MSG_CHOOSE_HIGH, domain))
+	b.Handle(&telebot.InlineButton{Unique: INLINE_SIMPLE_QUESTION}, setHigh(false, MSG_CHOOSE_SIMPLE, domain))
 
 	// ADD CSV
 	b.Handle(telebot.OnDocument, setQuestionsByCSV(domain))
@@ -67,10 +72,6 @@ func routers(ctx context.Context, b *telebot.Bot, domain *app.App) {
 
 		switch ctx.Text() {
 		case BTN_ADD_QUESTION:
-			if err := getTags(ctx, GetUserFromContext(ctx).TGUserID, domain); err != nil {
-				return err
-			}
-			drafts[GetUserFromContext(ctx).TGUserID] = &QuestionDraft{Step: 1}
 			return add(domain)(ctx)
 		case BTN_MANAGMENT_QUESTION:
 			return showRepeatTagList(domain, INLINE_BTN_REPEAT_QUESTION)(ctx)

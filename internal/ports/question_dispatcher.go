@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"strconv"
 	"sync"
 	"time"
 
@@ -17,8 +18,10 @@ import (
 )
 
 const (
-	MSG_FORGOT   = "СЛОЖНО"
-	MSG_REMEMBER = "ЛЕГКО"
+	MSG_FORGOT              = "СЛОЖНО"
+	MSG_REMEMBER            = "ЛЕГКО"
+	MSG_INC_SERIAL_QUESTION = "Отлично, вопрос будет реже вам попадаться🤗🤗🤗"
+	MSG_RESET_QUESTION      = "Ничего страшного, вопрос снова повториться в скором времени👈🤝🕕"
 )
 
 type QuestionDispatcher struct {
@@ -219,6 +222,7 @@ func (d *QuestionDispatcher) questionWithTest(userID int64, uq *edu.UsersQuestio
 	return nil
 }
 
+// RegisterPollAnswerHandler todo: отрефакторить
 func (d *QuestionDispatcher) RegisterPollAnswerHandler() {
 	d.bot.Handle(telebot.OnPollAnswer, func(c telebot.Context) error {
 		poll := c.PollAnswer()
@@ -240,6 +244,154 @@ func (d *QuestionDispatcher) RegisterPollAnswerHandler() {
 
 		d.mu.Lock()
 		d.waitingForAnswer[userID] = false
+		d.mu.Unlock()
+
+		return nil
+	})
+
+	d.bot.Handle(&telebot.InlineButton{Unique: INLINE_FORGOT_HIGH_QUESTION}, func(ctx telebot.Context) error {
+		qidStr := ctx.Data()
+		questionID, err := strconv.Atoi(qidStr)
+		if err != nil {
+			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
+		}
+
+		uq, err := edu.UsersQuestions(
+			edu.UsersQuestionWhere.UserID.EQ(GetUserFromContext(ctx).TGUserID),
+			edu.UsersQuestionWhere.QuestionID.EQ(int64(questionID)),
+		).One(GetContext(ctx), boil.GetContextDB())
+		if err != nil {
+			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
+		}
+
+		if err = d.domain.UpdateRepeatTime(GetContext(ctx), uq, false); err != nil {
+			return err
+		}
+
+		forgot := telebot.InlineButton{
+			Unique: INLINE_FORGOT_HIGH_QUESTION,
+			Text:   "🔴 " + MSG_FORGOT,
+			Data:   fmt.Sprintf("%d", questionID),
+		}
+
+		easy := telebot.InlineButton{
+			Unique: INLINE_REMEMBER_HIGH_QUESTION,
+			Text:   MSG_REMEMBER,
+			Data:   fmt.Sprintf("%d", questionID),
+		}
+
+		if err = ctx.Edit(&telebot.ReplyMarkup{
+			InlineKeyboard: [][]telebot.InlineButton{{easy, forgot}},
+		}); err != nil {
+			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
+		}
+
+		d.mu.Lock()
+		d.waitingForAnswer[GetUserFromContext(ctx).TGUserID] = false
+		d.mu.Unlock()
+
+		return ctx.Send(MSG_RESET_QUESTION)
+	})
+
+	d.bot.Handle(&telebot.InlineButton{Unique: INLINE_REMEMBER_HIGH_QUESTION}, func(ctx telebot.Context) error {
+		qidStr := ctx.Data()
+		questionID, err := strconv.Atoi(qidStr)
+		if err != nil {
+			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
+		}
+
+		uq, err := edu.UsersQuestions(
+			edu.UsersQuestionWhere.UserID.EQ(GetUserFromContext(ctx).TGUserID),
+			edu.UsersQuestionWhere.QuestionID.EQ(int64(questionID)),
+		).One(GetContext(ctx), boil.GetContextDB())
+		if err != nil {
+			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
+		}
+
+		if err = d.domain.UpdateRepeatTime(GetContext(ctx), uq, true); err != nil {
+			return err
+		}
+
+		forgot := telebot.InlineButton{
+			Unique: INLINE_FORGOT_HIGH_QUESTION,
+			Text:   MSG_FORGOT,
+			Data:   fmt.Sprintf("%d", questionID),
+		}
+
+		easy := telebot.InlineButton{
+			Unique: INLINE_REMEMBER_HIGH_QUESTION,
+			Text:   "✅ " + MSG_REMEMBER,
+			Data:   fmt.Sprintf("%d", questionID),
+		}
+
+		if err = ctx.Edit(&telebot.ReplyMarkup{
+			InlineKeyboard: [][]telebot.InlineButton{{easy, forgot}},
+		}); err != nil {
+			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
+		}
+
+		if err = ctx.Send(MSG_INC_SERIAL_QUESTION); err != nil {
+			return err
+		}
+
+		d.mu.Lock()
+		d.waitingForAnswer[GetUserFromContext(ctx).TGUserID] = false
+		d.mu.Unlock()
+
+		return nil
+	})
+
+	d.bot.Handle(&telebot.InlineButton{Unique: INLINE_BTN_REPEAT_QUESTION_AFTER_POLL}, func(ctx telebot.Context) error {
+		qidStr := ctx.Data() // получаем questionID из callback data
+		questionID, err := strconv.Atoi(qidStr)
+		if err != nil {
+			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
+		}
+
+		if err = d.domain.UpdateIsEduUserQuestion(GetContext(ctx), GetUserFromContext(ctx).TGUserID, int64(questionID)); err != nil {
+			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
+		}
+
+		if err = ctx.Edit(&telebot.ReplyMarkup{
+			InlineKeyboard: [][]telebot.InlineButton{getQuestionBtn(
+				ctx,
+				int64(questionID),
+				INLINE_BTN_REPEAT_QUESTION_AFTER_POLL,
+				INLINE_NAME_REPEAT_AFTER_POLL,
+				INLINE_NAME_DELETE_AFTER_POLL,
+				INLINE_BTN_DELETE_QUESTION_AFTER_POLL,
+			)},
+		}); err != nil {
+			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
+		}
+
+		return nil
+	})
+	d.bot.Handle(&telebot.InlineButton{Unique: INLINE_BTN_DELETE_QUESTION_AFTER_POLL}, func(ctx telebot.Context) error {
+		qidStr := ctx.Data()
+		questionID, err := strconv.Atoi(qidStr)
+		if err != nil {
+			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
+		}
+
+		_, err = edu.UsersQuestions(
+			edu.UsersQuestionWhere.UserID.EQ(GetUserFromContext(ctx).TGUserID),
+			edu.UsersQuestionWhere.QuestionID.EQ(int64(questionID)),
+		).DeleteAll(GetContext(ctx), boil.GetContextDB(), false)
+		if err != nil {
+			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
+		}
+
+		if err = ctx.Delete(); err != nil {
+			return ctx.Send(err.Error())
+		}
+
+		if err = ctx.Send(MSG_SUCESS_DELETE_QUESTION); err != nil {
+			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
+		}
+
+		d.mu.Lock()
+		d.waitingForAnswer[GetUserFromContext(ctx).TGUserID] = false
 		d.mu.Unlock()
 
 		return nil

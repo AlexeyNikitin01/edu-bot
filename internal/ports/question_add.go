@@ -7,11 +7,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/volatiletech/sqlboiler/v4/boil"
 	"gopkg.in/telebot.v3"
 
 	"bot/internal/app"
-	"bot/internal/repo/edu"
 )
 
 var (
@@ -37,9 +35,39 @@ type QuestionDraft struct {
 	Question string
 	Tag      string
 	Answers  []string
+	High     bool
 }
 
 var drafts = make(map[int64]*QuestionDraft)
+
+const (
+	MSG_TEST          = "Вопрос с тестом"
+	MSG_HIGH_QUESTION = "Вопрос с развернутым ответом"
+	MSG_TYPE_QUESTION = "Выберите тип вопроса"
+	MSG_CHOOSE_HIGH   = "Выбран вопрос с развернутым ответом"
+	MSG_CHOOSE_SIMPLE = "Выбран вопрос с вариантами ответа"
+)
+
+func setHigh(b bool, msg string, a app.Apper) telebot.HandlerFunc {
+	return func(ctx telebot.Context) (err error) {
+		draft, exists := drafts[GetUserFromContext(ctx).TGUserID]
+		if !exists {
+			drafts[GetUserFromContext(ctx).TGUserID] = &QuestionDraft{Step: 1}
+		}
+
+		draft.High = b
+
+		if err = ctx.Send(msg); err != nil {
+			return err
+		}
+
+		if err = getTags(ctx, GetUserFromContext(ctx).TGUserID, a); err != nil {
+			return err
+		}
+
+		return nil
+	}
+}
 
 func add(domain app.Apper) telebot.HandlerFunc {
 	return func(ctx telebot.Context) (err error) {
@@ -48,7 +76,13 @@ func add(domain app.Apper) telebot.HandlerFunc {
 
 		draft, exists := drafts[u.TGUserID]
 		if !exists {
-			return ctx.Send(MSG_CHOOSE_ACTION)
+			drafts[u.TGUserID] = &QuestionDraft{Step: 1}
+			selector := &telebot.ReplyMarkup{}
+			btnSimple := selector.Data(MSG_TEST, INLINE_SIMPLE_QUESTION)
+			btnComplex := selector.Data(MSG_HIGH_QUESTION, INLINE_COMPLEX_QUESTION)
+			selector.Inline(selector.Row(btnSimple), selector.Row(btnComplex))
+
+			return ctx.Send(MSG_TYPE_QUESTION, selector)
 		}
 
 		if msg == CMD_CANCEL {
@@ -71,11 +105,14 @@ func add(domain app.Apper) telebot.HandlerFunc {
 			draft.Step++
 			return ctx.Send(MSG_ADD_CORRECT_ANSWER)
 		case 3:
-			if len(draft.Answers) >= 100 {
+			if len(draft.Answers) >= 100 || !draft.High {
 				return ctx.Send(ErrLengthAnswer.Error())
 			}
 			draft.Answers = append(draft.Answers, msg) // правильный
 			draft.Step++
+			if draft.High {
+				goto Save
+			}
 			return ctx.Send(MSG_ADD_WRONG_ANSWER)
 		case 4:
 			if len(draft.Answers) >= 100 {
@@ -205,31 +242,5 @@ func setQuestionsByCSV(domain app.Apper) telebot.HandlerFunc {
 				"\nУспешно: " + strconv.Itoa(successCount) +
 				"\nОшибок: " + strconv.Itoa(errorCount),
 		)
-	}
-}
-
-func incTotalSerialQuestion(domain app.Apper) telebot.HandlerFunc {
-	return func(ctx telebot.Context) error {
-		qidStr := ctx.Data()
-		questionID, err := strconv.Atoi(qidStr)
-		if err != nil {
-			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
-		}
-
-		uq, err := edu.UsersQuestions(
-			edu.UsersQuestionWhere.UserID.EQ(GetUserFromContext(ctx).TGUserID),
-			edu.UsersQuestionWhere.QuestionID.EQ(int64(questionID)),
-		).One(GetContext(ctx), boil.GetContextDB())
-		if err != nil {
-			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
-		}
-		uq.TotalSerial++
-		if _, err = uq.Update(
-			GetContext(ctx), boil.GetContextDB(), boil.Whitelist(edu.UsersQuestionColumns.TotalSerial),
-		); err != nil {
-			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
-		}
-
-		return nil
 	}
 }
