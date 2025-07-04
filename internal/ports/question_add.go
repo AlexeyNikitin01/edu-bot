@@ -109,7 +109,7 @@ func add(domain app.Apper) telebot.HandlerFunc {
 			draft.Step++
 			return ctx.Send(MSG_ADD_CORRECT_ANSWER)
 		case 3:
-			if len(draft.Answers) >= 100 || !draft.High {
+			if len(draft.Answers) >= 100 && !draft.High {
 				return ctx.Send(ErrLengthAnswer.Error())
 			}
 			draft.Answers = append(draft.Answers, msg) // правильный
