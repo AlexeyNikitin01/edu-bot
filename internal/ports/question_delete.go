@@ -20,13 +20,13 @@ func deleteQuestion() telebot.HandlerFunc {
 		qidStr := ctx.Data()
 		questionID, err := strconv.Atoi(qidStr)
 		if err != nil {
-			return ctx.Respond(&telebot.CallbackResponse{Text: "Некорректные данные"})
+			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
 		}
 
 		q, err := edu.Questions(
 			edu.QuestionWhere.ID.EQ(int64(questionID))).One(GetContext(ctx), boil.GetContextDB())
 		if err != nil {
-			return ctx.Respond(&telebot.CallbackResponse{Text: "Некорректные данные"})
+			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
 		}
 
 		_, err = edu.UsersQuestions(
@@ -34,7 +34,7 @@ func deleteQuestion() telebot.HandlerFunc {
 			edu.UsersQuestionWhere.QuestionID.EQ(int64(questionID)),
 		).DeleteAll(GetContext(ctx), boil.GetContextDB(), false)
 		if err != nil {
-			return ctx.Respond(&telebot.CallbackResponse{Text: "Ошибка удаления"})
+			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
 		}
 
 		return ctx.Edit(&telebot.ReplyMarkup{
@@ -51,10 +51,10 @@ func deleteQuestionByTag(domain app.Apper) telebot.HandlerFunc {
 		_, err := edu.Questions(
 			edu.QuestionWhere.Tag.EQ(tag)).DeleteAll(GetContext(ctx), boil.GetContextDB(), false)
 		if err != nil {
-			return ctx.Respond(&telebot.CallbackResponse{Text: "Некорректные данные"})
+			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
 		}
 
-		return getTags(ctx, GetUserFromContext(ctx).TGUserID, domain)
+		return showRepeatTagList(domain, INLINE_BTN_REPEAT_QUESTION)(ctx)
 	}
 }
 
