@@ -55,6 +55,10 @@ func setHigh(b bool, msg string, a app.Apper) telebot.HandlerFunc {
 			drafts[GetUserFromContext(ctx).TGUserID] = &QuestionDraft{Step: 1}
 		}
 
+		if draft == nil {
+			return nil
+		}
+
 		draft.High = b
 
 		if err = ctx.Send(msg); err != nil {
