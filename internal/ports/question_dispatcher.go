@@ -182,7 +182,6 @@ func (d *QuestionDispatcher) questionWithTest(userID int64, uq *edu.UsersQuestio
 		Type:            telebot.PollQuiz,
 		CorrectOption:   correctIndex,
 		Anonymous:       false,
-		Explanation:     "Правильный ответ будет показан после выбора",
 		MultipleAnswers: false,
 	}
 
