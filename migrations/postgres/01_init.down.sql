@@ -1,4 +1,4 @@
-DROP TABLE users_questions;
-DROP TABLE users;
-DROP TABLE answers;
-DROP TABLE questions;
+DROP TABLE IF EXISTS users_questions;
+DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS answers;
+DROP TABLE IF EXISTS questions;

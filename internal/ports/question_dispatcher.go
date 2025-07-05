@@ -2,6 +2,7 @@ package ports
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"math/rand"
 	"sync"
@@ -13,6 +14,14 @@ import (
 
 	"bot/internal/app"
 	"bot/internal/repo/edu"
+)
+
+const (
+	MSG_FORGOT              = "СЛОЖНО"
+	MSG_REMEMBER            = "ЛЕГКО"
+	MSG_INC_SERIAL_QUESTION = "Отлично, вопрос будет реже вам попадаться🤗🤗🤗"
+	MSG_RESET_QUESTION      = "Ничего страшного, вопрос снова повториться в скором времени👈🤝🕕"
+	MSG_NEXT_QUESTION       = "😎"
 )
 
 type QuestionDispatcher struct {
@@ -37,7 +46,7 @@ func NewDispatcher(ctx context.Context, domain app.Apper, bot *telebot.Bot) *Que
 
 func (d *QuestionDispatcher) StartPollingLoop() {
 	go func() {
-		ticker := time.NewTicker(10 * time.Second)
+		ticker := time.NewTicker(2 * time.Second)
 		defer ticker.Stop()
 
 		for {
@@ -101,7 +110,7 @@ func (d *QuestionDispatcher) worker(userID int64, ch chan *edu.UsersQuestion) {
 			d.waitingForAnswer[userID] = true
 			d.mu.Unlock()
 
-			if err := d.sendPoll(userID, uq); err != nil {
+			if err := d.sendQuestion(userID, uq); err != nil {
 				log.Printf("Ошибка отправки вопроса пользователю %d: %v", userID, err)
 
 				d.mu.Lock()
@@ -112,7 +121,67 @@ func (d *QuestionDispatcher) worker(userID int64, ch chan *edu.UsersQuestion) {
 	}
 }
 
-func (d *QuestionDispatcher) sendPoll(userID int64, uq *edu.UsersQuestion) error {
+func (d *QuestionDispatcher) sendQuestion(userID int64, uq *edu.UsersQuestion) error {
+	answers := uq.R.GetQuestion().R.GetAnswers()
+
+	if len(answers) == 1 || uq.TotalSerial > 4 {
+		return d.questionWithHigh(userID, uq, uq.R.GetQuestion(), answers[0])
+	}
+
+	return d.questionWithTest(userID, uq)
+}
+
+func (d *QuestionDispatcher) questionWithHigh(
+	id int64, uq *edu.UsersQuestion, q *edu.Question, answer *edu.Answer,
+) error {
+	forgot := telebot.InlineButton{
+		Unique: INLINE_FORGOT_HIGH_QUESTION,
+		Text:   MSG_FORGOT,
+		Data:   fmt.Sprintf("%d", q.ID),
+	}
+
+	easy := telebot.InlineButton{
+		Unique: INLINE_REMEMBER_HIGH_QUESTION,
+		Text:   MSG_REMEMBER,
+		Data:   fmt.Sprintf("%d", q.ID),
+	}
+
+	label := "☑️"
+	if uq.IsEdu {
+		label = "✅"
+	}
+
+	repeatBtn := telebot.InlineButton{
+		Unique: INLINE_BTN_REPEAT_QUESTION_AFTER_POLL_HIGH,
+		Text:   label,
+		Data:   fmt.Sprintf("%d", uq.QuestionID),
+	}
+
+	deleteBtn := telebot.InlineButton{
+		Unique: INLINE_BTN_DELETE_QUESTION_AFTER_POLL_HIGH,
+		Text:   INLINE_NAME_DELETE_AFTER_POLL,
+		Data:   fmt.Sprintf("%d", uq.QuestionID),
+	}
+
+	editBtn := telebot.InlineButton{
+		Unique: INLINE_EDIT_QUESTION,
+		Text:   "✏️",
+		Data:   fmt.Sprintf("%d", uq.QuestionID),
+	}
+
+	rec := &telebot.User{ID: id}
+	_, err := d.bot.Send(
+		rec,
+		fmt.Sprintf("%s \n\n || %s ||", q.Question, answer.Answer),
+		telebot.ModeMarkdownV2,
+		&telebot.ReplyMarkup{
+			InlineKeyboard: [][]telebot.InlineButton{{easy, forgot}, {repeatBtn, deleteBtn, editBtn}},
+		},
+	)
+	return err
+}
+
+func (d *QuestionDispatcher) questionWithTest(userID int64, uq *edu.UsersQuestion) error {
 	answers := uq.R.GetQuestion().R.GetAnswers()
 
 	shuffled := make([]*edu.Answer, len(answers))
@@ -139,12 +208,36 @@ func (d *QuestionDispatcher) sendPoll(userID int64, uq *edu.UsersQuestion) error
 		Type:            telebot.PollQuiz,
 		CorrectOption:   correctIndex,
 		Anonymous:       false,
-		Explanation:     "Правильный ответ будет показан после выбора",
 		MultipleAnswers: false,
 	}
 
+	label := "☑️"
+	if uq.IsEdu {
+		label = "✅"
+	}
+
+	repeatBtn := telebot.InlineButton{
+		Unique: INLINE_BTN_REPEAT_QUESTION_AFTER_POLL,
+		Text:   label,
+		Data:   fmt.Sprintf("%d", uq.QuestionID),
+	}
+
+	deleteBtn := telebot.InlineButton{
+		Unique: INLINE_BTN_DELETE_QUESTION_AFTER_POLL,
+		Text:   INLINE_NAME_DELETE_AFTER_POLL,
+		Data:   fmt.Sprintf("%d", uq.QuestionID),
+	}
+
+	editBtn := telebot.InlineButton{
+		Unique: INLINE_EDIT_QUESTION,
+		Text:   "✏️",
+		Data:   fmt.Sprintf("%d", uq.QuestionID),
+	}
+
 	recipient := &telebot.User{ID: userID}
-	msg, err := d.bot.Send(recipient, poll)
+	msg, err := d.bot.Send(recipient, poll, &telebot.ReplyMarkup{
+		InlineKeyboard: [][]telebot.InlineButton{{repeatBtn, deleteBtn, editBtn}},
+	})
 	if err != nil {
 		return err
 	}
@@ -159,29 +252,16 @@ func (d *QuestionDispatcher) sendPoll(userID int64, uq *edu.UsersQuestion) error
 	return nil
 }
 
-func (d *QuestionDispatcher) RegisterPollAnswerHandler() {
-	d.bot.Handle(telebot.OnPollAnswer, func(c telebot.Context) error {
-		poll := c.PollAnswer()
-		userID := poll.Sender.ID
-
-		log.Printf("Ответ от пользователя %d получен", userID)
-
-		uq, err := edu.UsersQuestions(edu.UsersQuestionWhere.PollID.EQ(null.StringFrom(poll.PollID))).
-			One(d.ctx, boil.GetContextDB())
-		if err != nil {
-			return err
+func nextQuestion(dispatcher *QuestionDispatcher) telebot.HandlerFunc {
+	return func(ctx telebot.Context) error {
+		if err := ctx.Send(MSG_NEXT_QUESTION); err != nil {
+			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
 		}
 
-		correct := int(uq.CorrectAnswer.Int64) == poll.Options[0]
-
-		if err = d.domain.UpdateRepeatTime(d.ctx, uq, correct); err != nil {
-			return err
-		}
-
-		d.mu.Lock()
-		d.waitingForAnswer[userID] = false
-		d.mu.Unlock()
+		dispatcher.mu.Lock()
+		dispatcher.waitingForAnswer[GetUserFromContext(ctx).TGUserID] = false
+		dispatcher.mu.Unlock()
 
 		return nil
-	})
+	}
 }

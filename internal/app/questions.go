@@ -2,6 +2,8 @@ package app
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"time"
@@ -17,17 +19,44 @@ func (a *App) GetQuestionsAnswers(ctx context.Context, userID int64) (edu.UsersQ
 
 	questions, err := edu.UsersQuestions(
 		qm.Load(qm.Rels(edu.UsersQuestionRels.Question, edu.QuestionRels.Answers)),
+		qm.InnerJoin(
+			fmt.Sprintf("%s ON %s = %s",
+				edu.TableNames.Questions,
+				edu.QuestionTableColumns.ID,
+				edu.UsersQuestionTableColumns.QuestionID)),
+		qm.InnerJoin(
+			fmt.Sprintf("%s ON %s = %s",
+				edu.TableNames.Answers,
+				edu.QuestionTableColumns.ID,
+				edu.AnswerTableColumns.QuestionID)),
 		edu.UsersQuestionWhere.TimeRepeat.LTE(now),
 		edu.UsersQuestionWhere.UserID.EQ(userID),
 		edu.UsersQuestionWhere.IsEdu.EQ(true),
+		edu.UsersQuestionWhere.DeletedAt.IsNull(),
+		edu.QuestionWhere.DeletedAt.IsNull(),
+		edu.AnswerWhere.DeletedAt.IsNull(),
+		qm.OrderBy("RANDOM()"),
 	).All(ctx, boil.GetContextDB())
-
 	if err != nil {
 		log.Println("Ошибка при выборке вопросов:", err)
 		return nil, err
 	}
 
 	return questions, nil
+}
+
+func (a *App) GetQuestionAnswers(ctx context.Context, qID int64) (*edu.Question, error) {
+	question, err := edu.Questions(
+		qm.Load(qm.Rels(edu.QuestionRels.Answers)),
+		qm.Load(qm.Rels(edu.QuestionRels.Tag)),
+		edu.QuestionWhere.ID.EQ(qID),
+	).One(ctx, boil.GetContextDB())
+	if err != nil {
+		log.Println("Ошибка при выборке вопроса:", err)
+		return nil, err
+	}
+
+	return question, nil
 }
 
 func (a *App) UpdateRepeatTime(ctx context.Context, question *edu.UsersQuestion, correct bool) error {
@@ -76,34 +105,52 @@ func (a *App) UpdateRepeatTime(ctx context.Context, question *edu.UsersQuestion,
 }
 
 // GetUniqueTags Функция для получения уникальных тегов
-func (a *App) GetUniqueTags(ctx context.Context, userID int64) ([]string, error) {
-	ts, err := edu.Questions(
+func (a *App) GetUniqueTags(ctx context.Context, userID int64) ([]*edu.Tag, error) {
+	ts, err := edu.Tags(
+		qm.InnerJoin(
+			fmt.Sprintf("%s ON %s = %s",
+				edu.TableNames.Questions,
+				edu.TagTableColumns.ID,
+				edu.QuestionTableColumns.TagID),
+		),
 		qm.InnerJoin(
 			fmt.Sprintf("%s ON %s = %s",
 				edu.TableNames.UsersQuestions,
 				edu.UsersQuestionTableColumns.QuestionID,
 				edu.QuestionTableColumns.ID),
 		),
-		qm.Select(fmt.Sprintf("DISTINCT %s", edu.QuestionColumns.Tag)),
-		edu.QuestionWhere.Tag.NEQ(""),
 		edu.UsersQuestionWhere.UserID.EQ(userID),
+		edu.UsersQuestionWhere.DeletedAt.IsNull(),
+		qm.GroupBy(edu.TagTableColumns.ID),
 	).All(ctx, boil.GetContextDB())
 	if err != nil {
 		return nil, err
 	}
 
-	var uniqueTags []string
-	for _, t := range ts {
-		uniqueTags = append(uniqueTags, t.Tag)
-	}
-
-	return uniqueTags, nil
+	return ts, nil
 }
 
 func (a *App) SaveQuestions(ctx context.Context, question, tag string, answers []string, userID int64) (err error) {
+	eduTag, err := edu.Tags(
+		edu.TagWhere.Tag.EQ(tag),
+	).One(ctx, boil.GetContextDB())
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return err
+	} else if errors.Is(err, sql.ErrNoRows) {
+		eduTag = &edu.Tag{
+			Tag: tag,
+		}
+		if err = eduTag.Insert(ctx, boil.GetContextDB(), boil.Infer()); err != nil {
+			return err
+		}
+		if err = eduTag.Reload(ctx, boil.GetContextDB()); err != nil {
+			return err
+		}
+	}
+
 	q := &edu.Question{
 		Question: question,
-		Tag:      tag,
+		TagID:    eduTag.ID,
 	}
 	if err = q.Insert(ctx, boil.GetContextDB(), boil.Infer()); err != nil {
 		return err
@@ -132,6 +179,101 @@ func (a *App) SaveQuestions(ctx context.Context, question, tag string, answers [
 	}
 	if err = uq.Insert(ctx, boil.GetContextDB(), boil.Infer()); err != nil {
 		return
+	}
+
+	return nil
+}
+
+func (a *App) UpdateIsEduUserQuestion(ctx context.Context, userID, questionID int64) error {
+	uq, err := edu.UsersQuestions(
+		edu.UsersQuestionWhere.UserID.EQ(userID),
+		edu.UsersQuestionWhere.QuestionID.EQ(questionID),
+		qm.Load(edu.UsersQuestionRels.Question),
+	).One(ctx, boil.GetContextDB())
+	if err != nil {
+		return err
+	}
+
+	uq.IsEdu = !uq.IsEdu
+	_, err = uq.Update(ctx, boil.GetContextDB(), boil.Infer())
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (a *App) UpdateTag(ctx context.Context, tagID int64, s string) error {
+	tag, err := edu.FindTag(ctx, boil.GetContextDB(), tagID)
+	if err != nil {
+		return err
+	}
+
+	tag.Tag = s
+
+	if _, err = tag.Update(ctx, boil.GetContextDB(), boil.Whitelist(edu.TagColumns.Tag)); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (a *App) UpdateQuestionName(ctx context.Context, qID int64, question string) error {
+	q, err := edu.FindQuestion(ctx, boil.GetContextDB(), qID)
+	if err != nil {
+		return err
+	}
+
+	q.Question = question
+
+	if _, err = q.Update(ctx, boil.GetContextDB(), boil.Whitelist(edu.QuestionColumns.Question)); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (a *App) UpdateAnswer(ctx context.Context, aID int64, answerText string) error {
+	answer, err := edu.FindAnswer(ctx, boil.GetContextDB(), aID)
+	if err != nil {
+		return err
+	}
+
+	answer.Answer = answerText
+
+	if _, err = answer.Update(ctx, boil.GetContextDB(), boil.Whitelist(edu.AnswerColumns.Answer)); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (a *App) UpdateTagByQuestion(ctx context.Context, qID int64, newTag string) error {
+	t, err := edu.Tags(
+		edu.TagWhere.Tag.EQ(newTag)).One(ctx, boil.GetContextDB())
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return err
+	} else if errors.Is(err, sql.ErrNoRows) {
+		t = &edu.Tag{
+			Tag: newTag,
+		}
+		if err = t.Insert(ctx, boil.GetContextDB(), boil.Infer()); err != nil {
+			return err
+		}
+		if err = t.Reload(ctx, boil.GetContextDB()); err != nil {
+			return err
+		}
+	}
+
+	q, err := edu.FindQuestion(ctx, boil.GetContextDB(), qID)
+	if err != nil {
+		return err
+	}
+
+	q.TagID = t.ID
+
+	if _, err = q.Update(ctx, boil.GetContextDB(), boil.Whitelist(edu.QuestionColumns.TagID)); err != nil {
+		return err
 	}
 
 	return nil

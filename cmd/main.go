@@ -54,7 +54,9 @@ func main() {
 }
 
 func runMigrations(db *sqlx.DB) error {
-	driver, err := postgresMigrate.WithInstance(db.DB, &postgresMigrate.Config{})
+	driver, err := postgresMigrate.WithInstance(db.DB, &postgresMigrate.Config{
+		MigrationsTable: "schema_migrations",
+	})
 	if err != nil {
 		return fmt.Errorf("failed to create migration driver: %w", err)
 	}

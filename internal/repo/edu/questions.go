@@ -24,47 +24,47 @@ import (
 
 // Question is an object representing the database table.
 type Question struct {
-	ID        int64     `boil:"id" json:"id" toml:"id" yaml:"id"`
-	Question  string    `boil:"question" json:"question" toml:"question" yaml:"question"`
-	Tag       string    `boil:"tag" json:"tag" toml:"tag" yaml:"tag"`
-	CreatedAt time.Time `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
-	UpdatedAt time.Time `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
-	DeletedAt null.Time `boil:"deleted_at" json:"deleted_at,omitempty" toml:"deleted_at" yaml:"deleted_at,omitempty"`
+	ID        int64     `db:"id" pg:"id" boil:"id" json:"id" toml:"id" yaml:"id"`
+	Question  string    `db:"question" pg:"question" boil:"question" json:"question" toml:"question" yaml:"question"`
+	CreatedAt time.Time `db:"created_at" pg:"created_at" boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
+	UpdatedAt time.Time `db:"updated_at" pg:"updated_at" boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
+	DeletedAt null.Time `db:"deleted_at" pg:"deleted_at" boil:"deleted_at" json:"deleted_at,omitempty" toml:"deleted_at" yaml:"deleted_at,omitempty"`
+	TagID     int64     `db:"tag_id" pg:"tag_id" boil:"tag_id" json:"tag_id" toml:"tag_id" yaml:"tag_id"`
 
-	R *questionR `boil:"-" json:"-" toml:"-" yaml:"-"`
-	L questionL  `boil:"-" json:"-" toml:"-" yaml:"-"`
+	R *questionR `db:"-" pg:"-" boil:"-" json:"-" toml:"-" yaml:"-"`
+	L questionL  `db:"-" pg:"-" boil:"-" json:"-" toml:"-" yaml:"-"`
 }
 
 var QuestionColumns = struct {
 	ID        string
 	Question  string
-	Tag       string
 	CreatedAt string
 	UpdatedAt string
 	DeletedAt string
+	TagID     string
 }{
 	ID:        "id",
 	Question:  "question",
-	Tag:       "tag",
 	CreatedAt: "created_at",
 	UpdatedAt: "updated_at",
 	DeletedAt: "deleted_at",
+	TagID:     "tag_id",
 }
 
 var QuestionTableColumns = struct {
 	ID        string
 	Question  string
-	Tag       string
 	CreatedAt string
 	UpdatedAt string
 	DeletedAt string
+	TagID     string
 }{
 	ID:        "questions.id",
 	Question:  "questions.question",
-	Tag:       "questions.tag",
 	CreatedAt: "questions.created_at",
 	UpdatedAt: "questions.updated_at",
 	DeletedAt: "questions.deleted_at",
+	TagID:     "questions.tag_id",
 }
 
 // Generated where
@@ -72,37 +72,47 @@ var QuestionTableColumns = struct {
 var QuestionWhere = struct {
 	ID        whereHelperint64
 	Question  whereHelperstring
-	Tag       whereHelperstring
 	CreatedAt whereHelpertime_Time
 	UpdatedAt whereHelpertime_Time
 	DeletedAt whereHelpernull_Time
+	TagID     whereHelperint64
 }{
 	ID:        whereHelperint64{field: "\"questions\".\"id\""},
 	Question:  whereHelperstring{field: "\"questions\".\"question\""},
-	Tag:       whereHelperstring{field: "\"questions\".\"tag\""},
 	CreatedAt: whereHelpertime_Time{field: "\"questions\".\"created_at\""},
 	UpdatedAt: whereHelpertime_Time{field: "\"questions\".\"updated_at\""},
 	DeletedAt: whereHelpernull_Time{field: "\"questions\".\"deleted_at\""},
+	TagID:     whereHelperint64{field: "\"questions\".\"tag_id\""},
 }
 
 // QuestionRels is where relationship names are stored.
 var QuestionRels = struct {
+	Tag            string
 	Answers        string
 	UsersQuestions string
 }{
+	Tag:            "Tag",
 	Answers:        "Answers",
 	UsersQuestions: "UsersQuestions",
 }
 
 // questionR is where relationships are stored.
 type questionR struct {
-	Answers        AnswerSlice        `boil:"Answers" json:"Answers" toml:"Answers" yaml:"Answers"`
-	UsersQuestions UsersQuestionSlice `boil:"UsersQuestions" json:"UsersQuestions" toml:"UsersQuestions" yaml:"UsersQuestions"`
+	Tag            *Tag               `db:"Tag" pg:"Tag" boil:"Tag" json:"Tag" toml:"Tag" yaml:"Tag"`
+	Answers        AnswerSlice        `db:"Answers" pg:"Answers" boil:"Answers" json:"Answers" toml:"Answers" yaml:"Answers"`
+	UsersQuestions UsersQuestionSlice `db:"UsersQuestions" pg:"UsersQuestions" boil:"UsersQuestions" json:"UsersQuestions" toml:"UsersQuestions" yaml:"UsersQuestions"`
 }
 
 // NewStruct creates a new relationship struct
 func (*questionR) NewStruct() *questionR {
 	return &questionR{}
+}
+
+func (r *questionR) GetTag() *Tag {
+	if r == nil {
+		return nil
+	}
+	return r.Tag
 }
 
 func (r *questionR) GetAnswers() AnswerSlice {
@@ -123,9 +133,9 @@ func (r *questionR) GetUsersQuestions() UsersQuestionSlice {
 type questionL struct{}
 
 var (
-	questionAllColumns            = []string{"id", "question", "tag", "created_at", "updated_at", "deleted_at"}
-	questionColumnsWithoutDefault = []string{}
-	questionColumnsWithDefault    = []string{"id", "question", "tag", "created_at", "updated_at", "deleted_at"}
+	questionAllColumns            = []string{"id", "question", "created_at", "updated_at", "deleted_at", "tag_id"}
+	questionColumnsWithoutDefault = []string{"tag_id"}
+	questionColumnsWithDefault    = []string{"id", "question", "created_at", "updated_at", "deleted_at"}
 	questionPrimaryKeyColumns     = []string{"id"}
 	questionGeneratedColumns      = []string{}
 )
@@ -435,6 +445,17 @@ func (q questionQuery) Exists(ctx context.Context, exec boil.ContextExecutor) (b
 	return count > 0, nil
 }
 
+// Tag pointed to by the foreign key.
+func (o *Question) Tag(mods ...qm.QueryMod) tagQuery {
+	queryMods := []qm.QueryMod{
+		qm.Where("\"id\" = ?", o.TagID),
+	}
+
+	queryMods = append(queryMods, mods...)
+
+	return Tags(queryMods...)
+}
+
 // Answers retrieves all the answer's Answers with an executor.
 func (o *Question) Answers(mods ...qm.QueryMod) answerQuery {
 	var queryMods []qm.QueryMod
@@ -461,6 +482,127 @@ func (o *Question) UsersQuestions(mods ...qm.QueryMod) usersQuestionQuery {
 	)
 
 	return UsersQuestions(queryMods...)
+}
+
+// LoadTag allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for an N-1 relationship.
+func (questionL) LoadTag(ctx context.Context, e boil.ContextExecutor, singular bool, maybeQuestion interface{}, mods queries.Applicator) error {
+	var slice []*Question
+	var object *Question
+
+	if singular {
+		var ok bool
+		object, ok = maybeQuestion.(*Question)
+		if !ok {
+			object = new(Question)
+			ok = queries.SetFromEmbeddedStruct(&object, &maybeQuestion)
+			if !ok {
+				return errors.New(fmt.Sprintf("failed to set %T from embedded struct %T", object, maybeQuestion))
+			}
+		}
+	} else {
+		s, ok := maybeQuestion.(*[]*Question)
+		if ok {
+			slice = *s
+		} else {
+			ok = queries.SetFromEmbeddedStruct(&slice, maybeQuestion)
+			if !ok {
+				return errors.New(fmt.Sprintf("failed to set %T from embedded struct %T", slice, maybeQuestion))
+			}
+		}
+	}
+
+	args := make(map[interface{}]struct{})
+	if singular {
+		if object.R == nil {
+			object.R = &questionR{}
+		}
+		args[object.TagID] = struct{}{}
+
+	} else {
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &questionR{}
+			}
+
+			args[obj.TagID] = struct{}{}
+
+		}
+	}
+
+	if len(args) == 0 {
+		return nil
+	}
+
+	argsSlice := make([]interface{}, len(args))
+	i := 0
+	for arg := range args {
+		argsSlice[i] = arg
+		i++
+	}
+
+	query := NewQuery(
+		qm.From(`tags`),
+		qm.WhereIn(`tags.id in ?`, argsSlice...),
+		qmhelper.WhereIsNull(`tags.deleted_at`),
+	)
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.QueryContext(ctx, e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load Tag")
+	}
+
+	var resultSlice []*Tag
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice Tag")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results of eager load for tags")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for tags")
+	}
+
+	if len(tagAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
+				return err
+			}
+		}
+	}
+
+	if len(resultSlice) == 0 {
+		return nil
+	}
+
+	if singular {
+		foreign := resultSlice[0]
+		object.R.Tag = foreign
+		if foreign.R == nil {
+			foreign.R = &tagR{}
+		}
+		foreign.R.Questions = append(foreign.R.Questions, object)
+		return nil
+	}
+
+	for _, local := range slice {
+		for _, foreign := range resultSlice {
+			if local.TagID == foreign.ID {
+				local.R.Tag = foreign
+				if foreign.R == nil {
+					foreign.R = &tagR{}
+				}
+				foreign.R.Questions = append(foreign.R.Questions, local)
+				break
+			}
+		}
+	}
+
+	return nil
 }
 
 // LoadAnswers allows an eager lookup of values, cached into the
@@ -520,6 +662,7 @@ func (questionL) LoadAnswers(ctx context.Context, e boil.ContextExecutor, singul
 	query := NewQuery(
 		qm.From(`answers`),
 		qm.WhereIn(`answers.question_id in ?`, argsSlice...),
+		qmhelper.WhereIsNull(`answers.deleted_at`),
 	)
 	if mods != nil {
 		mods.Apply(query)
@@ -633,6 +776,7 @@ func (questionL) LoadUsersQuestions(ctx context.Context, e boil.ContextExecutor,
 	query := NewQuery(
 		qm.From(`users_questions`),
 		qm.WhereIn(`users_questions.question_id in ?`, argsSlice...),
+		qmhelper.WhereIsNull(`users_questions.deleted_at`),
 	)
 	if mods != nil {
 		mods.Apply(query)
@@ -684,6 +828,53 @@ func (questionL) LoadUsersQuestions(ctx context.Context, e boil.ContextExecutor,
 				break
 			}
 		}
+	}
+
+	return nil
+}
+
+// SetTag of the question to the related item.
+// Sets o.R.Tag to related.
+// Adds o to related.R.Questions.
+func (o *Question) SetTag(ctx context.Context, exec boil.ContextExecutor, insert bool, related *Tag) error {
+	var err error
+	if insert {
+		if err = related.Insert(ctx, exec, boil.Infer()); err != nil {
+			return errors.Wrap(err, "failed to insert into foreign table")
+		}
+	}
+
+	updateQuery := fmt.Sprintf(
+		"UPDATE \"questions\" SET %s WHERE %s",
+		strmangle.SetParamNames("\"", "\"", 1, []string{"tag_id"}),
+		strmangle.WhereClause("\"", "\"", 2, questionPrimaryKeyColumns),
+	)
+	values := []interface{}{related.ID, o.ID}
+
+	if boil.IsDebug(ctx) {
+		writer := boil.DebugWriterFrom(ctx)
+		fmt.Fprintln(writer, updateQuery)
+		fmt.Fprintln(writer, values)
+	}
+	if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
+		return errors.Wrap(err, "failed to update local table")
+	}
+
+	o.TagID = related.ID
+	if o.R == nil {
+		o.R = &questionR{
+			Tag: related,
+		}
+	} else {
+		o.R.Tag = related
+	}
+
+	if related.R == nil {
+		related.R = &tagR{
+			Questions: QuestionSlice{o},
+		}
+	} else {
+		related.R.Questions = append(related.R.Questions, o)
 	}
 
 	return nil
@@ -797,7 +988,7 @@ func (o *Question) AddUsersQuestions(ctx context.Context, exec boil.ContextExecu
 
 // Questions retrieves all the records using an executor.
 func Questions(mods ...qm.QueryMod) questionQuery {
-	mods = append(mods, qm.From("\"questions\""))
+	mods = append(mods, qm.From("\"questions\""), qmhelper.WhereIsNull("\"questions\".\"deleted_at\""))
 	q := NewQuery(mods...)
 	if len(queries.GetSelect(q)) == 0 {
 		queries.SetSelect(q, []string{"\"questions\".*"})
@@ -816,7 +1007,7 @@ func FindQuestion(ctx context.Context, exec boil.ContextExecutor, iD int64, sele
 		sel = strings.Join(strmangle.IdentQuoteSlice(dialect.LQ, dialect.RQ, selectCols), ",")
 	}
 	query := fmt.Sprintf(
-		"select %s from \"questions\" where \"id\"=$1", sel,
+		"select %s from \"questions\" where \"id\"=$1 and \"deleted_at\" is null", sel,
 	)
 
 	q := queries.Raw(query, iD)
@@ -1191,7 +1382,7 @@ func (o *Question) Upsert(ctx context.Context, exec boil.ContextExecutor, update
 
 // Delete deletes a single Question record with an executor.
 // Delete will match against the primary key column to find the record to delete.
-func (o *Question) Delete(ctx context.Context, exec boil.ContextExecutor) (int64, error) {
+func (o *Question) Delete(ctx context.Context, exec boil.ContextExecutor, hardDelete bool) (int64, error) {
 	if o == nil {
 		return 0, errors.New("edu: no Question provided for delete")
 	}
@@ -1200,8 +1391,26 @@ func (o *Question) Delete(ctx context.Context, exec boil.ContextExecutor) (int64
 		return 0, err
 	}
 
-	args := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(o)), questionPrimaryKeyMapping)
-	sql := "DELETE FROM \"questions\" WHERE \"id\"=$1"
+	var (
+		sql  string
+		args []interface{}
+	)
+	if hardDelete {
+		args = queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(o)), questionPrimaryKeyMapping)
+		sql = "DELETE FROM \"questions\" WHERE \"id\"=$1"
+	} else {
+		currTime := time.Now().In(boil.GetLocation())
+		o.DeletedAt = null.TimeFrom(currTime)
+		wl := []string{"deleted_at"}
+		sql = fmt.Sprintf("UPDATE \"questions\" SET %s WHERE \"id\"=$2",
+			strmangle.SetParamNames("\"", "\"", 1, wl),
+		)
+		valueMapping, err := queries.BindMapping(questionType, questionMapping, append(wl, questionPrimaryKeyColumns...))
+		if err != nil {
+			return 0, err
+		}
+		args = queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(o)), valueMapping)
+	}
 
 	if boil.IsDebug(ctx) {
 		writer := boil.DebugWriterFrom(ctx)
@@ -1226,12 +1435,17 @@ func (o *Question) Delete(ctx context.Context, exec boil.ContextExecutor) (int64
 }
 
 // DeleteAll deletes all matching rows.
-func (q questionQuery) DeleteAll(ctx context.Context, exec boil.ContextExecutor) (int64, error) {
+func (q questionQuery) DeleteAll(ctx context.Context, exec boil.ContextExecutor, hardDelete bool) (int64, error) {
 	if q.Query == nil {
 		return 0, errors.New("edu: no questionQuery provided for delete all")
 	}
 
-	queries.SetDelete(q.Query)
+	if hardDelete {
+		queries.SetDelete(q.Query)
+	} else {
+		currTime := time.Now().In(boil.GetLocation())
+		queries.SetUpdate(q.Query, M{"deleted_at": currTime})
+	}
 
 	result, err := q.Query.ExecContext(ctx, exec)
 	if err != nil {
@@ -1247,7 +1461,7 @@ func (q questionQuery) DeleteAll(ctx context.Context, exec boil.ContextExecutor)
 }
 
 // DeleteAll deletes all rows in the slice, using an executor.
-func (o QuestionSlice) DeleteAll(ctx context.Context, exec boil.ContextExecutor) (int64, error) {
+func (o QuestionSlice) DeleteAll(ctx context.Context, exec boil.ContextExecutor, hardDelete bool) (int64, error) {
 	if len(o) == 0 {
 		return 0, nil
 	}
@@ -1260,14 +1474,31 @@ func (o QuestionSlice) DeleteAll(ctx context.Context, exec boil.ContextExecutor)
 		}
 	}
 
-	var args []interface{}
-	for _, obj := range o {
-		pkeyArgs := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(obj)), questionPrimaryKeyMapping)
-		args = append(args, pkeyArgs...)
+	var (
+		sql  string
+		args []interface{}
+	)
+	if hardDelete {
+		for _, obj := range o {
+			pkeyArgs := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(obj)), questionPrimaryKeyMapping)
+			args = append(args, pkeyArgs...)
+		}
+		sql = "DELETE FROM \"questions\" WHERE " +
+			strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), 1, questionPrimaryKeyColumns, len(o))
+	} else {
+		currTime := time.Now().In(boil.GetLocation())
+		for _, obj := range o {
+			pkeyArgs := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(obj)), questionPrimaryKeyMapping)
+			args = append(args, pkeyArgs...)
+			obj.DeletedAt = null.TimeFrom(currTime)
+		}
+		wl := []string{"deleted_at"}
+		sql = fmt.Sprintf("UPDATE \"questions\" SET %s WHERE "+
+			strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), 2, questionPrimaryKeyColumns, len(o)),
+			strmangle.SetParamNames("\"", "\"", 1, wl),
+		)
+		args = append([]interface{}{currTime}, args...)
 	}
-
-	sql := "DELETE FROM \"questions\" WHERE " +
-		strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), 1, questionPrimaryKeyColumns, len(o))
 
 	if boil.IsDebug(ctx) {
 		writer := boil.DebugWriterFrom(ctx)
@@ -1322,7 +1553,8 @@ func (o *QuestionSlice) ReloadAll(ctx context.Context, exec boil.ContextExecutor
 	}
 
 	sql := "SELECT \"questions\".* FROM \"questions\" WHERE " +
-		strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), 1, questionPrimaryKeyColumns, len(*o))
+		strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), 1, questionPrimaryKeyColumns, len(*o)) +
+		"and \"deleted_at\" is null"
 
 	q := queries.Raw(sql, args...)
 
@@ -1339,7 +1571,7 @@ func (o *QuestionSlice) ReloadAll(ctx context.Context, exec boil.ContextExecutor
 // QuestionExists checks if the Question row exists.
 func QuestionExists(ctx context.Context, exec boil.ContextExecutor, iD int64) (bool, error) {
 	var exists bool
-	sql := "select exists(select 1 from \"questions\" where \"id\"=$1 limit 1)"
+	sql := "select exists(select 1 from \"questions\" where \"id\"=$1 and \"deleted_at\" is null limit 1)"
 
 	if boil.IsDebug(ctx) {
 		writer := boil.DebugWriterFrom(ctx)

@@ -13,7 +13,9 @@ func StartBot(ctx context.Context, bot *telebot.Bot, domain *app.App) {
 	bot.Use(ContextMiddleware(ctx))
 	bot.Use(AuthMiddleware(ctx, domain))
 
-	routers(ctx, bot, domain)
+	dispatcher := NewDispatcher(ctx, domain, bot)
+
+	routers(bot, domain, dispatcher)
 
 	log.Println("Bot is now running.  Press CTRL-C to exit.")
 	bot.Start()

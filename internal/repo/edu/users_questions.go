@@ -24,23 +24,23 @@ import (
 
 // UsersQuestion is an object representing the database table.
 type UsersQuestion struct {
-	ID            int64       `boil:"id" json:"id" toml:"id" yaml:"id"`
-	QuestionID    int64       `boil:"question_id" json:"question_id" toml:"question_id" yaml:"question_id"`
-	UserID        int64       `boil:"user_id" json:"user_id" toml:"user_id" yaml:"user_id"`
-	TotalCorrect  int64       `boil:"total_correct" json:"total_correct" toml:"total_correct" yaml:"total_correct"`
-	TotalWrong    int64       `boil:"total_wrong" json:"total_wrong" toml:"total_wrong" yaml:"total_wrong"`
-	IsEdu         bool        `boil:"is_edu" json:"is_edu" toml:"is_edu" yaml:"is_edu"`
-	PollID        null.String `boil:"poll_id" json:"poll_id,omitempty" toml:"poll_id" yaml:"poll_id,omitempty"`
-	TimeRepeat    time.Time   `boil:"time_repeat" json:"time_repeat" toml:"time_repeat" yaml:"time_repeat"`
-	TotalSerial   int64       `boil:"total_serial" json:"total_serial" toml:"total_serial" yaml:"total_serial"`
-	CorrectAnswer null.Int64  `boil:"correct_answer" json:"correct_answer,omitempty" toml:"correct_answer" yaml:"correct_answer,omitempty"`
-	IsPause       bool        `boil:"is_pause" json:"is_pause" toml:"is_pause" yaml:"is_pause"`
-	CreatedAt     time.Time   `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
-	UpdatedAt     time.Time   `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
-	DeletedAt     null.Time   `boil:"deleted_at" json:"deleted_at,omitempty" toml:"deleted_at" yaml:"deleted_at,omitempty"`
+	ID            int64       `db:"id" pg:"id" boil:"id" json:"id" toml:"id" yaml:"id"`
+	QuestionID    int64       `db:"question_id" pg:"question_id" boil:"question_id" json:"question_id" toml:"question_id" yaml:"question_id"`
+	UserID        int64       `db:"user_id" pg:"user_id" boil:"user_id" json:"user_id" toml:"user_id" yaml:"user_id"`
+	TotalCorrect  int64       `db:"total_correct" pg:"total_correct" boil:"total_correct" json:"total_correct" toml:"total_correct" yaml:"total_correct"`
+	TotalWrong    int64       `db:"total_wrong" pg:"total_wrong" boil:"total_wrong" json:"total_wrong" toml:"total_wrong" yaml:"total_wrong"`
+	IsEdu         bool        `db:"is_edu" pg:"is_edu" boil:"is_edu" json:"is_edu" toml:"is_edu" yaml:"is_edu"`
+	PollID        null.String `db:"poll_id" pg:"poll_id" boil:"poll_id" json:"poll_id,omitempty" toml:"poll_id" yaml:"poll_id,omitempty"`
+	TimeRepeat    time.Time   `db:"time_repeat" pg:"time_repeat" boil:"time_repeat" json:"time_repeat" toml:"time_repeat" yaml:"time_repeat"`
+	TotalSerial   int64       `db:"total_serial" pg:"total_serial" boil:"total_serial" json:"total_serial" toml:"total_serial" yaml:"total_serial"`
+	CorrectAnswer null.Int64  `db:"correct_answer" pg:"correct_answer" boil:"correct_answer" json:"correct_answer,omitempty" toml:"correct_answer" yaml:"correct_answer,omitempty"`
+	IsPause       bool        `db:"is_pause" pg:"is_pause" boil:"is_pause" json:"is_pause" toml:"is_pause" yaml:"is_pause"`
+	CreatedAt     time.Time   `db:"created_at" pg:"created_at" boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
+	UpdatedAt     time.Time   `db:"updated_at" pg:"updated_at" boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
+	DeletedAt     null.Time   `db:"deleted_at" pg:"deleted_at" boil:"deleted_at" json:"deleted_at,omitempty" toml:"deleted_at" yaml:"deleted_at,omitempty"`
 
-	R *usersQuestionR `boil:"-" json:"-" toml:"-" yaml:"-"`
-	L usersQuestionL  `boil:"-" json:"-" toml:"-" yaml:"-"`
+	R *usersQuestionR `db:"-" pg:"-" boil:"-" json:"-" toml:"-" yaml:"-"`
+	L usersQuestionL  `db:"-" pg:"-" boil:"-" json:"-" toml:"-" yaml:"-"`
 }
 
 var UsersQuestionColumns = struct {
@@ -246,8 +246,8 @@ var UsersQuestionRels = struct {
 
 // usersQuestionR is where relationships are stored.
 type usersQuestionR struct {
-	Question *Question `boil:"Question" json:"Question" toml:"Question" yaml:"Question"`
-	User     *User     `boil:"User" json:"User" toml:"User" yaml:"User"`
+	Question *Question `db:"Question" pg:"Question" boil:"Question" json:"Question" toml:"Question" yaml:"Question"`
+	User     *User     `db:"User" pg:"User" boil:"User" json:"User" toml:"User" yaml:"User"`
 }
 
 // NewStruct creates a new relationship struct
@@ -667,6 +667,7 @@ func (usersQuestionL) LoadQuestion(ctx context.Context, e boil.ContextExecutor, 
 	query := NewQuery(
 		qm.From(`questions`),
 		qm.WhereIn(`questions.id in ?`, argsSlice...),
+		qmhelper.WhereIsNull(`questions.deleted_at`),
 	)
 	if mods != nil {
 		mods.Apply(query)
@@ -787,6 +788,7 @@ func (usersQuestionL) LoadUser(ctx context.Context, e boil.ContextExecutor, sing
 	query := NewQuery(
 		qm.From(`users`),
 		qm.WhereIn(`users.tg_user_id in ?`, argsSlice...),
+		qmhelper.WhereIsNull(`users.deleted_at`),
 	)
 	if mods != nil {
 		mods.Apply(query)
@@ -943,7 +945,7 @@ func (o *UsersQuestion) SetUser(ctx context.Context, exec boil.ContextExecutor, 
 
 // UsersQuestions retrieves all the records using an executor.
 func UsersQuestions(mods ...qm.QueryMod) usersQuestionQuery {
-	mods = append(mods, qm.From("\"users_questions\""))
+	mods = append(mods, qm.From("\"users_questions\""), qmhelper.WhereIsNull("\"users_questions\".\"deleted_at\""))
 	q := NewQuery(mods...)
 	if len(queries.GetSelect(q)) == 0 {
 		queries.SetSelect(q, []string{"\"users_questions\".*"})
@@ -962,7 +964,7 @@ func FindUsersQuestion(ctx context.Context, exec boil.ContextExecutor, iD int64,
 		sel = strings.Join(strmangle.IdentQuoteSlice(dialect.LQ, dialect.RQ, selectCols), ",")
 	}
 	query := fmt.Sprintf(
-		"select %s from \"users_questions\" where \"id\"=$1", sel,
+		"select %s from \"users_questions\" where \"id\"=$1 and \"deleted_at\" is null", sel,
 	)
 
 	q := queries.Raw(query, iD)
@@ -1337,7 +1339,7 @@ func (o *UsersQuestion) Upsert(ctx context.Context, exec boil.ContextExecutor, u
 
 // Delete deletes a single UsersQuestion record with an executor.
 // Delete will match against the primary key column to find the record to delete.
-func (o *UsersQuestion) Delete(ctx context.Context, exec boil.ContextExecutor) (int64, error) {
+func (o *UsersQuestion) Delete(ctx context.Context, exec boil.ContextExecutor, hardDelete bool) (int64, error) {
 	if o == nil {
 		return 0, errors.New("edu: no UsersQuestion provided for delete")
 	}
@@ -1346,8 +1348,26 @@ func (o *UsersQuestion) Delete(ctx context.Context, exec boil.ContextExecutor) (
 		return 0, err
 	}
 
-	args := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(o)), usersQuestionPrimaryKeyMapping)
-	sql := "DELETE FROM \"users_questions\" WHERE \"id\"=$1"
+	var (
+		sql  string
+		args []interface{}
+	)
+	if hardDelete {
+		args = queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(o)), usersQuestionPrimaryKeyMapping)
+		sql = "DELETE FROM \"users_questions\" WHERE \"id\"=$1"
+	} else {
+		currTime := time.Now().In(boil.GetLocation())
+		o.DeletedAt = null.TimeFrom(currTime)
+		wl := []string{"deleted_at"}
+		sql = fmt.Sprintf("UPDATE \"users_questions\" SET %s WHERE \"id\"=$2",
+			strmangle.SetParamNames("\"", "\"", 1, wl),
+		)
+		valueMapping, err := queries.BindMapping(usersQuestionType, usersQuestionMapping, append(wl, usersQuestionPrimaryKeyColumns...))
+		if err != nil {
+			return 0, err
+		}
+		args = queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(o)), valueMapping)
+	}
 
 	if boil.IsDebug(ctx) {
 		writer := boil.DebugWriterFrom(ctx)
@@ -1372,12 +1392,17 @@ func (o *UsersQuestion) Delete(ctx context.Context, exec boil.ContextExecutor) (
 }
 
 // DeleteAll deletes all matching rows.
-func (q usersQuestionQuery) DeleteAll(ctx context.Context, exec boil.ContextExecutor) (int64, error) {
+func (q usersQuestionQuery) DeleteAll(ctx context.Context, exec boil.ContextExecutor, hardDelete bool) (int64, error) {
 	if q.Query == nil {
 		return 0, errors.New("edu: no usersQuestionQuery provided for delete all")
 	}
 
-	queries.SetDelete(q.Query)
+	if hardDelete {
+		queries.SetDelete(q.Query)
+	} else {
+		currTime := time.Now().In(boil.GetLocation())
+		queries.SetUpdate(q.Query, M{"deleted_at": currTime})
+	}
 
 	result, err := q.Query.ExecContext(ctx, exec)
 	if err != nil {
@@ -1393,7 +1418,7 @@ func (q usersQuestionQuery) DeleteAll(ctx context.Context, exec boil.ContextExec
 }
 
 // DeleteAll deletes all rows in the slice, using an executor.
-func (o UsersQuestionSlice) DeleteAll(ctx context.Context, exec boil.ContextExecutor) (int64, error) {
+func (o UsersQuestionSlice) DeleteAll(ctx context.Context, exec boil.ContextExecutor, hardDelete bool) (int64, error) {
 	if len(o) == 0 {
 		return 0, nil
 	}
@@ -1406,14 +1431,31 @@ func (o UsersQuestionSlice) DeleteAll(ctx context.Context, exec boil.ContextExec
 		}
 	}
 
-	var args []interface{}
-	for _, obj := range o {
-		pkeyArgs := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(obj)), usersQuestionPrimaryKeyMapping)
-		args = append(args, pkeyArgs...)
+	var (
+		sql  string
+		args []interface{}
+	)
+	if hardDelete {
+		for _, obj := range o {
+			pkeyArgs := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(obj)), usersQuestionPrimaryKeyMapping)
+			args = append(args, pkeyArgs...)
+		}
+		sql = "DELETE FROM \"users_questions\" WHERE " +
+			strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), 1, usersQuestionPrimaryKeyColumns, len(o))
+	} else {
+		currTime := time.Now().In(boil.GetLocation())
+		for _, obj := range o {
+			pkeyArgs := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(obj)), usersQuestionPrimaryKeyMapping)
+			args = append(args, pkeyArgs...)
+			obj.DeletedAt = null.TimeFrom(currTime)
+		}
+		wl := []string{"deleted_at"}
+		sql = fmt.Sprintf("UPDATE \"users_questions\" SET %s WHERE "+
+			strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), 2, usersQuestionPrimaryKeyColumns, len(o)),
+			strmangle.SetParamNames("\"", "\"", 1, wl),
+		)
+		args = append([]interface{}{currTime}, args...)
 	}
-
-	sql := "DELETE FROM \"users_questions\" WHERE " +
-		strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), 1, usersQuestionPrimaryKeyColumns, len(o))
 
 	if boil.IsDebug(ctx) {
 		writer := boil.DebugWriterFrom(ctx)
@@ -1468,7 +1510,8 @@ func (o *UsersQuestionSlice) ReloadAll(ctx context.Context, exec boil.ContextExe
 	}
 
 	sql := "SELECT \"users_questions\".* FROM \"users_questions\" WHERE " +
-		strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), 1, usersQuestionPrimaryKeyColumns, len(*o))
+		strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), 1, usersQuestionPrimaryKeyColumns, len(*o)) +
+		"and \"deleted_at\" is null"
 
 	q := queries.Raw(sql, args...)
 
@@ -1485,7 +1528,7 @@ func (o *UsersQuestionSlice) ReloadAll(ctx context.Context, exec boil.ContextExe
 // UsersQuestionExists checks if the UsersQuestion row exists.
 func UsersQuestionExists(ctx context.Context, exec boil.ContextExecutor, iD int64) (bool, error) {
 	var exists bool
-	sql := "select exists(select 1 from \"users_questions\" where \"id\"=$1 limit 1)"
+	sql := "select exists(select 1 from \"users_questions\" where \"id\"=$1 and \"deleted_at\" is null limit 1)"
 
 	if boil.IsDebug(ctx) {
 		writer := boil.DebugWriterFrom(ctx)
