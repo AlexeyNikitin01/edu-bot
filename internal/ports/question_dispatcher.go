@@ -153,7 +153,7 @@ func (d *QuestionDispatcher) questionWithHigh(
 
 	repeatBtn := telebot.InlineButton{
 		Unique: INLINE_BTN_REPEAT_QUESTION_AFTER_POLL_HIGH,
-		Text:   label + INLINE_NAME_REPEAT_AFTER_POLL,
+		Text:   label,
 		Data:   fmt.Sprintf("%d", uq.QuestionID),
 	}
 
@@ -163,13 +163,19 @@ func (d *QuestionDispatcher) questionWithHigh(
 		Data:   fmt.Sprintf("%d", uq.QuestionID),
 	}
 
+	editBtn := telebot.InlineButton{
+		Unique: INLINE_EDIT_QUESTION,
+		Text:   "✏️",
+		Data:   fmt.Sprintf("%d", uq.QuestionID),
+	}
+
 	rec := &telebot.User{ID: id}
 	_, err := d.bot.Send(
 		rec,
 		fmt.Sprintf("%s \n\n || %s ||", q.Question, answer.Answer),
 		telebot.ModeMarkdownV2,
 		&telebot.ReplyMarkup{
-			InlineKeyboard: [][]telebot.InlineButton{{easy, forgot}, {repeatBtn, deleteBtn}},
+			InlineKeyboard: [][]telebot.InlineButton{{easy, forgot}, {repeatBtn, deleteBtn, editBtn}},
 		},
 	)
 	return err
@@ -212,7 +218,7 @@ func (d *QuestionDispatcher) questionWithTest(userID int64, uq *edu.UsersQuestio
 
 	repeatBtn := telebot.InlineButton{
 		Unique: INLINE_BTN_REPEAT_QUESTION_AFTER_POLL,
-		Text:   label + INLINE_NAME_REPEAT_AFTER_POLL,
+		Text:   label,
 		Data:   fmt.Sprintf("%d", uq.QuestionID),
 	}
 
@@ -222,9 +228,15 @@ func (d *QuestionDispatcher) questionWithTest(userID int64, uq *edu.UsersQuestio
 		Data:   fmt.Sprintf("%d", uq.QuestionID),
 	}
 
+	editBtn := telebot.InlineButton{
+		Unique: INLINE_EDIT_QUESTION,
+		Text:   "✏️",
+		Data:   fmt.Sprintf("%d", uq.QuestionID),
+	}
+
 	recipient := &telebot.User{ID: userID}
 	msg, err := d.bot.Send(recipient, poll, &telebot.ReplyMarkup{
-		InlineKeyboard: [][]telebot.InlineButton{{repeatBtn, deleteBtn}},
+		InlineKeyboard: [][]telebot.InlineButton{{repeatBtn, deleteBtn, editBtn}},
 	})
 	if err != nil {
 		return err

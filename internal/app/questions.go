@@ -45,6 +45,20 @@ func (a *App) GetQuestionsAnswers(ctx context.Context, userID int64) (edu.UsersQ
 	return questions, nil
 }
 
+func (a *App) GetQuestionAnswers(ctx context.Context, qID int64) (*edu.Question, error) {
+	question, err := edu.Questions(
+		qm.Load(qm.Rels(edu.QuestionRels.Answers)),
+		qm.Load(qm.Rels(edu.QuestionRels.Tag)),
+		edu.QuestionWhere.ID.EQ(qID),
+	).One(ctx, boil.GetContextDB())
+	if err != nil {
+		log.Println("Ошибка при выборке вопроса:", err)
+		return nil, err
+	}
+
+	return question, nil
+}
+
 func (a *App) UpdateRepeatTime(ctx context.Context, question *edu.UsersQuestion, correct bool) error {
 	var serial int64
 
@@ -198,6 +212,67 @@ func (a *App) UpdateTag(ctx context.Context, tagID int64, s string) error {
 	tag.Tag = s
 
 	if _, err = tag.Update(ctx, boil.GetContextDB(), boil.Whitelist(edu.TagColumns.Tag)); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (a *App) UpdateQuestionName(ctx context.Context, qID int64, question string) error {
+	q, err := edu.FindQuestion(ctx, boil.GetContextDB(), qID)
+	if err != nil {
+		return err
+	}
+
+	q.Question = question
+
+	if _, err = q.Update(ctx, boil.GetContextDB(), boil.Whitelist(edu.QuestionColumns.Question)); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (a *App) UpdateAnswer(ctx context.Context, aID int64, answerText string) error {
+	answer, err := edu.FindAnswer(ctx, boil.GetContextDB(), aID)
+	if err != nil {
+		return err
+	}
+
+	answer.Answer = answerText
+
+	if _, err = answer.Update(ctx, boil.GetContextDB(), boil.Whitelist(edu.AnswerColumns.Answer)); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (a *App) UpdateTagByQuestion(ctx context.Context, qID int64, newTag string) error {
+	t, err := edu.Tags(
+		edu.TagWhere.Tag.EQ(newTag)).One(ctx, boil.GetContextDB())
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return err
+	} else if errors.Is(err, sql.ErrNoRows) {
+		t = &edu.Tag{
+			Tag: newTag,
+		}
+		if err = t.Insert(ctx, boil.GetContextDB(), boil.Infer()); err != nil {
+			return err
+		}
+		if err = t.Reload(ctx, boil.GetContextDB()); err != nil {
+			return err
+		}
+	}
+
+	q, err := edu.FindQuestion(ctx, boil.GetContextDB(), qID)
+	if err != nil {
+		return err
+	}
+
+	q.TagID = t.ID
+
+	if _, err = q.Update(ctx, boil.GetContextDB(), boil.Whitelist(edu.QuestionColumns.TagID)); err != nil {
 		return err
 	}
 

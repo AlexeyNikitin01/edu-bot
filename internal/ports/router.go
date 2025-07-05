@@ -23,9 +23,14 @@ const (
 	INLINE_SIMPLE_QUESTION                     = "simple"
 	INLINE_NEXT_QUESTION                       = "next_question"
 	INLINE_EDIT_TAG                            = "edit_tag"
-	INLINE_NAME_DELETE_AFTER_POLL              = "🗑️ УДАЛЕНИЕ"
-	INLINE_NAME_REPEAT_AFTER_POLL              = "️ПОВТОРЕНИЕ"
-	INLINE_NAME_DELETE                         = "🗑️"
+	INLINE_EDIT_QUESTION                       = "edit_question"
+	INLINE_EDIT_NAME_QUESTION                  = "inline_edit_name_question"
+	INLINE_EDIT_ANSWER_QUESTION                = "inline_edit_answer_question"
+	INLINE_EDIT_NAME_TAG_QUESTION              = "inline_edit_name_tag_question"
+
+	INLINE_NAME_DELETE_AFTER_POLL = "🗑️"
+	INLINE_NAME_REPEAT_AFTER_POLL = "️ПОВТОРЕНИЕ"
+	INLINE_NAME_DELETE            = "🗑️"
 
 	BTN_ADD_QUESTION       = "➕ Вопрос"
 	BTN_MANAGMENT_QUESTION = "📚 Управление"
@@ -68,7 +73,11 @@ func routers(b *telebot.Bot, domain *app.App, dispatcher *QuestionDispatcher) {
 	b.Handle(&telebot.InlineButton{Unique: INLINE_BTN_DELETE_QUESTION_AFTER_POLL}, deleteQuestionAfterPoll(domain, dispatcher))
 	b.Handle(&telebot.InlineButton{Unique: INLINE_BTN_DELETE_QUESTION_AFTER_POLL_HIGH}, deleteQuestionAfterPollHigh(domain, dispatcher))
 	b.Handle(&telebot.InlineButton{Unique: INLINE_NEXT_QUESTION}, nextQuestion(dispatcher))
-	b.Handle(&telebot.InlineButton{Unique: INLINE_EDIT_TAG}, setEdit(edu.TableNames.Tags))
+	b.Handle(&telebot.InlineButton{Unique: INLINE_EDIT_TAG}, setEdit(edu.TableNames.Tags, domain))
+	b.Handle(&telebot.InlineButton{Unique: INLINE_EDIT_QUESTION}, getForUpdate(domain))
+	b.Handle(&telebot.InlineButton{Unique: INLINE_EDIT_NAME_QUESTION}, setEdit(edu.QuestionTableColumns.Question, domain))
+	b.Handle(&telebot.InlineButton{Unique: INLINE_EDIT_NAME_TAG_QUESTION}, setEdit(edu.QuestionTableColumns.TagID, domain))
+	b.Handle(&telebot.InlineButton{Unique: INLINE_EDIT_ANSWER_QUESTION}, setEdit(edu.AnswerTableColumns.Answer, domain))
 
 	// ADD CSV
 	b.Handle(telebot.OnDocument, setQuestionsByCSV(domain))

@@ -15,6 +15,10 @@ type Apper interface {
 	CreateUser(context.Context, int64, int64, string) (*edu.User, error)
 	UpdateIsEduUserQuestion(context.Context, int64, int64) error
 	UpdateTag(context.Context, int64, string) error
+	GetQuestionAnswers(ctx context.Context, qID int64) (*edu.Question, error)
+	UpdateQuestionName(context.Context, int64, string) error
+	UpdateAnswer(ctx context.Context, aID int64, answer string) error
+	UpdateTagByQuestion(ctx context.Context, qID int64, newTag string) error
 }
 
 type App struct {

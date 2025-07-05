@@ -153,5 +153,55 @@ func getQuestionBtn(
 		Data:   fmt.Sprintf("%d", qID),
 	}
 
-	return []telebot.InlineButton{repeatBtn, deleteBtn}
+	editBtn := telebot.InlineButton{
+		Unique: INLINE_EDIT_QUESTION,
+		Text:   "✏️",
+		Data:   fmt.Sprintf("%d", qID),
+	}
+
+	return []telebot.InlineButton{repeatBtn, deleteBtn, editBtn}
+}
+
+func getForUpdate(domain app.Apper) telebot.HandlerFunc {
+	return func(ctx telebot.Context) error {
+		qID := ctx.Data()
+		id, err := strconv.Atoi(qID)
+		if err != nil {
+			return err
+		}
+		q, err := domain.GetQuestionAnswers(GetContext(ctx), int64(id))
+		if err != nil {
+			return err
+		}
+
+		var btns [][]telebot.InlineButton
+
+		editQuestion := telebot.InlineButton{
+			Unique: INLINE_EDIT_NAME_QUESTION,
+			Text:   "вопрос: " + q.Question,
+			Data:   fmt.Sprintf("%d", id),
+		}
+
+		editTag := telebot.InlineButton{
+			Unique: INLINE_EDIT_NAME_TAG_QUESTION,
+			Text:   "тэг: " + q.R.GetTag().Tag,
+			Data:   fmt.Sprintf("%d", id),
+		}
+
+		btns = append(btns, []telebot.InlineButton{editQuestion})
+		btns = append(btns, []telebot.InlineButton{editTag})
+
+		for _, a := range q.R.GetAnswers() {
+			answer := telebot.InlineButton{
+				Unique: INLINE_EDIT_ANSWER_QUESTION,
+				Text:   "ответ: " + a.Answer,
+				Data:   fmt.Sprintf("%d", a.ID),
+			}
+			btns = append(btns, []telebot.InlineButton{answer})
+		}
+
+		return ctx.Send("Выберите поле: ", &telebot.ReplyMarkup{
+			InlineKeyboard: btns,
+		})
+	}
 }
