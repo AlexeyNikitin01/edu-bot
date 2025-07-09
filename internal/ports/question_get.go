@@ -15,6 +15,7 @@ import (
 const (
 	MSG_LIST_QUESTION = "ВОПРОСЫ: "
 	MSG_LIST_TAGS     = "ТЭГИ: "
+	MSG_EMPTY         = "У вас нет тэгов с вопросами"
 )
 
 func showRepeatTagList(domain app.Apper) telebot.HandlerFunc {
@@ -27,7 +28,7 @@ func showRepeatTagList(domain app.Apper) telebot.HandlerFunc {
 		}
 
 		if len(tags) == 0 {
-			return nil
+			return ctx.Send(MSG_EMPTY)
 		}
 
 		var tagButtons [][]telebot.InlineButton

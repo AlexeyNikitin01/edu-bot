@@ -51,14 +51,29 @@ func deleteQuestionByTag(domain app.Apper) telebot.HandlerFunc {
 	return func(ctx telebot.Context) error {
 		tag := ctx.Data()
 
-		_, err := edu.Questions(
+		qs, err := edu.UsersQuestions(
+			qm.InnerJoin(
+				fmt.Sprintf("%s ON %s = %s",
+					edu.TableNames.Questions,
+					edu.UsersQuestionTableColumns.QuestionID,
+					edu.QuestionTableColumns.ID,
+				),
+			),
 			qm.InnerJoin(
 				fmt.Sprintf("%s ON %s = %s",
 					edu.TableNames.Tags,
 					edu.QuestionTableColumns.TagID,
-					edu.TagTableColumns.ID)),
-			edu.TagWhere.Tag.EQ(tag)).DeleteAll(GetContext(ctx), boil.GetContextDB(), false)
+					edu.TagTableColumns.ID,
+				),
+			),
+			edu.TagWhere.Tag.EQ(tag),
+			edu.UsersQuestionWhere.UserID.EQ(GetUserFromContext(ctx).TGUserID),
+		).All(GetContext(ctx), boil.GetContextDB())
 		if err != nil {
+			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
+		}
+
+		if _, err = qs.DeleteAll(GetContext(ctx), boil.GetContextDB(), false); err != nil {
 			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
 		}
 
