@@ -29,10 +29,6 @@ func forgotQuestion(domain *app.App, dispatcher *QuestionDispatcher) telebot.Han
 			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
 		}
 
-		if uq.TotalSerial == 0 {
-			return nil
-		}
-
 		if err = domain.UpdateRepeatTime(GetContext(ctx), uq, false); err != nil {
 			return err
 		}
@@ -100,10 +96,6 @@ func rememberQuestion(domain *app.App, dispatcher *QuestionDispatcher) telebot.H
 		).One(GetContext(ctx), boil.GetContextDB())
 		if err != nil {
 			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
-		}
-
-		if uq.TotalSerial != 0 {
-			return nil
 		}
 
 		if err = domain.UpdateRepeatTime(GetContext(ctx), uq, true); err != nil {
