@@ -61,7 +61,9 @@ func (d *QuestionDispatcher) StartPollingLoop() {
 }
 
 func (d *QuestionDispatcher) checkAndDispatch() {
-	users, err := edu.Users().All(d.ctx, boil.GetContextDB())
+	users, err := edu.Users(
+		edu.UserWhere.Block.EQ(false),
+	).All(d.ctx, boil.GetContextDB())
 	if err != nil {
 		log.Println("Ошибка получения пользователей:", err)
 		return

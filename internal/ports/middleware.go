@@ -22,6 +22,9 @@ func AuthMiddleware(ctx context.Context, domain app.Apper) telebot.MiddlewareFun
 			}
 
 			if user != nil {
+				if user.Block {
+					return c.Send("ВЫ ЗАБЛОКИРОВАНЫ!")
+				}
 				c.Set("user", user)
 				return next(c)
 			}

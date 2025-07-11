@@ -30,6 +30,7 @@ type User struct {
 	CreatedAt time.Time `db:"created_at" pg:"created_at" boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
 	UpdatedAt time.Time `db:"updated_at" pg:"updated_at" boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
 	DeletedAt null.Time `db:"deleted_at" pg:"deleted_at" boil:"deleted_at" json:"deleted_at,omitempty" toml:"deleted_at" yaml:"deleted_at,omitempty"`
+	Block     bool      `db:"block" pg:"block" boil:"block" json:"block" toml:"block" yaml:"block"`
 
 	R *userR `db:"-" pg:"-" boil:"-" json:"-" toml:"-" yaml:"-"`
 	L userL  `db:"-" pg:"-" boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -42,6 +43,7 @@ var UserColumns = struct {
 	CreatedAt string
 	UpdatedAt string
 	DeletedAt string
+	Block     string
 }{
 	TGUserID:  "tg_user_id",
 	ChatID:    "chat_id",
@@ -49,6 +51,7 @@ var UserColumns = struct {
 	CreatedAt: "created_at",
 	UpdatedAt: "updated_at",
 	DeletedAt: "deleted_at",
+	Block:     "block",
 }
 
 var UserTableColumns = struct {
@@ -58,6 +61,7 @@ var UserTableColumns = struct {
 	CreatedAt string
 	UpdatedAt string
 	DeletedAt string
+	Block     string
 }{
 	TGUserID:  "users.tg_user_id",
 	ChatID:    "users.chat_id",
@@ -65,6 +69,7 @@ var UserTableColumns = struct {
 	CreatedAt: "users.created_at",
 	UpdatedAt: "users.updated_at",
 	DeletedAt: "users.deleted_at",
+	Block:     "users.block",
 }
 
 // Generated where
@@ -76,6 +81,7 @@ var UserWhere = struct {
 	CreatedAt whereHelpertime_Time
 	UpdatedAt whereHelpertime_Time
 	DeletedAt whereHelpernull_Time
+	Block     whereHelperbool
 }{
 	TGUserID:  whereHelperint64{field: "\"users\".\"tg_user_id\""},
 	ChatID:    whereHelperint64{field: "\"users\".\"chat_id\""},
@@ -83,6 +89,7 @@ var UserWhere = struct {
 	CreatedAt: whereHelpertime_Time{field: "\"users\".\"created_at\""},
 	UpdatedAt: whereHelpertime_Time{field: "\"users\".\"updated_at\""},
 	DeletedAt: whereHelpernull_Time{field: "\"users\".\"deleted_at\""},
+	Block:     whereHelperbool{field: "\"users\".\"block\""},
 }
 
 // UserRels is where relationship names are stored.
@@ -113,9 +120,9 @@ func (r *userR) GetUsersQuestions() UsersQuestionSlice {
 type userL struct{}
 
 var (
-	userAllColumns            = []string{"tg_user_id", "chat_id", "first_name", "created_at", "updated_at", "deleted_at"}
+	userAllColumns            = []string{"tg_user_id", "chat_id", "first_name", "created_at", "updated_at", "deleted_at", "block"}
 	userColumnsWithoutDefault = []string{}
-	userColumnsWithDefault    = []string{"tg_user_id", "chat_id", "first_name", "created_at", "updated_at", "deleted_at"}
+	userColumnsWithDefault    = []string{"tg_user_id", "chat_id", "first_name", "created_at", "updated_at", "deleted_at", "block"}
 	userPrimaryKeyColumns     = []string{"tg_user_id"}
 	userGeneratedColumns      = []string{}
 )
