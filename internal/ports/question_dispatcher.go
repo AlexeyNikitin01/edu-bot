@@ -22,6 +22,7 @@ const (
 	MSG_INC_SERIAL_QUESTION = "Отлично, вопрос будет реже вам попадаться🤗🤗🤗"
 	MSG_RESET_QUESTION      = "Ничего страшного, вопрос снова повториться в скором времени👈🤝🕕"
 	MSG_NEXT_QUESTION       = "😎"
+	MSG_NEXT_TIME_QUESTION  = "⏳ Следующий вопрос будет доступен "
 )
 
 type QuestionDispatcher struct {
@@ -258,6 +259,21 @@ func nextQuestion(dispatcher *QuestionDispatcher) telebot.HandlerFunc {
 	return func(ctx telebot.Context) error {
 		if err := ctx.Send(MSG_NEXT_QUESTION); err != nil {
 			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
+		}
+
+		t, err := dispatcher.domain.GetNearestTimeRepeat(GetContext(ctx), GetUserFromContext(ctx).TGUserID)
+		if err != nil {
+			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
+		}
+
+		if !time.Now().UTC().After(t) {
+			nextTimeStr := t.Local().Format("02.01.2006 в 15:04")
+
+			msg := fmt.Sprintf("%s *%s*", MSG_NEXT_TIME_QUESTION, nextTimeStr)
+
+			if err = ctx.Send(msg, telebot.ModeMarkdown); err != nil {
+				return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
+			}
 		}
 
 		dispatcher.mu.Lock()
