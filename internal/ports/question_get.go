@@ -112,14 +112,16 @@ func getQuestionBtns(ctx telebot.Context, tag string) [][]telebot.InlineButton {
 	var btns [][]telebot.InlineButton
 
 	for _, q := range qs {
-		btns = append(btns, getQuestionBtn(
+		questionButtons := getQuestionBtn(
 			ctx,
 			q.ID,
 			INLINE_BTN_REPEAT_QUESTION,
 			q.Question,
 			INLINE_NAME_DELETE,
 			INLINE_BTN_DELETE_QUESTION,
-		))
+		)
+		btns = append(btns, []telebot.InlineButton{questionButtons[0]},
+			[]telebot.InlineButton{questionButtons[1], questionButtons[2]})
 	}
 
 	return btns
