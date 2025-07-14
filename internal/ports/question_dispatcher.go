@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"strings"
 	"sync"
 	"time"
 
@@ -23,6 +24,7 @@ const (
 	MSG_RESET_QUESTION      = "Ничего страшного, вопрос снова повториться в скором времени👈🤝🕕"
 	MSG_NEXT_QUESTION       = "😎"
 	MSG_NEXT_TIME_QUESTION  = "⏳ Следующий вопрос будет доступен "
+	MSG_WRONG               = "Нет правильного ответа для вопроса"
 )
 
 type QuestionDispatcher struct {
@@ -128,7 +130,13 @@ func (d *QuestionDispatcher) sendQuestion(userID int64, uq *edu.UsersQuestion) e
 	answers := uq.R.GetQuestion().R.GetAnswers()
 
 	if len(answers) == 1 || uq.TotalSerial > 4 {
-		return d.questionWithHigh(userID, uq, uq.R.GetQuestion(), answers[0])
+		for _, answer := range answers {
+			if answer.IsCorrect {
+				return d.questionWithHigh(userID, uq, uq.R.GetQuestion(), answers[0])
+			}
+		}
+		_, err := d.bot.Send(&telebot.User{ID: userID}, MSG_WRONG)
+		return err
 	}
 
 	return d.questionWithTest(userID, uq)
@@ -175,13 +183,37 @@ func (d *QuestionDispatcher) questionWithHigh(
 	rec := &telebot.User{ID: id}
 	_, err := d.bot.Send(
 		rec,
-		fmt.Sprintf("%s \n\n || %s ||", q.Question, answer.Answer),
+		fmt.Sprintf("%s \n\n || %s ||", escapeMarkdownV2(q.Question), escapeMarkdownV2(answer.Answer)),
 		telebot.ModeMarkdownV2,
 		&telebot.ReplyMarkup{
 			InlineKeyboard: [][]telebot.InlineButton{{easy, forgot}, {repeatBtn, deleteBtn, editBtn}},
 		},
 	)
 	return err
+}
+
+func escapeMarkdownV2(text string) string {
+	replacer := strings.NewReplacer(
+		"_", "\\_",
+		"*", "\\*",
+		"[", "\\[",
+		"]", "\\]",
+		"(", "\\(",
+		")", "\\)",
+		"~", "\\~",
+		"`", "\\`",
+		">", "\\>",
+		"#", "\\#",
+		"+", "\\+",
+		"-", "\\-",
+		"=", "\\=",
+		"|", "\\|",
+		"{", "\\{",
+		"}", "\\}",
+		".", "\\.",
+		"!", "\\!",
+	)
+	return replacer.Replace(text)
 }
 
 func (d *QuestionDispatcher) questionWithTest(userID int64, uq *edu.UsersQuestion) error {
