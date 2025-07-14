@@ -20,7 +20,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT || 22 }}
           script: |
-            cd /tg-bot
+            cd tg-bot/
             git pull edu main
             docker-compose down
             docker-compose build --no-cache
