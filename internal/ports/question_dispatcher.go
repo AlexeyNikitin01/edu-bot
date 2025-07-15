@@ -286,7 +286,7 @@ func nextQuestion(dispatcher *QuestionDispatcher) telebot.HandlerFunc {
 		}
 
 		if !time.Now().UTC().After(t) {
-			nextTimeStr := t.Local().Format("02.01.2006 в 15:04")
+			nextTimeStr := t.In(ctx.Chat().Time().Location()).Format("02.01.2006 в 15:04")
 
 			msg := fmt.Sprintf("%s *%s*", MSG_NEXT_TIME_QUESTION, nextTimeStr)
 
