@@ -141,7 +141,6 @@ func (d *QuestionDispatcher) sendQuestion(userID int64, uq *edu.UsersQuestion) e
 
 	return d.questionWithTest(userID, uq)
 }
-
 func (d *QuestionDispatcher) questionWithHigh(
 	id int64, uq *edu.UsersQuestion, q *edu.Question, answer *edu.Answer,
 ) error {
@@ -180,40 +179,28 @@ func (d *QuestionDispatcher) questionWithHigh(
 		Data:   fmt.Sprintf("%d", uq.QuestionID),
 	}
 
+	// Функция для экранирования специальных символов MarkdownV2
+	escapeMarkdown := func(text string) string {
+		specialChars := []string{"_", "*", "[", "]", "(", ")", "~", "`", ">", "#", "+", "-", "=", "|", "{", "}", ".", "!"}
+		for _, char := range specialChars {
+			text = strings.ReplaceAll(text, char, "\\"+char)
+		}
+		return text
+	}
+
+	questionText := escapeMarkdown(q.Question)
+	answerText := escapeMarkdown(answer.Answer)
+
 	rec := &telebot.User{ID: id}
 	_, err := d.bot.Send(
 		rec,
-		fmt.Sprintf("%s \n\n || %s ||", escapeMarkdownV2(q.Question), escapeMarkdownV2(answer.Answer)),
+		questionText+"\n\n||"+answerText+"||",
 		telebot.ModeMarkdownV2,
 		&telebot.ReplyMarkup{
 			InlineKeyboard: [][]telebot.InlineButton{{easy, forgot}, {repeatBtn, deleteBtn, editBtn}},
 		},
 	)
 	return err
-}
-
-func escapeMarkdownV2(text string) string {
-	replacer := strings.NewReplacer(
-		"_", "\\_",
-		"*", "\\*",
-		"[", "\\[",
-		"]", "\\]",
-		"(", "\\(",
-		")", "\\)",
-		"~", "\\~",
-		"`", "\\`",
-		">", "\\>",
-		"#", "\\#",
-		"+", "\\+",
-		"-", "\\-",
-		"=", "\\=",
-		"|", "\\|",
-		"{", "\\{",
-		"}", "\\}",
-		".", "\\.",
-		"!", "\\!",
-	)
-	return replacer.Replace(text)
 }
 
 func (d *QuestionDispatcher) questionWithTest(userID int64, uq *edu.UsersQuestion) error {
