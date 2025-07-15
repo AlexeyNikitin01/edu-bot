@@ -284,6 +284,8 @@ func (a *App) GetNearestTimeRepeat(ctx context.Context, userID int64) (time.Time
 		edu.UsersQuestionWhere.UserID.EQ(userID),
 		edu.UsersQuestionWhere.TimeRepeat.LTE(time.Now().UTC()),
 		edu.UsersQuestionWhere.DeletedAt.IsNull(),
+		edu.UsersQuestionWhere.IsEdu.EQ(true),
+		edu.UsersQuestionWhere.IsPause.EQ(false),
 	).Exists(ctx, boil.GetContextDB())
 	if err != nil {
 		return time.Time{}, err
