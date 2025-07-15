@@ -116,7 +116,7 @@ func (d *QuestionDispatcher) worker(userID int64, ch chan *edu.UsersQuestion) {
 			d.mu.Unlock()
 
 			if err := d.sendQuestion(userID, uq); err != nil {
-				log.Printf("Ошибка отправки вопроса пользователю %d: %v", userID, err)
+				log.Printf("Ошибка отправки вопроса %d пользователю %d: %v", uq.QuestionID, userID, err)
 
 				d.mu.Lock()
 				d.waitingForAnswer[userID] = false
