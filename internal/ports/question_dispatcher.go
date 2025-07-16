@@ -23,7 +23,7 @@ const (
 	MSG_INC_SERIAL_QUESTION = "Отлично, вопрос будет реже вам попадаться🤗🤗🤗"
 	MSG_RESET_QUESTION      = "Ничего страшного, вопрос снова повториться в скором времени👈🤝🕕"
 	MSG_NEXT_QUESTION       = "😎"
-	MSG_NEXT_TIME_QUESTION  = "⏳ Следующий вопрос будет доступен "
+	MSG_NEXT_TIME_QUESTION  = "⏳ Следующий вопрос будет доступен через: "
 	MSG_WRONG               = "Нет правильного ответа для вопроса"
 )
 
@@ -285,10 +285,34 @@ func nextQuestion(dispatcher *QuestionDispatcher) telebot.HandlerFunc {
 			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
 		}
 
-		if !time.Now().UTC().After(t) {
-			nextTimeStr := t.In(ctx.Chat().Time().Location()).Format("02.01.2006 в 15:04")
+		now := time.Now().UTC()
+		if !now.After(t) {
+			duration := t.Sub(now)
+			var timeLeftMsg string
 
-			msg := fmt.Sprintf("%s *%s*", MSG_NEXT_TIME_QUESTION, nextTimeStr)
+			switch {
+			case duration < time.Hour:
+				minutes := int(duration.Minutes())
+				timeLeftMsg = fmt.Sprintf("%d минут", minutes)
+			case duration < 24*time.Hour:
+				hours := int(duration.Hours())
+				remainingMinutes := int(duration.Minutes()) % 60
+				if remainingMinutes > 0 {
+					timeLeftMsg = fmt.Sprintf("%d часов %d минут", hours, remainingMinutes)
+				} else {
+					timeLeftMsg = fmt.Sprintf("%d часов", hours)
+				}
+			default:
+				days := int(duration.Hours() / 24)
+				remainingHours := int(duration.Hours()) % 24
+				if remainingHours > 0 {
+					timeLeftMsg = fmt.Sprintf("%d дней %d часов", days, remainingHours)
+				} else {
+					timeLeftMsg = fmt.Sprintf("%d дней", days)
+				}
+			}
+
+			msg := fmt.Sprintf("%s *%s*", MSG_NEXT_TIME_QUESTION, timeLeftMsg)
 
 			if err = ctx.Send(msg, telebot.ModeMarkdown); err != nil {
 				return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
