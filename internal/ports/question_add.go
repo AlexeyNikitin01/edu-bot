@@ -1,9 +1,7 @@
 package ports
 
 import (
-	"encoding/csv"
 	"errors"
-	"io"
 	"strconv"
 	"strings"
 
@@ -257,70 +255,4 @@ func getTags(ctx telebot.Context, userID int64, domain app.Apper) error {
 
 	// Просим добавить тэг, если их нет
 	return ctx.Send(MSG_ADD_TAG)
-}
-
-func setQuestionsByCSV(domain app.Apper) telebot.HandlerFunc {
-	return func(ctx telebot.Context) error {
-		if !strings.HasSuffix(ctx.Message().Document.FileName, ".csv") {
-			return ctx.Send("Пожалуйста, отправьте CSV файл")
-		}
-
-		file, err := ctx.Bot().File(&ctx.Message().Document.File)
-		if err != nil {
-			return ctx.Send(MSG_CSV_ERROR + err.Error())
-		}
-		defer file.Close()
-
-		reader := csv.NewReader(file)
-		reader.Comma = ';' // Указываем разделитель
-		reader.TrimLeadingSpace = true
-
-		userID := ctx.Sender().ID
-		var successCount, errorCount int
-
-		for {
-			record, err := reader.Read()
-			if err == io.EOF {
-				break
-			}
-			if err != nil {
-				errorCount++
-				continue
-			}
-
-			// Проверяем формат записи: вопрос, тег, правильный ответ, неправильные ответы...
-			if len(record) < 3 {
-				errorCount++
-				continue
-			}
-
-			question := strings.TrimSpace(record[0])
-			tag := strings.TrimSpace(record[1])
-			correctAnswer := strings.TrimSpace(record[2])
-			var wrongAnswers []string
-
-			for i := 3; i < len(record); i++ {
-				if ans := strings.TrimSpace(record[i]); ans != "" {
-					wrongAnswers = append(wrongAnswers, ans)
-				}
-			}
-
-			allAnswers := append([]string{correctAnswer}, wrongAnswers...)
-
-			if err = domain.SaveQuestions(
-				GetContext(ctx), question, tag, allAnswers, userID,
-			); err != nil {
-				errorCount++
-				continue
-			}
-
-			successCount++
-		}
-
-		return ctx.Send(
-			MSG_CSV_SUCCESS +
-				"\nУспешно: " + strconv.Itoa(successCount) +
-				"\nОшибок: " + strconv.Itoa(errorCount),
-		)
-	}
 }
