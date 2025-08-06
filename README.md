@@ -1,4 +1,4 @@
-@TimeClickEducationBot
+@TimeClickEducationBot - концепция ANKI 
 
 ![img.png](docs/bot.png)
 # Кривая забывания Эббингауза и её применение
