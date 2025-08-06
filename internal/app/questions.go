@@ -278,3 +278,35 @@ func (a *App) UpdateTagByQuestion(ctx context.Context, qID int64, newTag string)
 
 	return nil
 }
+
+func (a *App) GetNearestTimeRepeat(ctx context.Context, userID int64) (time.Time, error) {
+	exist, err := edu.UsersQuestions(
+		edu.UsersQuestionWhere.UserID.EQ(userID),
+		edu.UsersQuestionWhere.TimeRepeat.LTE(time.Now().UTC()),
+		edu.UsersQuestionWhere.DeletedAt.IsNull(),
+		edu.UsersQuestionWhere.IsEdu.EQ(true),
+		edu.UsersQuestionWhere.IsPause.EQ(false),
+	).Exists(ctx, boil.GetContextDB())
+	if err != nil {
+		return time.Time{}, err
+	}
+	if exist {
+		return time.Now().UTC(), nil
+	}
+
+	// Получаем ближайший вопрос по времени повторения
+	usersQuestion, err := edu.UsersQuestions(
+		edu.UsersQuestionWhere.UserID.EQ(userID),
+		edu.UsersQuestionWhere.DeletedAt.IsNull(),
+		qm.OrderBy(edu.UsersQuestionColumns.TimeRepeat+" ASC"),
+		edu.UsersQuestionWhere.IsEdu.EQ(true),
+		edu.UsersQuestionWhere.IsPause.EQ(false),
+	).One(ctx, boil.GetContextDB())
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return time.Time{}, err
+	} else if errors.Is(err, sql.ErrNoRows) {
+		return time.Now().UTC(), nil
+	}
+
+	return usersQuestion.TimeRepeat, nil
+}

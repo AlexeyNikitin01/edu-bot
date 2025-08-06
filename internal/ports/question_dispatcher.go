@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"strings"
 	"sync"
 	"time"
 
@@ -22,6 +23,8 @@ const (
 	MSG_INC_SERIAL_QUESTION = "Отлично, вопрос будет реже вам попадаться🤗🤗🤗"
 	MSG_RESET_QUESTION      = "Ничего страшного, вопрос снова повториться в скором времени👈🤝🕕"
 	MSG_NEXT_QUESTION       = "😎"
+	MSG_NEXT_TIME_QUESTION  = "⏳ Следующий вопрос будет доступен через: "
+	MSG_WRONG               = "Нет правильного ответа для вопроса"
 )
 
 type QuestionDispatcher struct {
@@ -113,7 +116,7 @@ func (d *QuestionDispatcher) worker(userID int64, ch chan *edu.UsersQuestion) {
 			d.mu.Unlock()
 
 			if err := d.sendQuestion(userID, uq); err != nil {
-				log.Printf("Ошибка отправки вопроса пользователю %d: %v", userID, err)
+				log.Printf("Ошибка отправки вопроса %d пользователю %d: %v", uq.QuestionID, userID, err)
 
 				d.mu.Lock()
 				d.waitingForAnswer[userID] = false
@@ -127,12 +130,17 @@ func (d *QuestionDispatcher) sendQuestion(userID int64, uq *edu.UsersQuestion) e
 	answers := uq.R.GetQuestion().R.GetAnswers()
 
 	if len(answers) == 1 || uq.TotalSerial > 4 {
-		return d.questionWithHigh(userID, uq, uq.R.GetQuestion(), answers[0])
+		for _, answer := range answers {
+			if answer.IsCorrect {
+				return d.questionWithHigh(userID, uq, uq.R.GetQuestion(), answers[0])
+			}
+		}
+		_, err := d.bot.Send(&telebot.User{ID: userID}, MSG_WRONG)
+		return err
 	}
 
 	return d.questionWithTest(userID, uq)
 }
-
 func (d *QuestionDispatcher) questionWithHigh(
 	id int64, uq *edu.UsersQuestion, q *edu.Question, answer *edu.Answer,
 ) error {
@@ -171,10 +179,22 @@ func (d *QuestionDispatcher) questionWithHigh(
 		Data:   fmt.Sprintf("%d", uq.QuestionID),
 	}
 
+	// Функция для экранирования специальных символов MarkdownV2
+	escapeMarkdown := func(text string) string {
+		specialChars := []string{"_", "*", "[", "]", "(", ")", "~", "`", ">", "#", "+", "-", "=", "|", "{", "}", ".", "!"}
+		for _, char := range specialChars {
+			text = strings.ReplaceAll(text, char, "\\"+char)
+		}
+		return text
+	}
+
+	questionText := escapeMarkdown(q.Question)
+	answerText := escapeMarkdown(answer.Answer)
+
 	rec := &telebot.User{ID: id}
 	_, err := d.bot.Send(
 		rec,
-		fmt.Sprintf("%s \n\n || %s ||", q.Question, answer.Answer),
+		questionText+"\n\n||"+answerText+"||",
 		telebot.ModeMarkdownV2,
 		&telebot.ReplyMarkup{
 			InlineKeyboard: [][]telebot.InlineButton{{easy, forgot}, {repeatBtn, deleteBtn, editBtn}},
@@ -253,15 +273,68 @@ func (d *QuestionDispatcher) questionWithTest(userID int64, uq *edu.UsersQuestio
 
 	return nil
 }
-
 func nextQuestion(dispatcher *QuestionDispatcher) telebot.HandlerFunc {
 	return func(ctx telebot.Context) error {
 		if err := ctx.Send(MSG_NEXT_QUESTION); err != nil {
 			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
 		}
 
+		user := GetUserFromContext(ctx)
+		t, err := dispatcher.domain.GetNearestTimeRepeat(GetContext(ctx), user.TGUserID)
+		if err != nil {
+			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
+		}
+
+		now := time.Now().UTC()
+		if !now.After(t) {
+			duration := t.Sub(now)
+			var timeParts []string
+
+			// Функция для правильного склонения
+			pluralize := func(n int, forms []string) string {
+				n = n % 100
+				if n > 10 && n < 20 {
+					return forms[2]
+				}
+				n = n % 10
+				if n == 1 {
+					return forms[0]
+				}
+				if n >= 2 && n <= 4 {
+					return forms[1]
+				}
+				return forms[2]
+			}
+
+			// Разбиваем duration на дни, часы и минуты
+			days := int(duration.Hours() / 24)
+			hours := int(duration.Hours()) % 24
+			minutes := int(duration.Minutes()) % 60
+
+			if days > 0 {
+				timeParts = append(timeParts, fmt.Sprintf("%d %s", days, pluralize(days, []string{"день", "дня", "дней"})))
+			}
+			if hours > 0 {
+				timeParts = append(timeParts, fmt.Sprintf("%d %s", hours, pluralize(hours, []string{"час", "часа", "часов"})))
+			}
+			if minutes > 0 && days == 0 { // Минуты показываем только если нет дней
+				timeParts = append(timeParts, fmt.Sprintf("%d %s", minutes, pluralize(minutes, []string{"минуту", "минуты", "минут"})))
+			}
+
+			timeLeftMsg := strings.Join(timeParts, " ")
+			if timeLeftMsg == "" {
+				timeLeftMsg = "менее минуты"
+			}
+
+			msg := fmt.Sprintf("⏳ Следующий вопрос будет доступен через: %s", timeLeftMsg)
+
+			if err = ctx.Send(msg, telebot.ModeMarkdown); err != nil {
+				return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
+			}
+		}
+
 		dispatcher.mu.Lock()
-		dispatcher.waitingForAnswer[GetUserFromContext(ctx).TGUserID] = false
+		dispatcher.waitingForAnswer[user.TGUserID] = false
 		dispatcher.mu.Unlock()
 
 		return nil
