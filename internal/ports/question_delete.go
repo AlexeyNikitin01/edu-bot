@@ -17,7 +17,7 @@ const (
 )
 
 // deleteQuestion Обрабатывает нажатие на кнопку удаления
-func deleteQuestion() telebot.HandlerFunc {
+func deleteQuestion(domain app.Apper) telebot.HandlerFunc {
 	return func(ctx telebot.Context) error {
 		qidStr := ctx.Data()
 		questionID, err := strconv.Atoi(qidStr)
@@ -40,8 +40,24 @@ func deleteQuestion() telebot.HandlerFunc {
 			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
 		}
 
+		btns := getQuestionBtns(ctx, q.R.GetTag().Tag)
+
+		if len(btns) == 0 {
+			tagButtons, err := getButtonsTags(ctx, domain)
+			if err != nil {
+				return err
+			}
+
+			return ctx.Edit(MSG_LIST_TAGS, &telebot.ReplyMarkup{
+				InlineKeyboard: tagButtons,
+			})
+		}
+
 		return ctx.Edit(q.R.GetTag().Tag+" "+MSG_LIST_QUESTION, &telebot.ReplyMarkup{
-			InlineKeyboard: getQuestionBtns(ctx, q.R.GetTag().Tag),
+			InlineKeyboard: append(getQuestionBtns(ctx, q.R.GetTag().Tag), []telebot.InlineButton{{
+				Unique: INLINE_BACK_TAGS,
+				Text:   MSG_BACK_TAGS,
+			}}),
 		})
 	}
 }
