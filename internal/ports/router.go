@@ -21,8 +21,6 @@ const (
 	INLINE_BTN_QUESTION_BY_TAG                 = "question_by_tag"
 	INLINE_FORGOT_HIGH_QUESTION                = "forgot_high_question"
 	INLINE_REMEMBER_HIGH_QUESTION              = "remember_high_question"
-	INLINE_COMPLEX_QUESTION                    = "complex"
-	INLINE_SIMPLE_QUESTION                     = "simple"
 	INLINE_NEXT_QUESTION                       = "next_question"
 	INLINE_EDIT_TAG                            = "edit_tag"
 	INLINE_EDIT_QUESTION                       = "edit_question"
@@ -62,7 +60,6 @@ const (
 	2. Сложный: "Что выведет: x++; y--;?";Программирование;"1; 2; 3"`
 
 	CMD_START         = "/start"
-	CMD_DONE   string = "/done"
 	CMD_CANCEL string = "/cancel"
 )
 
@@ -81,8 +78,6 @@ func routers(b *telebot.Bot, domain *app.App, dispatcher *QuestionDispatcher) {
 	b.Handle(&telebot.InlineButton{Unique: INLINE_BTN_QUESTION_BY_TAG}, func(ctx telebot.Context) error {
 		return questionByTag(ctx.Data())(ctx)
 	})
-	b.Handle(&telebot.InlineButton{Unique: INLINE_COMPLEX_QUESTION}, setHigh(true, MSG_CHOOSE_HIGH, domain))
-	b.Handle(&telebot.InlineButton{Unique: INLINE_SIMPLE_QUESTION}, setHigh(false, MSG_CHOOSE_SIMPLE, domain))
 	b.Handle(&telebot.InlineButton{Unique: INLINE_FORGOT_HIGH_QUESTION}, forgotQuestion(domain, dispatcher))
 	b.Handle(&telebot.InlineButton{Unique: INLINE_REMEMBER_HIGH_QUESTION}, rememberQuestion(domain, dispatcher))
 	b.Handle(&telebot.InlineButton{Unique: INLINE_BTN_REPEAT_QUESTION_AFTER_POLL}, repeatQuestionAfterPoll(domain))

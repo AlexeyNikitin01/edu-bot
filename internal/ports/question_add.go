@@ -21,16 +21,8 @@ const (
 	MSG_ADD_TAG                        = "🏷 Введите свой тэг или выберите из списка, или нажмите /cancel для отмены: "
 	MSG_ADD_QUESTION                   = "✍️ Напишите вопрос или нажмите /cancel для отмены"
 	MSG_ADD_CORRECT_ANSWER             = "✍✅ Введите правильный ответ или нажмите /cancel для отмены: "
-	MSG_ADD_WRONG_ANSWER               = "✍️❌ Введите неправильный ответ (или нажмите /done, чтобы завершить или нажмите /cancel для отмены):"
 	MSG_CANCEL                         = "Вы отменили действие👊!"
 	MSG_SUCCESS                        = "✅ Вопрос успешно добавлен!"
-	MSG_CSV_SUCCESS                    = "✅ Вопросы из CSV успешно добавлены!"
-	MSG_CSV_ERROR                      = "❌ Ошибка при обработке CSV файла: "
-	MSG_TEST                           = "Вопрос с тестом"
-	MSG_HIGH_QUESTION                  = "Вопрос с развернутым ответом"
-	MSG_TYPE_QUESTION                  = "Выберите тип вопроса или нажмите /cancel для отмены"
-	MSG_CHOOSE_HIGH                    = "Выбран вопрос с развернутым ответом"
-	MSG_CHOOSE_SIMPLE                  = "Выбран вопрос с вариантами ответа"
 	MSG_EDIT                           = "Введите новое значение для или нажмите /cancel для отмены: "
 	MSG_SUCCESS_UPDATE_TAG             = "Тэг обновлен"
 	MSG_SUCCESS_UPDATE_NAME_QUESTION   = "Вопрос обновлен"
@@ -44,7 +36,6 @@ type QuestionDraft struct {
 	Question         string
 	Tag              string
 	Answers          []string
-	High             bool
 	TagID            int64
 	QuestionIDByTag  int64
 	QuestionIDByName int64
@@ -52,32 +43,6 @@ type QuestionDraft struct {
 }
 
 var drafts = make(map[int64]*QuestionDraft)
-
-func setHigh(b bool, msg string, a app.Apper) telebot.HandlerFunc {
-	return func(ctx telebot.Context) (err error) {
-		draft, exists := drafts[GetUserFromContext(ctx).TGUserID]
-		if !exists {
-			drafts[GetUserFromContext(ctx).TGUserID] = &QuestionDraft{Step: 1}
-			draft, _ = drafts[GetUserFromContext(ctx).TGUserID]
-		}
-
-		if draft == nil {
-			return nil
-		}
-
-		draft.High = b
-
-		if err = ctx.Send(msg); err != nil {
-			return err
-		}
-
-		if err = getTags(ctx, GetUserFromContext(ctx).TGUserID, a); err != nil {
-			return err
-		}
-
-		return nil
-	}
-}
 
 func setEdit(field string, domain app.Apper) telebot.HandlerFunc {
 	return func(ctx telebot.Context) (err error) {
@@ -124,12 +89,11 @@ func add(domain app.Apper) telebot.HandlerFunc {
 		draft, exists := drafts[u.TGUserID]
 		if !exists {
 			drafts[u.TGUserID] = &QuestionDraft{Step: 1}
-			selector := &telebot.ReplyMarkup{}
-			btnSimple := selector.Data(MSG_TEST, INLINE_SIMPLE_QUESTION)
-			btnComplex := selector.Data(MSG_HIGH_QUESTION, INLINE_COMPLEX_QUESTION)
-			selector.Inline(selector.Row(btnSimple), selector.Row(btnComplex))
+			if err = ctx.Send(msg); err != nil {
+				return err
+			}
 
-			return ctx.Send(MSG_TYPE_QUESTION, selector)
+			return getTags(ctx, GetUserFromContext(ctx).TGUserID, domain)
 		}
 
 		if msg == CMD_CANCEL {
@@ -183,26 +147,9 @@ func add(domain app.Apper) telebot.HandlerFunc {
 			draft.Step++
 			return ctx.Send(MSG_ADD_CORRECT_ANSWER)
 		case 3:
-			if len(draft.Answers) >= 100 && !draft.High {
-				return ctx.Send(ErrLengthAnswer.Error())
-			}
 			draft.Answers = append(draft.Answers, msg) // правильный
-			draft.Step++
-			if draft.High {
-				goto Save
-			}
-			return ctx.Send(MSG_ADD_WRONG_ANSWER)
-		case 4:
-			if len(draft.Answers) >= 100 {
-				return ctx.Send(ErrLengthAnswer.Error())
-			}
-			if msg == CMD_DONE {
-				goto Save
-			}
-			draft.Answers = append(draft.Answers, msg)
-			return ctx.Send(MSG_ADD_WRONG_ANSWER)
+			goto Save
 		}
-
 	Save:
 		delete(drafts, u.TGUserID)
 		if err = domain.SaveQuestions(

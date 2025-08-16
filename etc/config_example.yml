@@ -4,7 +4,7 @@ psql:
   host: ""
   port: ""
   dbname: ""
-  sslMode: ""
+  sslmode: ""
   maxIdleCons: 50
   maxOpenCons: 50
   migration: ""
