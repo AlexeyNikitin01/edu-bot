@@ -34,42 +34,12 @@ func forgotQuestion(domain *app.App, dispatcher *QuestionDispatcher) telebot.Han
 		}
 
 		forgot := telebot.InlineButton{
-			Unique: INLINE_FORGOT_HIGH_QUESTION,
-			Text:   "🔴 " + MSG_FORGOT,
-			Data:   fmt.Sprintf("%d", questionID),
-		}
-
-		easy := telebot.InlineButton{
-			Unique: INLINE_REMEMBER_HIGH_QUESTION,
-			Text:   MSG_REMEMBER,
-			Data:   fmt.Sprintf("%d", questionID),
-		}
-
-		label := "☑️"
-		if uq.IsEdu {
-			label = "✅"
-		}
-
-		repeatBtn := telebot.InlineButton{
-			Unique: INLINE_BTN_REPEAT_QUESTION_AFTER_POLL_HIGH,
-			Text:   label,
-			Data:   fmt.Sprintf("%d", questionID),
-		}
-
-		deleteBtn := telebot.InlineButton{
-			Unique: INLINE_BTN_DELETE_QUESTION_AFTER_POLL_HIGH,
-			Text:   INLINE_NAME_DELETE_AFTER_POLL,
-			Data:   fmt.Sprintf("%d", questionID),
-		}
-
-		editBtn := telebot.InlineButton{
-			Unique: INLINE_EDIT_QUESTION,
-			Text:   "✏️",
-			Data:   fmt.Sprintf("%d", questionID),
+			Text: "🔴 " + MSG_FORGOT,
+			Data: fmt.Sprintf("%d", questionID),
 		}
 
 		if err = ctx.Edit(&telebot.ReplyMarkup{
-			InlineKeyboard: [][]telebot.InlineButton{{easy, forgot}, {repeatBtn, deleteBtn, editBtn}},
+			InlineKeyboard: [][]telebot.InlineButton{{forgot}},
 		}); err != nil {
 			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
 		}
@@ -102,43 +72,13 @@ func rememberQuestion(domain *app.App, dispatcher *QuestionDispatcher) telebot.H
 			return err
 		}
 
-		forgot := telebot.InlineButton{
-			Unique: INLINE_FORGOT_HIGH_QUESTION,
-			Text:   MSG_FORGOT,
-			Data:   fmt.Sprintf("%d", questionID),
-		}
-
 		easy := telebot.InlineButton{
-			Unique: INLINE_REMEMBER_HIGH_QUESTION,
-			Text:   "✅ " + MSG_REMEMBER,
-			Data:   fmt.Sprintf("%d", questionID),
-		}
-
-		label := "☑️"
-		if uq.IsEdu {
-			label = "✅"
-		}
-
-		repeatBtn := telebot.InlineButton{
-			Unique: INLINE_BTN_REPEAT_QUESTION_AFTER_POLL_HIGH,
-			Text:   label,
-			Data:   fmt.Sprintf("%d", questionID),
-		}
-
-		deleteBtn := telebot.InlineButton{
-			Unique: INLINE_BTN_DELETE_QUESTION_AFTER_POLL_HIGH,
-			Text:   INLINE_NAME_DELETE_AFTER_POLL,
-			Data:   fmt.Sprintf("%d", questionID),
-		}
-
-		editBtn := telebot.InlineButton{
-			Unique: INLINE_EDIT_QUESTION,
-			Text:   "✏️",
-			Data:   fmt.Sprintf("%d", questionID),
+			Text: "✅ " + MSG_REMEMBER,
+			Data: fmt.Sprintf("%d", questionID),
 		}
 
 		if err = ctx.Edit(&telebot.ReplyMarkup{
-			InlineKeyboard: [][]telebot.InlineButton{{easy, forgot}, {repeatBtn, deleteBtn, editBtn}},
+			InlineKeyboard: [][]telebot.InlineButton{{easy}},
 		}); err != nil {
 			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
 		}
