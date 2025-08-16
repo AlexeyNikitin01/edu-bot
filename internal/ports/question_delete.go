@@ -40,7 +40,7 @@ func deleteQuestion() telebot.HandlerFunc {
 			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
 		}
 
-		return ctx.Edit(&telebot.ReplyMarkup{
+		return ctx.Edit(q.R.GetTag().Tag+" "+MSG_LIST_QUESTION, &telebot.ReplyMarkup{
 			InlineKeyboard: getQuestionBtns(ctx, q.R.GetTag().Tag),
 		})
 	}

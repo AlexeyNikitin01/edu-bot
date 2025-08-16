@@ -27,6 +27,7 @@ const (
 	INLINE_EDIT_NAME_QUESTION                  = "inline_edit_name_question"
 	INLINE_EDIT_ANSWER_QUESTION                = "inline_edit_answer_question"
 	INLINE_EDIT_NAME_TAG_QUESTION              = "inline_edit_name_tag_question"
+	INLINE_BACK_TAGS                           = "back_to_tags"
 
 	INLINE_NAME_DELETE_AFTER_POLL = "🗑️"
 	INLINE_NAME_REPEAT_AFTER_POLL = "️ПОВТОРЕНИЕ"
@@ -77,6 +78,9 @@ func routers(b *telebot.Bot, domain *app.App, dispatcher *QuestionDispatcher) {
 	})
 	b.Handle(&telebot.InlineButton{Unique: INLINE_BTN_QUESTION_BY_TAG}, func(ctx telebot.Context) error {
 		return questionByTag(ctx.Data())(ctx)
+	})
+	b.Handle(&telebot.InlineButton{Unique: INLINE_BACK_TAGS}, func(ctx telebot.Context) error {
+		return backTags(domain)(ctx)
 	})
 	b.Handle(&telebot.InlineButton{Unique: INLINE_FORGOT_HIGH_QUESTION}, forgotQuestion(domain, dispatcher))
 	b.Handle(&telebot.InlineButton{Unique: INLINE_REMEMBER_HIGH_QUESTION}, rememberQuestion(domain, dispatcher))

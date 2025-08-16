@@ -16,40 +16,15 @@ const (
 	MSG_LIST_QUESTION = "ВОПРОСЫ: "
 	MSG_LIST_TAGS     = "ТЭГИ: "
 	MSG_EMPTY         = "У вас нет тэгов с вопросами"
+	MSG_BACK_TAGS     = "НАЗАД К ТЭГАМ"
 )
 
 func showRepeatTagList(domain app.Apper) telebot.HandlerFunc {
 	return func(ctx telebot.Context) error {
-		u := GetUserFromContext(ctx)
 
-		tags, err := domain.GetUniqueTags(GetContext(ctx), u.TGUserID)
+		tagButtons, err := getButtonsTags(ctx, domain)
 		if err != nil {
-			return ctx.Send(err.Error())
-		}
-
-		if len(tags) == 0 {
-			return ctx.Send(MSG_EMPTY)
-		}
-
-		var tagButtons [][]telebot.InlineButton
-
-		for _, tag := range tags {
-			tagBtn := telebot.InlineButton{
-				Unique: INLINE_BTN_QUESTION_BY_TAG,
-				Text:   tag.Tag,
-				Data:   tag.Tag,
-			}
-			deleteBtn := telebot.InlineButton{
-				Unique: INLINE_BTN_DELETE_QUESTIONS_BY_TAG,
-				Text:   INLINE_NAME_DELETE,
-				Data:   tag.Tag,
-			}
-			editBtn := telebot.InlineButton{
-				Unique: INLINE_EDIT_TAG,
-				Text:   "✏️",
-				Data:   fmt.Sprintf("%d", tag.ID),
-			}
-			tagButtons = append(tagButtons, []telebot.InlineButton{tagBtn, deleteBtn, editBtn})
+			return err
 		}
 
 		return ctx.Send(MSG_LIST_TAGS, &telebot.ReplyMarkup{
@@ -58,10 +33,63 @@ func showRepeatTagList(domain app.Apper) telebot.HandlerFunc {
 	}
 }
 
+func backTags(domain app.Apper) telebot.HandlerFunc {
+	return func(ctx telebot.Context) error {
+
+		tagButtons, err := getButtonsTags(ctx, domain)
+		if err != nil {
+			return err
+		}
+
+		return ctx.Edit(MSG_LIST_TAGS, &telebot.ReplyMarkup{
+			InlineKeyboard: tagButtons,
+		})
+	}
+}
+
+func getButtonsTags(ctx telebot.Context, domain app.Apper) ([][]telebot.InlineButton, error) {
+	u := GetUserFromContext(ctx)
+
+	tags, err := domain.GetUniqueTags(GetContext(ctx), u.TGUserID)
+	if err != nil {
+		return nil, ctx.Send(err.Error())
+	}
+
+	if len(tags) == 0 {
+		return nil, ctx.Send(MSG_EMPTY)
+	}
+
+	var tagButtons [][]telebot.InlineButton
+
+	for _, tag := range tags {
+		tagBtn := telebot.InlineButton{
+			Unique: INLINE_BTN_QUESTION_BY_TAG,
+			Text:   tag.Tag,
+			Data:   tag.Tag,
+		}
+		deleteBtn := telebot.InlineButton{
+			Unique: INLINE_BTN_DELETE_QUESTIONS_BY_TAG,
+			Text:   INLINE_NAME_DELETE,
+			Data:   tag.Tag,
+		}
+		editBtn := telebot.InlineButton{
+			Unique: INLINE_EDIT_TAG,
+			Text:   "✏️",
+			Data:   fmt.Sprintf("%d", tag.ID),
+		}
+		tagButtons = append(tagButtons, []telebot.InlineButton{tagBtn, deleteBtn, editBtn})
+	}
+
+	return tagButtons, nil
+}
+
 func questionByTag(tag string) telebot.HandlerFunc {
 	return func(ctx telebot.Context) error {
-		return ctx.Send(MSG_LIST_QUESTION, &telebot.ReplyMarkup{
-			InlineKeyboard: getQuestionBtns(ctx, tag),
+		return ctx.Edit(tag+" "+MSG_LIST_QUESTION, &telebot.ReplyMarkup{
+			InlineKeyboard: append(getQuestionBtns(ctx, tag), []telebot.InlineButton{{
+				Unique: INLINE_BACK_TAGS,
+				Text:   MSG_BACK_TAGS,
+			}}),
 		})
 	}
 }
