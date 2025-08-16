@@ -155,9 +155,9 @@ func (d *QuestionDispatcher) questionWithHigh(
 		Data:   fmt.Sprintf("%d", q.ID),
 	}
 
-	label := "☑️"
+	label := "🔔"
 	if uq.IsEdu {
-		label = "✅"
+		label = "💤"
 	}
 
 	repeatBtn := telebot.InlineButton{
@@ -232,9 +232,9 @@ func (d *QuestionDispatcher) questionWithTest(userID int64, uq *edu.UsersQuestio
 		MultipleAnswers: false,
 	}
 
-	label := "☑️"
+	label := "🔔"
 	if uq.IsEdu {
-		label = "✅"
+		label = "💤"
 	}
 
 	repeatBtn := telebot.InlineButton{

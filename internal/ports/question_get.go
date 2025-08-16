@@ -121,7 +121,7 @@ func getQuestionBtns(ctx telebot.Context, tag string) [][]telebot.InlineButton {
 			INLINE_BTN_DELETE_QUESTION,
 		)
 		btns = append(btns, []telebot.InlineButton{questionButtons[0]},
-			[]telebot.InlineButton{questionButtons[1], questionButtons[2]})
+			[]telebot.InlineButton{questionButtons[1], questionButtons[2], questionButtons[3]})
 	}
 
 	return btns
@@ -139,14 +139,19 @@ func getQuestionBtn(
 		return nil
 	}
 
-	label := "☑️"
+	questionText := telebot.InlineButton{
+		Text: repeatMSG,
+		Data: fmt.Sprintf("%d", qID),
+	}
+
+	label := "🔔"
 	if uq.IsEdu {
-		label = "✅"
+		label = "💤"
 	}
 
 	repeatBtn := telebot.InlineButton{
 		Unique: repeat,
-		Text:   label + repeatMSG,
+		Text:   label,
 		Data:   fmt.Sprintf("%d", qID),
 	}
 
@@ -162,7 +167,7 @@ func getQuestionBtn(
 		Data:   fmt.Sprintf("%d", qID),
 	}
 
-	return []telebot.InlineButton{repeatBtn, deleteBtn, editBtn}
+	return []telebot.InlineButton{questionText, repeatBtn, deleteBtn, editBtn}
 }
 
 func getForUpdate(domain app.Apper) telebot.HandlerFunc {
