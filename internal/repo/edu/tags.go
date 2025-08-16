@@ -29,6 +29,7 @@ type Tag struct {
 	CreatedAt time.Time `db:"created_at" pg:"created_at" boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
 	UpdatedAt time.Time `db:"updated_at" pg:"updated_at" boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
 	DeletedAt null.Time `db:"deleted_at" pg:"deleted_at" boil:"deleted_at" json:"deleted_at,omitempty" toml:"deleted_at" yaml:"deleted_at,omitempty"`
+	IsPause   bool      `db:"is_pause" pg:"is_pause" boil:"is_pause" json:"is_pause" toml:"is_pause" yaml:"is_pause"`
 
 	R *tagR `db:"-" pg:"-" boil:"-" json:"-" toml:"-" yaml:"-"`
 	L tagL  `db:"-" pg:"-" boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -40,12 +41,14 @@ var TagColumns = struct {
 	CreatedAt string
 	UpdatedAt string
 	DeletedAt string
+	IsPause   string
 }{
 	ID:        "id",
 	Tag:       "tag",
 	CreatedAt: "created_at",
 	UpdatedAt: "updated_at",
 	DeletedAt: "deleted_at",
+	IsPause:   "is_pause",
 }
 
 var TagTableColumns = struct {
@@ -54,12 +57,14 @@ var TagTableColumns = struct {
 	CreatedAt string
 	UpdatedAt string
 	DeletedAt string
+	IsPause   string
 }{
 	ID:        "tags.id",
 	Tag:       "tags.tag",
 	CreatedAt: "tags.created_at",
 	UpdatedAt: "tags.updated_at",
 	DeletedAt: "tags.deleted_at",
+	IsPause:   "tags.is_pause",
 }
 
 // Generated where
@@ -70,12 +75,14 @@ var TagWhere = struct {
 	CreatedAt whereHelpertime_Time
 	UpdatedAt whereHelpertime_Time
 	DeletedAt whereHelpernull_Time
+	IsPause   whereHelperbool
 }{
 	ID:        whereHelperint64{field: "\"tags\".\"id\""},
 	Tag:       whereHelperstring{field: "\"tags\".\"tag\""},
 	CreatedAt: whereHelpertime_Time{field: "\"tags\".\"created_at\""},
 	UpdatedAt: whereHelpertime_Time{field: "\"tags\".\"updated_at\""},
 	DeletedAt: whereHelpernull_Time{field: "\"tags\".\"deleted_at\""},
+	IsPause:   whereHelperbool{field: "\"tags\".\"is_pause\""},
 }
 
 // TagRels is where relationship names are stored.
@@ -106,9 +113,9 @@ func (r *tagR) GetQuestions() QuestionSlice {
 type tagL struct{}
 
 var (
-	tagAllColumns            = []string{"id", "tag", "created_at", "updated_at", "deleted_at"}
+	tagAllColumns            = []string{"id", "tag", "created_at", "updated_at", "deleted_at", "is_pause"}
 	tagColumnsWithoutDefault = []string{}
-	tagColumnsWithDefault    = []string{"id", "tag", "created_at", "updated_at", "deleted_at"}
+	tagColumnsWithDefault    = []string{"id", "tag", "created_at", "updated_at", "deleted_at", "is_pause"}
 	tagPrimaryKeyColumns     = []string{"id"}
 	tagGeneratedColumns      = []string{}
 )

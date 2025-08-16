@@ -29,11 +29,17 @@ func (a *App) GetQuestionsAnswers(ctx context.Context, userID int64) (edu.UsersQ
 				edu.TableNames.Answers,
 				edu.QuestionTableColumns.ID,
 				edu.AnswerTableColumns.QuestionID)),
+		qm.InnerJoin(
+			fmt.Sprintf("%s ON %s = %s",
+				edu.TableNames.Tags,
+				edu.TagTableColumns.ID,
+				edu.QuestionTableColumns.TagID)),
 		edu.UsersQuestionWhere.TimeRepeat.LTE(now),
 		edu.UsersQuestionWhere.UserID.EQ(userID),
 		edu.UsersQuestionWhere.IsEdu.EQ(true),
 		edu.UsersQuestionWhere.DeletedAt.IsNull(),
 		edu.QuestionWhere.DeletedAt.IsNull(),
+		edu.TagWhere.IsPause.EQ(false),
 		edu.AnswerWhere.DeletedAt.IsNull(),
 		qm.OrderBy("RANDOM()"),
 	).All(ctx, boil.GetContextDB())
@@ -286,6 +292,17 @@ func (a *App) GetNearestTimeRepeat(ctx context.Context, userID int64) (time.Time
 		edu.UsersQuestionWhere.DeletedAt.IsNull(),
 		edu.UsersQuestionWhere.IsEdu.EQ(true),
 		edu.UsersQuestionWhere.IsPause.EQ(false),
+		qm.InnerJoin(
+			fmt.Sprintf("%s ON %s = %s",
+				edu.TableNames.Questions,
+				edu.QuestionTableColumns.ID,
+				edu.UsersQuestionTableColumns.QuestionID)),
+		qm.InnerJoin(
+			fmt.Sprintf("%s ON %s = %s",
+				edu.TableNames.Tags,
+				edu.TagTableColumns.ID,
+				edu.QuestionTableColumns.TagID)),
+		edu.TagWhere.IsPause.EQ(false),
 	).Exists(ctx, boil.GetContextDB())
 	if err != nil {
 		return time.Time{}, err
@@ -301,6 +318,17 @@ func (a *App) GetNearestTimeRepeat(ctx context.Context, userID int64) (time.Time
 		qm.OrderBy(edu.UsersQuestionColumns.TimeRepeat+" ASC"),
 		edu.UsersQuestionWhere.IsEdu.EQ(true),
 		edu.UsersQuestionWhere.IsPause.EQ(false),
+		qm.InnerJoin(
+			fmt.Sprintf("%s ON %s = %s",
+				edu.TableNames.Questions,
+				edu.QuestionTableColumns.ID,
+				edu.UsersQuestionTableColumns.QuestionID)),
+		qm.InnerJoin(
+			fmt.Sprintf("%s ON %s = %s",
+				edu.TableNames.Tags,
+				edu.TagTableColumns.ID,
+				edu.QuestionTableColumns.TagID)),
+		edu.TagWhere.IsPause.EQ(false),
 	).One(ctx, boil.GetContextDB())
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return time.Time{}, err

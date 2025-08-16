@@ -23,7 +23,6 @@ const (
 	MSG_INC_SERIAL_QUESTION = "Отлично, вопрос будет реже вам попадаться🤗🤗🤗"
 	MSG_RESET_QUESTION      = "Ничего страшного, вопрос снова повториться в скором времени👈🤝🕕"
 	MSG_NEXT_QUESTION       = "😎"
-	MSG_NEXT_TIME_QUESTION  = "⏳ Следующий вопрос будет доступен через: "
 	MSG_WRONG               = "Нет правильного ответа для вопроса"
 )
 
@@ -156,9 +155,9 @@ func (d *QuestionDispatcher) questionWithHigh(
 		Data:   fmt.Sprintf("%d", q.ID),
 	}
 
-	label := "☑️"
+	label := "🔔"
 	if uq.IsEdu {
-		label = "✅"
+		label = "💤"
 	}
 
 	repeatBtn := telebot.InlineButton{
@@ -203,6 +202,7 @@ func (d *QuestionDispatcher) questionWithHigh(
 	return err
 }
 
+// questionWithTest DEPRECATE
 func (d *QuestionDispatcher) questionWithTest(userID int64, uq *edu.UsersQuestion) error {
 	answers := uq.R.GetQuestion().R.GetAnswers()
 
@@ -233,9 +233,9 @@ func (d *QuestionDispatcher) questionWithTest(userID int64, uq *edu.UsersQuestio
 		MultipleAnswers: false,
 	}
 
-	label := "☑️"
+	label := "🔔"
 	if uq.IsEdu {
-		label = "✅"
+		label = "💤"
 	}
 
 	repeatBtn := telebot.InlineButton{
