@@ -77,7 +77,19 @@ func getButtonsTags(ctx telebot.Context, domain app.Apper) ([][]telebot.InlineBu
 			Text:   "✏️",
 			Data:   fmt.Sprintf("%d", tag.ID),
 		}
-		tagButtons = append(tagButtons, []telebot.InlineButton{tagBtn, deleteBtn, editBtn})
+
+		label := "🔔"
+		if !tag.IsPause {
+			label = "💤"
+		}
+
+		pauseTag := telebot.InlineButton{
+			Unique: INLINE_PAUSE_TAG,
+			Text:   label,
+			Data:   fmt.Sprintf("%d", tag.ID),
+		}
+
+		tagButtons = append(tagButtons, []telebot.InlineButton{tagBtn, deleteBtn, editBtn, pauseTag})
 	}
 
 	return tagButtons, nil

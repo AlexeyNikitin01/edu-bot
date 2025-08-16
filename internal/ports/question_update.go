@@ -191,3 +191,36 @@ func checkPollAnswer(domain *app.App, dispatcher *QuestionDispatcher) telebot.Ha
 		return nil
 	}
 }
+
+func pauseTag(domain app.Apper) telebot.HandlerFunc {
+	return func(ctx telebot.Context) error {
+		tagIDStr := ctx.Data()
+		tagID, err := strconv.Atoi(tagIDStr)
+		if err != nil {
+			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
+		}
+
+		tag, err := edu.Tags(
+			edu.TagWhere.ID.EQ(int64(tagID)),
+		).One(GetContext(ctx), boil.GetContextDB())
+		if err != nil {
+			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
+		}
+
+		tag.IsPause = !tag.IsPause
+		if _, err = tag.Update(GetContext(ctx), boil.GetContextDB(), boil.Whitelist(
+			edu.TagColumns.IsPause,
+		)); err != nil {
+			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
+		}
+
+		tagButtons, err := getButtonsTags(ctx, domain)
+		if err != nil {
+			return err
+		}
+
+		return ctx.Edit(MSG_LIST_TAGS, &telebot.ReplyMarkup{
+			InlineKeyboard: tagButtons,
+		})
+	}
+}

@@ -15,3 +15,10 @@ entity:
 
 ssh:
 	ssh -i home/.ssh/id_ed25519 -l aleksey 51.250.98.75
+
+prepare:
+	# Пакеты раброты с бойлером
+	go install github.com/volatiletech/sqlboiler/v4@v4.18.0
+	go install github.com/volatiletech/sqlboiler/v4/drivers/sqlboiler-psql@v4.18.0
+	# Пакет для работы с миграциями
+	go install gitlab.tn.ru/golang/app/cmd/genboiler@latest

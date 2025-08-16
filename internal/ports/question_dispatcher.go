@@ -202,6 +202,7 @@ func (d *QuestionDispatcher) questionWithHigh(
 	return err
 }
 
+// questionWithTest DEPRECATE
 func (d *QuestionDispatcher) questionWithTest(userID int64, uq *edu.UsersQuestion) error {
 	answers := uq.R.GetQuestion().R.GetAnswers()
 
