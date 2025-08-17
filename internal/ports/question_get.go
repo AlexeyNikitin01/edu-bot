@@ -3,6 +3,7 @@ package ports
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
@@ -17,6 +18,8 @@ const (
 	MSG_LIST_TAGS     = "ТЭГИ: "
 	MSG_EMPTY         = "У вас нет тэгов с вопросами"
 	MSG_BACK_TAGS     = "НАЗАД К ТЭГАМ"
+
+	QuestionsPerPage = 20 // Оставляем место для кнопок пагинации и возврата
 )
 
 func showRepeatTagList(domain app.Apper) telebot.HandlerFunc {
@@ -97,41 +100,50 @@ func getButtonsTags(ctx telebot.Context, domain app.Apper) ([][]telebot.InlineBu
 
 func questionByTag(tag string) telebot.HandlerFunc {
 	return func(ctx telebot.Context) error {
-		return ctx.Edit(tag+" "+MSG_LIST_QUESTION, &telebot.ReplyMarkup{
-			InlineKeyboard: append(getQuestionBtns(ctx, tag), []telebot.InlineButton{{
-				Unique: INLINE_BACK_TAGS,
-				Text:   MSG_BACK_TAGS,
-			}}),
-		})
+		return showQuestionsPage(ctx, tag, 0)
 	}
+}
+
+func showQuestionsPage(ctx telebot.Context, tag string, page int) error {
+	return ctx.Edit(fmt.Sprintf("%s %s (Стр. %d)", tag, MSG_LIST_QUESTION, page+1), &telebot.ReplyMarkup{
+		InlineKeyboard: getQuestionBtns(ctx, tag, page),
+	})
 }
 
 // handleToggleRepeat выбор учить или не учить вопрос.
 func handleToggleRepeat(domain app.Apper) telebot.HandlerFunc {
 	return func(ctx telebot.Context) error {
-		qidStr := ctx.Data() // получаем questionID из callback data
-		questionID, err := strconv.Atoi(qidStr)
+		// Разбираем данные callback: "questionID_page_tag"
+		parts := strings.Split(ctx.Data(), "_")
+		if len(parts) < 3 {
+			return ctx.Respond(&telebot.CallbackResponse{Text: "Ошибка формата данных"})
+		}
+
+		questionID, err := strconv.Atoi(parts[0])
 		if err != nil {
 			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
 		}
 
+		page, err := strconv.Atoi(parts[1])
+		if err != nil {
+			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
+		}
+
+		tag := strings.Join(parts[2:], "_")
+
+		// Обновляем статус вопроса
 		if err = domain.UpdateIsEduUserQuestion(GetContext(ctx), GetUserFromContext(ctx).TGUserID, int64(questionID)); err != nil {
 			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
 		}
 
-		t, err := edu.Questions(edu.QuestionWhere.ID.EQ(int64(questionID)),
-			qm.Load(edu.QuestionRels.Tag)).One(GetContext(ctx), boil.GetContextDB())
-		if err != nil {
-			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
-		}
-
+		// Получаем обновленный список вопросов с сохранением текущей страницы
 		return ctx.Edit(&telebot.ReplyMarkup{
-			InlineKeyboard: getQuestionBtns(ctx, t.R.GetTag().Tag),
+			InlineKeyboard: getQuestionBtns(ctx, tag, page),
 		})
 	}
 }
 
-func getQuestionBtns(ctx telebot.Context, tag string) [][]telebot.InlineButton {
+func getQuestionBtns(ctx telebot.Context, tag string, page int) [][]telebot.InlineButton {
 	qs, err := edu.Questions(
 		qm.InnerJoin(fmt.Sprintf("%s ON %s = %s", edu.TableNames.UsersQuestions,
 			edu.QuestionTableColumns.ID,
@@ -149,9 +161,24 @@ func getQuestionBtns(ctx telebot.Context, tag string) [][]telebot.InlineButton {
 		return nil
 	}
 
+	totalPages := (len(qs) + QuestionsPerPage - 1) / QuestionsPerPage
+	if page >= totalPages {
+		page = totalPages - 1
+	}
+	if page < 0 {
+		page = 0
+	}
+
+	start := page * QuestionsPerPage
+	end := start + QuestionsPerPage
+	if end > len(qs) {
+		end = len(qs)
+	}
+	pageQuestions := qs[start:end]
+
 	var btns [][]telebot.InlineButton
 
-	for _, q := range qs {
+	for _, q := range pageQuestions {
 		questionButtons := getQuestionBtn(
 			ctx,
 			q.ID,
@@ -159,16 +186,47 @@ func getQuestionBtns(ctx telebot.Context, tag string) [][]telebot.InlineButton {
 			q.Question,
 			INLINE_NAME_DELETE,
 			INLINE_BTN_DELETE_QUESTION,
+			page,
+			tag,
 		)
 		btns = append(btns, []telebot.InlineButton{questionButtons[0]},
 			[]telebot.InlineButton{questionButtons[1], questionButtons[2], questionButtons[3]})
+	}
+
+	// Добавляем кнопки пагинации, если нужно
+	var paginationRow []telebot.InlineButton
+
+	if page > 0 {
+		paginationRow = append(paginationRow, telebot.InlineButton{
+			Unique: INLINE_BTN_QUESTION_PAGE + "_prev",
+			Text:   "⬅️ Назад",
+			Data:   fmt.Sprintf("%d_%s", page, tag),
+		})
+	}
+
+	// Кнопка возврата к тегам всегда в центре
+	paginationRow = append(paginationRow, telebot.InlineButton{
+		Unique: INLINE_BACK_TAGS,
+		Text:   MSG_BACK_TAGS,
+	})
+
+	if page < totalPages-1 {
+		paginationRow = append(paginationRow, telebot.InlineButton{
+			Unique: INLINE_BTN_QUESTION_PAGE + "_next",
+			Text:   "Вперед ➡️",
+			Data:   fmt.Sprintf("%d_%s", page, tag),
+		})
+	}
+
+	if len(paginationRow) > 0 {
+		btns = append(btns, paginationRow)
 	}
 
 	return btns
 }
 
 func getQuestionBtn(
-	ctx telebot.Context, qID int64, repeat, repeatMSG, deleteMSG, delete string,
+	ctx telebot.Context, qID int64, repeat, repeatMSG, deleteMSG, delete string, page int, tag string,
 ) []telebot.InlineButton {
 	uq, err := edu.UsersQuestions(
 		edu.UsersQuestionWhere.UserID.EQ(GetUserFromContext(ctx).TGUserID),
@@ -179,9 +237,22 @@ func getQuestionBtn(
 		return nil
 	}
 
+	makeData := func(qID int64, page int, tag string) string {
+		if page == -1 && tag == "" {
+			return fmt.Sprintf("%d", qID)
+		}
+		if page == -1 {
+			return fmt.Sprintf("%d_%s", qID, tag)
+		}
+		if tag == "" {
+			return fmt.Sprintf("%d_%d", qID, page)
+		}
+		return fmt.Sprintf("%d_%d_%s", qID, page, tag)
+	}
+
 	questionText := telebot.InlineButton{
 		Text: repeatMSG,
-		Data: fmt.Sprintf("%d", qID),
+		Data: makeData(qID, page, tag),
 	}
 
 	label := "🔔"
@@ -192,13 +263,13 @@ func getQuestionBtn(
 	repeatBtn := telebot.InlineButton{
 		Unique: repeat,
 		Text:   label,
-		Data:   fmt.Sprintf("%d", qID),
+		Data:   makeData(qID, page, tag),
 	}
 
 	deleteBtn := telebot.InlineButton{
 		Unique: delete,
 		Text:   deleteMSG,
-		Data:   fmt.Sprintf("%d", qID),
+		Data:   makeData(qID, page, tag),
 	}
 
 	editBtn := telebot.InlineButton{

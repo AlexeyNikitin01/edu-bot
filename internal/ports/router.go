@@ -1,6 +1,7 @@
 package ports
 
 import (
+	"strconv"
 	"strings"
 
 	"gopkg.in/telebot.v3"
@@ -29,6 +30,7 @@ const (
 	INLINE_EDIT_NAME_TAG_QUESTION              = "inline_edit_name_tag_question"
 	INLINE_BACK_TAGS                           = "back_to_tags"
 	INLINE_PAUSE_TAG                           = "pause_tag"
+	INLINE_BTN_QUESTION_PAGE                   = "inline_btn_page"
 
 	INLINE_NAME_DELETE_AFTER_POLL = "🗑️"
 	INLINE_NAME_REPEAT_AFTER_POLL = "️ПОВТОРЕНИЕ"
@@ -98,6 +100,56 @@ func routers(b *telebot.Bot, domain *app.App, dispatcher *QuestionDispatcher) {
 	b.Handle(&telebot.InlineButton{Unique: INLINE_EDIT_NAME_QUESTION}, setEdit(edu.QuestionTableColumns.Question, domain))
 	b.Handle(&telebot.InlineButton{Unique: INLINE_EDIT_NAME_TAG_QUESTION}, setEdit(edu.QuestionTableColumns.TagID, domain))
 	b.Handle(&telebot.InlineButton{Unique: INLINE_EDIT_ANSWER_QUESTION}, setEdit(edu.AnswerTableColumns.Answer, domain))
+
+	b.Handle(&telebot.InlineButton{Unique: INLINE_BTN_QUESTION_PAGE + "_prev"}, func(ctx telebot.Context) error {
+		dataParts := strings.Split(ctx.Data(), "_")
+		if len(dataParts) != 2 {
+			return ctx.Respond(&telebot.CallbackResponse{
+				Text: "Ошибка: неверный формат данных",
+			})
+		}
+
+		page, err := strconv.Atoi(dataParts[0])
+		if err != nil {
+			return ctx.Respond(&telebot.CallbackResponse{
+				Text: "Ошибка: неверный номер страницы",
+			})
+		}
+
+		tag := dataParts[1]
+		if tag == "" {
+			return ctx.Respond(&telebot.CallbackResponse{
+				Text: "Ошибка: не указан тег",
+			})
+		}
+
+		return showQuestionsPage(ctx, tag, page-1)
+	})
+
+	b.Handle(&telebot.InlineButton{Unique: INLINE_BTN_QUESTION_PAGE + "_next"}, func(ctx telebot.Context) error {
+		dataParts := strings.Split(ctx.Data(), "_")
+		if len(dataParts) != 2 {
+			return ctx.Respond(&telebot.CallbackResponse{
+				Text: "Ошибка: неверный формат данных",
+			})
+		}
+
+		page, err := strconv.Atoi(dataParts[0])
+		if err != nil {
+			return ctx.Respond(&telebot.CallbackResponse{
+				Text: "Ошибка: неверный номер страницы",
+			})
+		}
+
+		tag := dataParts[1]
+		if tag == "" {
+			return ctx.Respond(&telebot.CallbackResponse{
+				Text: "Ошибка: не указан тег",
+			})
+		}
+
+		return showQuestionsPage(ctx, tag, page+1)
+	})
 
 	// ADD CSV
 	b.Handle(telebot.OnDocument, setQuestionsByCSV(domain))

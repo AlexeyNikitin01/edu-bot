@@ -115,6 +115,8 @@ func repeatQuestionAfterPoll(domain *app.App) telebot.HandlerFunc {
 				INLINE_NAME_REPEAT_AFTER_POLL,
 				INLINE_NAME_DELETE_AFTER_POLL,
 				INLINE_BTN_DELETE_QUESTION_AFTER_POLL,
+				0,
+				"",
 			)},
 		}); err != nil {
 			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
@@ -156,6 +158,8 @@ func repeatQuestionAfterPollHigh(domain *app.App) telebot.HandlerFunc {
 				"",
 				INLINE_NAME_DELETE_AFTER_POLL,
 				INLINE_BTN_DELETE_QUESTION_AFTER_POLL_HIGH,
+				-1,
+				"",
 			)},
 		}); err != nil {
 			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
