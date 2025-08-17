@@ -3,6 +3,7 @@ package ports
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
@@ -16,21 +17,25 @@ const (
 	MSG_SUCESS_DELETE_QUESTION = "🤫Вопрос удален👁"
 )
 
-// deleteQuestion Обрабатывает нажатие на кнопку удаления
+// deleteQuestion Обрабатывает нажатие на кнопку удаления с учетом пагинации
 func deleteQuestion(domain app.Apper) telebot.HandlerFunc {
 	return func(ctx telebot.Context) error {
-		qidStr := ctx.Data()
-		questionID, err := strconv.Atoi(qidStr)
+		parts := strings.Split(ctx.Data(), "_")
+		if len(parts) < 3 {
+			return ctx.Respond(&telebot.CallbackResponse{Text: "Ошибка формата данных"})
+		}
+
+		questionID, err := strconv.Atoi(parts[0])
 		if err != nil {
 			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
 		}
 
-		q, err := edu.Questions(
-			edu.QuestionWhere.ID.EQ(int64(questionID)),
-			qm.Load(edu.QuestionRels.Tag)).One(GetContext(ctx), boil.GetContextDB())
+		page, err := strconv.Atoi(parts[1])
 		if err != nil {
 			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
 		}
+
+		tag := strings.Join(parts[2:], "_")
 
 		_, err = edu.UsersQuestions(
 			edu.UsersQuestionWhere.UserID.EQ(GetUserFromContext(ctx).TGUserID),
@@ -40,7 +45,7 @@ func deleteQuestion(domain app.Apper) telebot.HandlerFunc {
 			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
 		}
 
-		btns := getQuestionBtns(ctx, q.R.GetTag().Tag)
+		btns := getQuestionBtns(ctx, tag, page)
 
 		if len(btns) == 0 {
 			tagButtons, err := getButtonsTags(ctx, domain)
@@ -53,11 +58,8 @@ func deleteQuestion(domain app.Apper) telebot.HandlerFunc {
 			})
 		}
 
-		return ctx.Edit(q.R.GetTag().Tag+" "+MSG_LIST_QUESTION, &telebot.ReplyMarkup{
-			InlineKeyboard: append(getQuestionBtns(ctx, q.R.GetTag().Tag), []telebot.InlineButton{{
-				Unique: INLINE_BACK_TAGS,
-				Text:   MSG_BACK_TAGS,
-			}}),
+		return ctx.Edit(fmt.Sprintf("%s %s (Стр. %d)", tag, MSG_LIST_QUESTION, page+1), &telebot.ReplyMarkup{
+			InlineKeyboard: btns,
 		})
 	}
 }

@@ -140,6 +140,7 @@ func (d *QuestionDispatcher) sendQuestion(userID int64, uq *edu.UsersQuestion) e
 
 	return d.questionWithTest(userID, uq)
 }
+
 func (d *QuestionDispatcher) questionWithHigh(
 	id int64, uq *edu.UsersQuestion, q *edu.Question, answer *edu.Answer,
 ) error {
@@ -273,6 +274,7 @@ func (d *QuestionDispatcher) questionWithTest(userID int64, uq *edu.UsersQuestio
 
 	return nil
 }
+
 func nextQuestion(dispatcher *QuestionDispatcher) telebot.HandlerFunc {
 	return func(ctx telebot.Context) error {
 		if err := ctx.Send(MSG_NEXT_QUESTION); err != nil {
