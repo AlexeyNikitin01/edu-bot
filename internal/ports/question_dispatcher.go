@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -141,9 +142,20 @@ func (d *QuestionDispatcher) sendQuestion(userID int64, uq *edu.UsersQuestion) e
 	return d.questionWithTest(userID, uq)
 }
 
+func escapeMarkdown(text string) string {
+	specialChars := []string{"_", "*", "[", "]", "(", ")", "~", "`", ">", "#", "+", "-", "=", "|", "{", "}", ".", "!"}
+	for _, char := range specialChars {
+		text = strings.ReplaceAll(text, char, "\\"+char)
+	}
+	return text
+}
+
 func (d *QuestionDispatcher) questionWithHigh(
 	id int64, uq *edu.UsersQuestion, q *edu.Question, answer *edu.Answer,
 ) error {
+	questionText := escapeMarkdown(q.Question)
+	answerText := escapeMarkdown(answer.Answer)
+
 	forgot := telebot.InlineButton{
 		Unique: INLINE_FORGOT_HIGH_QUESTION,
 		Text:   MSG_FORGOT,
@@ -179,17 +191,28 @@ func (d *QuestionDispatcher) questionWithHigh(
 		Data:   fmt.Sprintf("%d", uq.QuestionID),
 	}
 
-	// Функция для экранирования специальных символов MarkdownV2
-	escapeMarkdown := func(text string) string {
-		specialChars := []string{"_", "*", "[", "]", "(", ")", "~", "`", ">", "#", "+", "-", "=", "|", "{", "}", ".", "!"}
-		for _, char := range specialChars {
-			text = strings.ReplaceAll(text, char, "\\"+char)
+	if len(answer.Answer) > 100 {
+		showAnswerBtn := telebot.InlineButton{
+			Unique: INLINE_SHOW_ANSWER,
+			Text:   "📝 Показать ответ",
+			Data:   fmt.Sprintf("%d", uq.QuestionID),
 		}
-		return text
-	}
 
-	questionText := escapeMarkdown(q.Question)
-	answerText := escapeMarkdown(answer.Answer)
+		rec := &telebot.User{ID: id}
+		_, err := d.bot.Send(
+			rec,
+			questionText,
+			telebot.ModeMarkdownV2,
+			&telebot.ReplyMarkup{
+				InlineKeyboard: [][]telebot.InlineButton{
+					{showAnswerBtn},
+					{easy, forgot},
+					{repeatBtn, deleteBtn, editBtn},
+				},
+			},
+		)
+		return err
+	}
 
 	rec := &telebot.User{ID: id}
 	_, err := d.bot.Send(
@@ -201,6 +224,74 @@ func (d *QuestionDispatcher) questionWithHigh(
 		},
 	)
 	return err
+}
+
+// registerShowAnswerHandler обработчик для кнопки "показать ответ"
+func registerShowAnswerHandler() telebot.HandlerFunc {
+	return func(ctx telebot.Context) error {
+		data := ctx.Data()
+		qID, err := strconv.Atoi(data)
+		if err != nil {
+			return err
+		}
+
+		q, err := edu.FindQuestion(GetContext(ctx), boil.GetContextDB(), int64(qID))
+		if err != nil {
+			return ctx.Respond(&telebot.CallbackResponse{Text: "Ошибка загрузки вопроса"})
+		}
+
+		answer, err := edu.Answers(edu.AnswerWhere.QuestionID.EQ(q.ID)).One(GetContext(ctx), boil.GetContextDB())
+		if err != nil {
+			return ctx.Respond(&telebot.CallbackResponse{Text: "Ошибка загрузки ответа"})
+		}
+
+		uq, err := edu.UsersQuestions(
+			edu.UsersQuestionWhere.QuestionID.EQ(q.ID),
+		).One(GetContext(ctx), boil.GetContextDB())
+
+		label := "🔔"
+		if uq.IsEdu {
+			label = "💤"
+		}
+
+		return ctx.Edit(
+			escapeMarkdown(answer.Answer),
+			telebot.ModeMarkdownV2,
+			&telebot.ReplyMarkup{
+				InlineKeyboard: [][]telebot.InlineButton{
+					{
+						telebot.InlineButton{
+							Unique: INLINE_REMEMBER_HIGH_QUESTION,
+							Text:   MSG_REMEMBER,
+							Data:   fmt.Sprintf("%d", qID),
+						},
+						telebot.InlineButton{
+							Unique: INLINE_FORGOT_HIGH_QUESTION,
+							Text:   MSG_FORGOT,
+							Data:   fmt.Sprintf("%d", qID),
+						},
+					},
+					{
+						telebot.InlineButton{
+							Unique: INLINE_BTN_REPEAT_QUESTION_AFTER_POLL_HIGH,
+							Text:   label,
+							Data:   fmt.Sprintf("%d", qID),
+						},
+						telebot.InlineButton{
+							Unique: INLINE_BTN_DELETE_QUESTION_AFTER_POLL_HIGH,
+							Text:   INLINE_NAME_DELETE_AFTER_POLL,
+							Data:   fmt.Sprintf("%d", qID),
+						},
+						telebot.InlineButton{
+							Unique: INLINE_EDIT_QUESTION,
+							Text:   "✏️",
+							Data:   fmt.Sprintf("%d", qID),
+						},
+					},
+				},
+			},
+		)
+	}
 }
 
 // questionWithTest DEPRECATE

@@ -31,6 +31,7 @@ const (
 	INLINE_BACK_TAGS                           = "back_to_tags"
 	INLINE_PAUSE_TAG                           = "pause_tag"
 	INLINE_BTN_QUESTION_PAGE                   = "inline_btn_page"
+	INLINE_SHOW_ANSWER                         = "show_answer"
 
 	INLINE_NAME_DELETE_AFTER_POLL = "🗑️"
 	INLINE_NAME_REPEAT_AFTER_POLL = "️ПОВТОРЕНИЕ"
@@ -100,6 +101,7 @@ func routers(b *telebot.Bot, domain *app.App, dispatcher *QuestionDispatcher) {
 	b.Handle(&telebot.InlineButton{Unique: INLINE_EDIT_NAME_QUESTION}, setEdit(edu.QuestionTableColumns.Question, domain))
 	b.Handle(&telebot.InlineButton{Unique: INLINE_EDIT_NAME_TAG_QUESTION}, setEdit(edu.QuestionTableColumns.TagID, domain))
 	b.Handle(&telebot.InlineButton{Unique: INLINE_EDIT_ANSWER_QUESTION}, setEdit(edu.AnswerTableColumns.Answer, domain))
+	b.Handle(&telebot.InlineButton{Unique: INLINE_SHOW_ANSWER}, registerShowAnswerHandler())
 
 	b.Handle(&telebot.InlineButton{Unique: INLINE_BTN_QUESTION_PAGE + "_prev"}, func(ctx telebot.Context) error {
 		dataParts := strings.Split(ctx.Data(), "_")
