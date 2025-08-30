@@ -19,6 +19,7 @@ func (a *App) GetQuestionsAnswers(ctx context.Context, userID int64) (edu.UsersQ
 
 	questions, err := edu.UsersQuestions(
 		qm.Load(qm.Rels(edu.UsersQuestionRels.Question, edu.QuestionRels.Answers)),
+		qm.Load(qm.Rels(edu.UsersQuestionRels.Question, edu.QuestionRels.Tag)),
 		qm.InnerJoin(
 			fmt.Sprintf("%s ON %s = %s",
 				edu.TableNames.Questions,

@@ -153,6 +153,7 @@ func escapeMarkdown(text string) string {
 func (d *QuestionDispatcher) questionWithHigh(
 	id int64, uq *edu.UsersQuestion, q *edu.Question, answer *edu.Answer,
 ) error {
+	tag := escapeMarkdown(q.R.GetTag().Tag)
 	questionText := escapeMarkdown(q.Question)
 	answerText := escapeMarkdown(answer.Answer)
 
@@ -201,7 +202,7 @@ func (d *QuestionDispatcher) questionWithHigh(
 		rec := &telebot.User{ID: id}
 		_, err := d.bot.Send(
 			rec,
-			questionText,
+			tag+": "+questionText,
 			telebot.ModeMarkdownV2,
 			&telebot.ReplyMarkup{
 				InlineKeyboard: [][]telebot.InlineButton{
@@ -217,7 +218,7 @@ func (d *QuestionDispatcher) questionWithHigh(
 	rec := &telebot.User{ID: id}
 	_, err := d.bot.Send(
 		rec,
-		questionText+"\n\n||"+answerText+"||",
+		tag+": "+questionText+"\n\n||"+answerText+"||",
 		telebot.ModeMarkdownV2,
 		&telebot.ReplyMarkup{
 			InlineKeyboard: [][]telebot.InlineButton{{easy, forgot}, {repeatBtn, deleteBtn, editBtn}},
@@ -240,6 +241,11 @@ func registerShowAnswerHandler() telebot.HandlerFunc {
 			return ctx.Respond(&telebot.CallbackResponse{Text: "Ошибка загрузки вопроса"})
 		}
 
+		tag, err := edu.FindTag(GetContext(ctx), boil.GetContextDB(), q.TagID)
+		if err != nil {
+			return err
+		}
+
 		answer, err := edu.Answers(edu.AnswerWhere.QuestionID.EQ(q.ID)).One(GetContext(ctx), boil.GetContextDB())
 		if err != nil {
 			return ctx.Respond(&telebot.CallbackResponse{Text: "Ошибка загрузки ответа"})
@@ -255,7 +261,7 @@ func registerShowAnswerHandler() telebot.HandlerFunc {
 		}
 
 		return ctx.Edit(
-			escapeMarkdown(answer.Answer),
+			escapeMarkdown(tag.Tag)+": "+escapeMarkdown(q.Question)+"\n\n"+escapeMarkdown(answer.Answer),
 			telebot.ModeMarkdownV2,
 			&telebot.ReplyMarkup{
 				InlineKeyboard: [][]telebot.InlineButton{
