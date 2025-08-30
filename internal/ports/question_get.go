@@ -20,7 +20,7 @@ const (
 	MSG_EMPTY         = "У вас нет тэгов с вопросами"
 	MSG_BACK_TAGS     = "НАЗАД К ТЭГАМ"
 
-	QuestionsPerPage = 20 // Оставляем место для кнопок пагинации и возврата
+	QuestionsPerPage = 10 // Оставляем место для кнопок пагинации и возврата
 )
 
 func showRepeatTagList(domain app.Apper) telebot.HandlerFunc {
