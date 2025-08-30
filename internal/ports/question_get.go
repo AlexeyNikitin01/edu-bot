@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
@@ -190,7 +191,7 @@ func getQuestionBtns(ctx telebot.Context, tag string, page int) [][]telebot.Inli
 			tag,
 		)
 		btns = append(btns, []telebot.InlineButton{questionButtons[0]},
-			[]telebot.InlineButton{questionButtons[1], questionButtons[2], questionButtons[3]})
+			[]telebot.InlineButton{questionButtons[1], questionButtons[2], questionButtons[3], questionButtons[4]})
 	}
 
 	// Добавляем кнопки пагинации, если нужно
@@ -250,6 +251,9 @@ func getQuestionBtn(
 		return fmt.Sprintf("%d_%d_%s", qID, page, tag)
 	}
 
+	now := time.Now().UTC()
+	duration := uq.TimeRepeat.Sub(now)
+
 	questionText := telebot.InlineButton{
 		Text: repeatMSG,
 		Data: makeData(qID, page, tag),
@@ -278,7 +282,11 @@ func getQuestionBtn(
 		Data:   fmt.Sprintf("%d", qID),
 	}
 
-	return []telebot.InlineButton{questionText, repeatBtn, deleteBtn, editBtn}
+	timeInline := telebot.InlineButton{
+		Text: "⏳" + timeLeftMsg(duration),
+	}
+
+	return []telebot.InlineButton{questionText, repeatBtn, deleteBtn, editBtn, timeInline}
 }
 
 func getForUpdate(domain app.Apper) telebot.HandlerFunc {
