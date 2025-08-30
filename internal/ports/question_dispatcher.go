@@ -267,6 +267,88 @@ func registerShowAnswerHandler() telebot.HandlerFunc {
 				InlineKeyboard: [][]telebot.InlineButton{
 					{
 						telebot.InlineButton{
+							Unique: INLINE_TURN_ANSWER,
+							Text:   "📝 Свернуть ответ",
+							Data:   fmt.Sprintf("%d", uq.QuestionID),
+						},
+					},
+					{
+						telebot.InlineButton{
+							Unique: INLINE_REMEMBER_HIGH_QUESTION,
+							Text:   MSG_REMEMBER,
+							Data:   fmt.Sprintf("%d", qID),
+						},
+						telebot.InlineButton{
+							Unique: INLINE_FORGOT_HIGH_QUESTION,
+							Text:   MSG_FORGOT,
+							Data:   fmt.Sprintf("%d", qID),
+						},
+					},
+					{
+						telebot.InlineButton{
+							Unique: INLINE_BTN_REPEAT_QUESTION_AFTER_POLL_HIGH,
+							Text:   label,
+							Data:   fmt.Sprintf("%d", qID),
+						},
+						telebot.InlineButton{
+							Unique: INLINE_BTN_DELETE_QUESTION_AFTER_POLL_HIGH,
+							Text:   INLINE_NAME_DELETE_AFTER_POLL,
+							Data:   fmt.Sprintf("%d", qID),
+						},
+						telebot.InlineButton{
+							Unique: INLINE_EDIT_QUESTION,
+							Text:   "✏️",
+							Data:   fmt.Sprintf("%d", qID),
+						},
+					},
+				},
+			},
+		)
+	}
+}
+
+// turnAnswerHandler обработчик для кнопки "свернуть ответ"
+func turnAnswerHandler() telebot.HandlerFunc {
+	return func(ctx telebot.Context) error {
+		data := ctx.Data()
+		qID, err := strconv.Atoi(data)
+		if err != nil {
+			return err
+		}
+
+		q, err := edu.FindQuestion(GetContext(ctx), boil.GetContextDB(), int64(qID))
+		if err != nil {
+			return ctx.Respond(&telebot.CallbackResponse{Text: "Ошибка загрузки вопроса"})
+		}
+
+		tag, err := edu.FindTag(GetContext(ctx), boil.GetContextDB(), q.TagID)
+		if err != nil {
+			return err
+		}
+
+		uq, err := edu.UsersQuestions(
+			edu.UsersQuestionWhere.QuestionID.EQ(q.ID),
+		).One(GetContext(ctx), boil.GetContextDB())
+
+		label := "🔔"
+		if uq.IsEdu {
+			label = "💤"
+		}
+
+		return ctx.Edit(
+			escapeMarkdown(tag.Tag)+": "+escapeMarkdown(q.Question),
+			telebot.ModeMarkdownV2,
+			&telebot.ReplyMarkup{
+				InlineKeyboard: [][]telebot.InlineButton{
+					{
+						telebot.InlineButton{
+							Unique: INLINE_SHOW_ANSWER,
+							Text:   "📝 Показать ответ",
+							Data:   fmt.Sprintf("%d", uq.QuestionID),
+						},
+					},
+					{
+						telebot.InlineButton{
 							Unique: INLINE_REMEMBER_HIGH_QUESTION,
 							Text:   MSG_REMEMBER,
 							Data:   fmt.Sprintf("%d", qID),
