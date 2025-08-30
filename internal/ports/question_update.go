@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+	"time"
 
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
@@ -34,7 +35,7 @@ func forgotQuestion(domain *app.App, dispatcher *QuestionDispatcher) telebot.Han
 		}
 
 		forgot := telebot.InlineButton{
-			Text: "🔴 " + MSG_FORGOT,
+			Text: "🔴 " + MSG_FORGOT + " Серия повторений сброшена",
 			Data: fmt.Sprintf("%d", questionID),
 		}
 
@@ -48,7 +49,7 @@ func forgotQuestion(domain *app.App, dispatcher *QuestionDispatcher) telebot.Han
 		dispatcher.waitingForAnswer[GetUserFromContext(ctx).TGUserID] = false
 		dispatcher.mu.Unlock()
 
-		return ctx.Send(MSG_RESET_QUESTION)
+		return nil
 	}
 }
 
@@ -73,7 +74,8 @@ func rememberQuestion(domain *app.App, dispatcher *QuestionDispatcher) telebot.H
 		}
 
 		easy := telebot.InlineButton{
-			Text: "✅ " + MSG_REMEMBER,
+			Text: "✅ " + MSG_REMEMBER + "\n\n Вопрос повториться через: " +
+				timeLeftMsg(uq.TimeRepeat.Sub(time.Now().UTC())),
 			Data: fmt.Sprintf("%d", questionID),
 		}
 
@@ -83,8 +85,23 @@ func rememberQuestion(domain *app.App, dispatcher *QuestionDispatcher) telebot.H
 			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
 		}
 
-		if err = ctx.Send(MSG_INC_SERIAL_QUESTION); err != nil {
-			return err
+		// смотрим через сколько будет следующий вопрос, если не будет ближайшие 10 мин, то выведем, через сколько
+		user := GetUserFromContext(ctx)
+
+		t, err := dispatcher.domain.GetNearestTimeRepeat(GetContext(ctx), user.TGUserID)
+		if err != nil {
+			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
+		}
+
+		now := time.Now().UTC()
+		if !now.Add(time.Minute * 10).After(t) {
+			duration := t.Sub(now)
+
+			msg := fmt.Sprintf("⏳ Следующий вопрос будет доступен через: %s", timeLeftMsg(duration))
+
+			if err = ctx.Send(msg, telebot.ModeMarkdown); err != nil {
+				return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
+			}
 		}
 
 		dispatcher.mu.Lock()

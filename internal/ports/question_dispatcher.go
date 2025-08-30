@@ -19,12 +19,10 @@ import (
 )
 
 const (
-	MSG_FORGOT              = "СЛОЖНО"
-	MSG_REMEMBER            = "ЛЕГКО"
-	MSG_INC_SERIAL_QUESTION = "Отлично, вопрос будет реже вам попадаться🤗🤗🤗"
-	MSG_RESET_QUESTION      = "Ничего страшного, вопрос снова повториться в скором времени👈🤝🕕"
-	MSG_NEXT_QUESTION       = "😎"
-	MSG_WRONG               = "Нет правильного ответа для вопроса"
+	MSG_FORGOT        = "СЛОЖНО"
+	MSG_REMEMBER      = "ЛЕГКО"
+	MSG_NEXT_QUESTION = "😎"
+	MSG_WRONG         = "Нет правильного ответа для вопроса"
 )
 
 type QuestionDispatcher struct {
@@ -469,45 +467,8 @@ func nextQuestion(dispatcher *QuestionDispatcher) telebot.HandlerFunc {
 		now := time.Now().UTC()
 		if !now.After(t) {
 			duration := t.Sub(now)
-			var timeParts []string
 
-			// Функция для правильного склонения
-			pluralize := func(n int, forms []string) string {
-				n = n % 100
-				if n > 10 && n < 20 {
-					return forms[2]
-				}
-				n = n % 10
-				if n == 1 {
-					return forms[0]
-				}
-				if n >= 2 && n <= 4 {
-					return forms[1]
-				}
-				return forms[2]
-			}
-
-			// Разбиваем duration на дни, часы и минуты
-			days := int(duration.Hours() / 24)
-			hours := int(duration.Hours()) % 24
-			minutes := int(duration.Minutes()) % 60
-
-			if days > 0 {
-				timeParts = append(timeParts, fmt.Sprintf("%d %s", days, pluralize(days, []string{"день", "дня", "дней"})))
-			}
-			if hours > 0 {
-				timeParts = append(timeParts, fmt.Sprintf("%d %s", hours, pluralize(hours, []string{"час", "часа", "часов"})))
-			}
-			if minutes > 0 && days == 0 { // Минуты показываем только если нет дней
-				timeParts = append(timeParts, fmt.Sprintf("%d %s", minutes, pluralize(minutes, []string{"минуту", "минуты", "минут"})))
-			}
-
-			timeLeftMsg := strings.Join(timeParts, " ")
-			if timeLeftMsg == "" {
-				timeLeftMsg = "менее минуты"
-			}
-
-			msg := fmt.Sprintf("⏳ Следующий вопрос будет доступен через: %s", timeLeftMsg)
+			msg := fmt.Sprintf("⏳ Следующий вопрос будет доступен через: %s", timeLeftMsg(duration))
 
 			if err = ctx.Send(msg, telebot.ModeMarkdown); err != nil {
 				return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
@@ -520,4 +481,46 @@ func nextQuestion(dispatcher *QuestionDispatcher) telebot.HandlerFunc {
 
 		return nil
 	}
+}
+
+func timeLeftMsg(duration time.Duration) string {
+	var timeParts []string
+
+	// Функция для правильного склонения
+	pluralize := func(n int, forms []string) string {
+		n = n % 100
+		if n > 10 && n < 20 {
+			return forms[2]
+		}
+		n = n % 10
+		if n == 1 {
+			return forms[0]
+		}
+		if n >= 2 && n <= 4 {
+			return forms[1]
+		}
+		return forms[2]
+	}
+
+	// Разбиваем duration на дни, часы и минуты
+	days := int(duration.Hours() / 24)
+	hours := int(duration.Hours()) % 24
+	minutes := int(duration.Minutes()) % 60
+
+	if days > 0 {
+		timeParts = append(timeParts, fmt.Sprintf("%d %s", days, pluralize(days, []string{"день", "дня", "дней"})))
+	}
+	if hours > 0 {
+		timeParts = append(timeParts, fmt.Sprintf("%d %s", hours, pluralize(hours, []string{"час", "часа", "часов"})))
+	}
+	if minutes > 0 && days == 0 { // Минуты показываем только если нет дней
+		timeParts = append(timeParts, fmt.Sprintf("%d %s", minutes, pluralize(minutes, []string{"минуту", "минуты", "минут"})))
+	}
+
+	t := strings.Join(timeParts, " ")
+	if t == "" {
+		t = "менее минуты"
+	}
+
+	return t
 }
