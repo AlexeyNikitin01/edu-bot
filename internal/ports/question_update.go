@@ -35,7 +35,7 @@ func forgotQuestion(domain *app.App, dispatcher *QuestionDispatcher) telebot.Han
 		}
 
 		forgot := telebot.InlineButton{
-			Text: "🔴 " + MSG_FORGOT + " Серия повторений сброшена",
+			Text: "🔴 " + MSG_FORGOT,
 			Data: fmt.Sprintf("%d", questionID),
 		}
 
@@ -74,8 +74,7 @@ func rememberQuestion(domain *app.App, dispatcher *QuestionDispatcher) telebot.H
 		}
 
 		easy := telebot.InlineButton{
-			Text: "✅ " + MSG_REMEMBER + "\n\n Вопрос повториться через: " +
-				timeLeftMsg(uq.TimeRepeat.Sub(time.Now().UTC())),
+			Text: "✅ " + MSG_REMEMBER + timeLeftMsg(uq.TimeRepeat.Sub(time.Now().UTC())),
 			Data: fmt.Sprintf("%d", questionID),
 		}
 
