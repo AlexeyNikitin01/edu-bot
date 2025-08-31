@@ -74,7 +74,7 @@ func rememberQuestion(domain *app.App, dispatcher *QuestionDispatcher) telebot.H
 		}
 
 		easy := telebot.InlineButton{
-			Text: "✅ " + MSG_REMEMBER + timeLeftMsg(uq.TimeRepeat.Sub(time.Now().UTC())),
+			Text: "✅ " + MSG_REMEMBER + " " + timeLeftMsg(uq.TimeRepeat.Sub(time.Now().UTC())),
 			Data: fmt.Sprintf("%d", questionID),
 		}
 
