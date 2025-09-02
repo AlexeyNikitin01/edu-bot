@@ -80,7 +80,7 @@ func (a *App) UpdateRepeatTime(ctx context.Context, question *edu.UsersQuestion,
 
 	switch serial {
 	case 0:
-		question.TimeRepeat = time.Now().Add(10 * time.Minute)
+		question.TimeRepeat = time.Now().Add(time.Second)
 	case 1:
 		question.TimeRepeat = time.Now().Add(60 * time.Minute)
 	case 2:
