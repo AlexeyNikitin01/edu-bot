@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math"
+	"math/rand"
 	"time"
 
 	"github.com/volatiletech/sqlboiler/v4/boil"
@@ -80,21 +82,31 @@ func (a *App) UpdateRepeatTime(ctx context.Context, question *edu.UsersQuestion,
 
 	switch serial {
 	case 0:
-		question.TimeRepeat = time.Now().Add(time.Second)
+		randomOffset := time.Duration(rand.Intn(61)-30) * time.Second
+		question.TimeRepeat = time.Now().Add(time.Second + randomOffset)
 	case 1:
-		question.TimeRepeat = time.Now().Add(60 * time.Minute)
+		randomOffset := time.Duration(rand.Intn(11)-5) * time.Minute
+		question.TimeRepeat = time.Now().Add(60*time.Minute + randomOffset)
 	case 2:
-		question.TimeRepeat = time.Now().Add(120 * time.Minute)
+		randomOffset := time.Duration(rand.Intn(21)-10) * time.Minute
+		question.TimeRepeat = time.Now().Add(120*time.Minute + randomOffset)
 	case 3:
-		question.TimeRepeat = time.Now().Add(240 * time.Minute)
+		randomOffset := time.Duration(rand.Intn(41)-20) * time.Minute
+		question.TimeRepeat = time.Now().Add(240*time.Minute + randomOffset)
 	case 4:
-		question.TimeRepeat = time.Now().Add(12 * time.Hour)
+		randomOffset := time.Duration(rand.Intn(121)-60) * time.Minute
+		question.TimeRepeat = time.Now().Add(12*time.Hour + randomOffset)
 	case 5:
-		question.TimeRepeat = time.Now().Add(24 * time.Hour * 3)
+		randomOffset := time.Duration(rand.Intn(13)-6) * time.Hour
+		question.TimeRepeat = time.Now().Add(24*time.Hour*3 + randomOffset)
 	case 6:
-		question.TimeRepeat = time.Now().Add(24 * time.Hour * 7)
+		randomOffset := time.Duration(rand.Intn(25)-12) * time.Hour
+		question.TimeRepeat = time.Now().Add(24*time.Hour*7 + randomOffset)
 	default:
-		question.TimeRepeat = time.Now().Add(24 * time.Hour * 7)
+		// Для default увеличиваем интервал с каждым разом и добавляем случайность
+		baseInterval := 24 * time.Hour * 7 * time.Duration(math.Pow(1.5, float64(serial-6)))
+		randomOffset := time.Duration(rand.Intn(25)-12) * time.Hour
+		question.TimeRepeat = time.Now().Add(baseInterval + randomOffset)
 	}
 
 	_, err := question.Update(ctx, boil.GetContextDB(),
