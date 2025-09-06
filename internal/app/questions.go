@@ -82,8 +82,7 @@ func (a *App) UpdateRepeatTime(ctx context.Context, question *edu.UsersQuestion,
 
 	switch serial {
 	case 0:
-		randomOffset := time.Duration(rand.Intn(61)-30) * time.Second
-		question.TimeRepeat = time.Now().Add(time.Second + randomOffset)
+		question.TimeRepeat = time.Now().Add(time.Second)
 	case 1:
 		randomOffset := time.Duration(rand.Intn(11)-5) * time.Minute
 		question.TimeRepeat = time.Now().Add(60*time.Minute + randomOffset)
