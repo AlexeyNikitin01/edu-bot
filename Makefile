@@ -18,7 +18,7 @@ ssh:
 
 prepare:
 	# Пакеты раброты с бойлером
-	go install github.com/volatiletech/sqlboiler/v4@v4.18.0
-	go install github.com/volatiletech/sqlboiler/v4/drivers/sqlboiler-psql@v4.18.0
+	go install github.com/aarondl/sqlboiler/v4@v4.18.0
+	go install github.com/aarondl/sqlboiler/v4/drivers/sqlboiler-psql@v4.18.0
 	# Пакет для работы с миграциями
 	go install gitlab.tn.ru/golang/app/cmd/genboiler@latest
