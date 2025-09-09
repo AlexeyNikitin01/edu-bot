@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"errors"
 
-	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/aarondl/sqlboiler/v4/boil"
 
 	"bot/internal/repo/edu"
 )

@@ -1,0 +1,1 @@
+ALTER TABLE questions ADD COLUMN is_task BOOLEAN NOT NULL DEFAULT false;

@@ -11,7 +11,7 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/telebot.v3"
 
-	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/aarondl/sqlboiler/v4/boil"
 
 	postgresMigrate "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"

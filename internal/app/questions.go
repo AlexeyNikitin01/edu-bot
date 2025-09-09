@@ -8,10 +8,11 @@ import (
 	"log"
 	"math"
 	"math/rand"
+	"strings"
 	"time"
 
-	"github.com/volatiletech/sqlboiler/v4/boil"
-	"github.com/volatiletech/sqlboiler/v4/queries/qm"
+	"github.com/aarondl/sqlboiler/v4/boil"
+	"github.com/aarondl/sqlboiler/v4/queries/qm"
 
 	"bot/internal/repo/edu"
 )
@@ -42,6 +43,7 @@ func (a *App) GetQuestionsAnswers(ctx context.Context, userID int64) (edu.UsersQ
 		edu.UsersQuestionWhere.IsEdu.EQ(true),
 		edu.UsersQuestionWhere.DeletedAt.IsNull(),
 		edu.QuestionWhere.DeletedAt.IsNull(),
+		edu.QuestionWhere.IsTask.EQ(false),
 		edu.TagWhere.IsPause.EQ(false),
 		edu.AnswerWhere.DeletedAt.IsNull(),
 		qm.OrderBy("RANDOM()"),
@@ -54,6 +56,55 @@ func (a *App) GetQuestionsAnswers(ctx context.Context, userID int64) (edu.UsersQ
 	return questions, nil
 }
 
+// GetTask todo: привязка будет по tag_id
+func (a *App) GetTask(ctx context.Context, userID int64) (*edu.UsersQuestion, error) {
+	// Сначала находим минимальный totalSerial для пользователя
+	minSerial, err := edu.UsersQuestions(
+		qm.Select(edu.UsersQuestionColumns.TotalSerial),
+		edu.UsersQuestionWhere.UserID.EQ(userID),
+		edu.UsersQuestionWhere.IsEdu.EQ(true),
+		edu.UsersQuestionWhere.DeletedAt.IsNull(),
+		qm.OrderBy(edu.UsersQuestionColumns.TotalSerial),
+	).One(ctx, boil.GetContextDB())
+	if err != nil {
+		log.Println("Ошибка при поиске минимального totalSerial:", err)
+		return nil, err
+	}
+
+	t, err := edu.UsersQuestions(
+		qm.Load(qm.Rels(edu.UsersQuestionRels.Question, edu.QuestionRels.Answers)),
+		qm.Load(qm.Rels(edu.UsersQuestionRels.Question, edu.QuestionRels.Tag)),
+		qm.InnerJoin(
+			fmt.Sprintf("%s ON %s = %s",
+				edu.TableNames.Questions,
+				edu.QuestionTableColumns.ID,
+				edu.UsersQuestionTableColumns.QuestionID)),
+		qm.InnerJoin(
+			fmt.Sprintf("%s ON %s = %s",
+				edu.TableNames.Answers,
+				edu.QuestionTableColumns.ID,
+				edu.AnswerTableColumns.QuestionID)),
+		qm.InnerJoin(
+			fmt.Sprintf("%s ON %s = %s",
+				edu.TableNames.Tags,
+				edu.TagTableColumns.ID,
+				edu.QuestionTableColumns.TagID)),
+		edu.UsersQuestionWhere.UserID.EQ(userID),
+		edu.UsersQuestionWhere.IsEdu.EQ(true),
+		edu.UsersQuestionWhere.DeletedAt.IsNull(),
+		edu.UsersQuestionWhere.TotalSerial.EQ(minSerial.TotalSerial), // Фильтр по минимальному serial
+		edu.QuestionWhere.DeletedAt.IsNull(),
+		edu.QuestionWhere.IsTask.EQ(true),
+		edu.TagWhere.IsPause.EQ(false),
+		edu.AnswerWhere.DeletedAt.IsNull(),
+	).One(ctx, boil.GetContextDB())
+	if err != nil {
+		log.Println("Ошибка при выборке вопроса:", err)
+		return nil, err
+	}
+
+	return t, nil
+}
 func (a *App) GetQuestionAnswers(ctx context.Context, qID int64) (*edu.Question, error) {
 	question, err := edu.Questions(
 		qm.Load(qm.Rels(edu.QuestionRels.Answers)),
@@ -169,6 +220,9 @@ func (a *App) SaveQuestions(ctx context.Context, question, tag string, answers [
 	q := &edu.Question{
 		Question: question,
 		TagID:    eduTag.ID,
+	}
+	if strings.HasPrefix(question, "ЗАДАЧА") {
+		q.IsTask = true
 	}
 	if err = q.Insert(ctx, boil.GetContextDB(), boil.Infer()); err != nil {
 		return err

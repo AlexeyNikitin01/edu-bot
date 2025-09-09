@@ -3,6 +3,7 @@ package ports
 import (
 	"context"
 	"fmt"
+	"github.com/aarondl/null/v8"
 	"log"
 	"math/rand"
 	"strconv"
@@ -10,8 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/volatiletech/null/v8"
-	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/aarondl/sqlboiler/v4/boil"
 	"gopkg.in/telebot.v3"
 
 	"bot/internal/app"
