@@ -57,9 +57,25 @@ func (a *App) GetQuestionsAnswers(ctx context.Context, userID int64) (edu.UsersQ
 }
 
 // GetTask todo: привязка будет по tag_id
-func (a *App) GetTask(ctx context.Context, userID int64) (*edu.UsersQuestion, error) {
+func (a *App) GetTask(ctx context.Context, userID int64, tag string) (*edu.UsersQuestion, error) {
 	// Сначала находим минимальный totalSerial для пользователя
 	minSerial, err := edu.UsersQuestions(
+		qm.InnerJoin(
+			fmt.Sprintf("%s ON %s = %s",
+				edu.TableNames.Questions,
+				edu.QuestionTableColumns.ID,
+				edu.UsersQuestionTableColumns.QuestionID),
+		),
+		qm.InnerJoin(
+			fmt.Sprintf("%s ON %s = %s",
+				edu.TableNames.Tags,
+				edu.TagTableColumns.ID,
+				edu.QuestionTableColumns.TagID),
+		),
+		edu.QuestionWhere.DeletedAt.IsNull(),
+		edu.QuestionWhere.IsTask.EQ(true),
+		edu.TagWhere.IsPause.EQ(false),
+		edu.TagWhere.Tag.EQ(tag),
 		qm.Select(edu.UsersQuestionColumns.TotalSerial),
 		edu.UsersQuestionWhere.UserID.EQ(userID),
 		edu.UsersQuestionWhere.IsEdu.EQ(true),
@@ -96,6 +112,7 @@ func (a *App) GetTask(ctx context.Context, userID int64) (*edu.UsersQuestion, er
 		edu.QuestionWhere.DeletedAt.IsNull(),
 		edu.QuestionWhere.IsTask.EQ(true),
 		edu.TagWhere.IsPause.EQ(false),
+		edu.TagWhere.Tag.EQ(tag),
 		edu.AnswerWhere.DeletedAt.IsNull(),
 	).One(ctx, boil.GetContextDB())
 	if err != nil {
@@ -190,6 +207,33 @@ func (a *App) GetUniqueTags(ctx context.Context, userID int64) ([]*edu.Tag, erro
 		),
 		edu.UsersQuestionWhere.UserID.EQ(userID),
 		edu.UsersQuestionWhere.DeletedAt.IsNull(),
+		qm.GroupBy(edu.TagTableColumns.ID),
+	).All(ctx, boil.GetContextDB())
+	if err != nil {
+		return nil, err
+	}
+
+	return ts, nil
+}
+
+// GetUniqueTags Функция для получения уникальных тегов по задачам
+func (a *App) GetUniqueTagsByTask(ctx context.Context, userID int64) ([]*edu.Tag, error) {
+	ts, err := edu.Tags(
+		qm.InnerJoin(
+			fmt.Sprintf("%s ON %s = %s",
+				edu.TableNames.Questions,
+				edu.TagTableColumns.ID,
+				edu.QuestionTableColumns.TagID),
+		),
+		qm.InnerJoin(
+			fmt.Sprintf("%s ON %s = %s",
+				edu.TableNames.UsersQuestions,
+				edu.UsersQuestionTableColumns.QuestionID,
+				edu.QuestionTableColumns.ID),
+		),
+		edu.UsersQuestionWhere.UserID.EQ(userID),
+		edu.UsersQuestionWhere.DeletedAt.IsNull(),
+		edu.QuestionWhere.IsTask.EQ(true),
 		qm.GroupBy(edu.TagTableColumns.ID),
 	).All(ctx, boil.GetContextDB())
 	if err != nil {
