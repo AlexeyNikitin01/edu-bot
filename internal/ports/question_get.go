@@ -346,6 +346,10 @@ func getTagsByTask(domain *app.App) telebot.HandlerFunc {
 			return ctx.Send(MSG_EMPTY)
 		}
 
+		if len(tags) == 1 {
+			return nextTask(domain)(ctx)
+		}
+
 		var tagButtons [][]telebot.InlineButton
 
 		for _, tag := range tags {
