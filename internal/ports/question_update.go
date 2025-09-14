@@ -3,6 +3,7 @@ package ports
 import (
 	"fmt"
 	"github.com/aarondl/null/v8"
+	"github.com/aarondl/sqlboiler/v4/queries/qm"
 	"log"
 	"strconv"
 	"time"
@@ -64,6 +65,7 @@ func rememberQuestion(domain *app.App, dispatcher *QuestionDispatcher) telebot.H
 		uq, err := edu.UsersQuestions(
 			edu.UsersQuestionWhere.UserID.EQ(GetUserFromContext(ctx).TGUserID),
 			edu.UsersQuestionWhere.QuestionID.EQ(int64(questionID)),
+			qm.Load(qm.Rels(edu.UsersQuestionRels.Question)),
 		).One(GetContext(ctx), boil.GetContextDB())
 		if err != nil {
 			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
@@ -93,7 +95,7 @@ func rememberQuestion(domain *app.App, dispatcher *QuestionDispatcher) telebot.H
 		}
 
 		now := time.Now().UTC()
-		if !now.Add(time.Minute * 10).After(t) {
+		if !now.Add(time.Minute*10).After(t) && !uq.R.GetQuestion().IsTask {
 			duration := t.Sub(now)
 
 			msg := fmt.Sprintf("⏳ Следующий вопрос будет доступен через: %s", timeLeftMsg(duration))
