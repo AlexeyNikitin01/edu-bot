@@ -17,7 +17,7 @@ import (
 const (
 	MSG_LIST_QUESTION = "ВОПРОСЫ: "
 	MSG_LIST_TAGS     = "ТЭГИ: "
-	MSG_EMPTY         = "У вас нет тэгов с вопросами"
+	MSG_EMPTY         = "У вас нет тэгов"
 	MSG_BACK_TAGS     = "НАЗАД К ТЭГАМ"
 
 	QuestionsPerPage = 10 // Оставляем место для кнопок пагинации и возврата
@@ -333,16 +333,49 @@ func getForUpdate(domain app.Apper) telebot.HandlerFunc {
 	}
 }
 
+func getTagsByTask(domain *app.App) telebot.HandlerFunc {
+	return func(ctx telebot.Context) error {
+		u := GetUserFromContext(ctx)
+
+		tags, err := domain.GetUniqueTagsByTask(GetContext(ctx), u.TGUserID)
+		if err != nil {
+			return ctx.Send(err.Error())
+		}
+
+		if len(tags) == 0 {
+			return ctx.Send(MSG_EMPTY)
+		}
+
+		var tagButtons [][]telebot.InlineButton
+
+		for _, tag := range tags {
+			tagBtn := telebot.InlineButton{
+				Unique: INLINE_BTN_TASK_BY_TAG,
+				Text:   tag.Tag,
+				Data:   tag.Tag,
+			}
+
+			tagButtons = append(tagButtons, []telebot.InlineButton{tagBtn})
+		}
+
+		return ctx.Send(MSG_LIST_TAGS, &telebot.ReplyMarkup{
+			InlineKeyboard: tagButtons,
+		})
+	}
+}
+
 func nextTask(domain *app.App) telebot.HandlerFunc {
 	return func(ctx telebot.Context) error {
-		uq, err := domain.GetTask(GetContext(ctx), GetUserFromContext(ctx).TGUserID)
+		tag := ctx.Data()
+
+		uq, err := domain.GetTask(GetContext(ctx), GetUserFromContext(ctx).TGUserID, tag)
 		if err != nil {
 			return err
 		}
 
 		q := uq.R.GetQuestion()
 
-		tag := escapeMarkdown(q.R.GetTag().Tag)
+		tag = escapeMarkdown(q.R.GetTag().Tag)
 		questionText := escapeMarkdown(q.Question)
 
 		forgot := telebot.InlineButton{
