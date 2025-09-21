@@ -97,6 +97,7 @@ func (a *App) GetTask(ctx context.Context, userID int64) (*edu.UsersQuestion, er
 		edu.QuestionWhere.IsTask.EQ(true),
 		edu.TagWhere.IsPause.EQ(false),
 		edu.AnswerWhere.DeletedAt.IsNull(),
+		qm.OrderBy("RANDOM()"),
 	).One(ctx, boil.GetContextDB())
 	if err != nil {
 		log.Println("Ошибка при выборке вопроса:", err)
