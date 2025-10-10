@@ -17,6 +17,6 @@ func StartBot(ctx context.Context, bot *telebot.Bot, domain *app.App) {
 
 	routers(bot, domain, dispatcher)
 
-	log.Println("Bot is now running. Press CTRL+C to exit.")
+	log.Println("Bot is now running. Press CTRL+C to exit")
 	bot.Start()
 }
