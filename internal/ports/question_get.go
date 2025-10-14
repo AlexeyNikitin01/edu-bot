@@ -56,11 +56,11 @@ func getButtonsTags(ctx telebot.Context, domain app.Apper) ([][]telebot.InlineBu
 
 	tags, err := domain.GetUniqueTags(GetContext(ctx), u.TGUserID)
 	if err != nil {
-		return nil, ctx.Send(err.Error())
+		return nil, sendErrorResponse(ctx, err.Error())
 	}
 
 	if len(tags) == 0 {
-		return nil, ctx.Send(MSG_EMPTY)
+		return nil, sendErrorResponse(ctx, MSG_EMPTY)
 	}
 
 	var tagButtons [][]telebot.InlineButton
@@ -117,24 +117,24 @@ func handleToggleRepeat(domain app.Apper) telebot.HandlerFunc {
 		// Разбираем данные callback: "questionID_page_tag"
 		parts := strings.Split(ctx.Data(), "_")
 		if len(parts) < 3 {
-			return ctx.Respond(&telebot.CallbackResponse{Text: "Ошибка формата данных"})
+			return sendErrorResponse(ctx, "Ошибка формата данных")
 		}
 
 		questionID, err := strconv.Atoi(parts[0])
 		if err != nil {
-			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
+			return sendErrorResponse(ctx, err.Error())
 		}
 
 		page, err := strconv.Atoi(parts[1])
 		if err != nil {
-			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
+			return sendErrorResponse(ctx, err.Error())
 		}
 
 		tag := strings.Join(parts[2:], "_")
 
 		// Обновляем статус вопроса
 		if err = domain.UpdateIsEduUserQuestion(GetContext(ctx), GetUserFromContext(ctx).TGUserID, int64(questionID)); err != nil {
-			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
+			return sendErrorResponse(ctx, err.Error())
 		}
 
 		// Получаем обновленный список вопросов с сохранением текущей страницы
@@ -294,11 +294,11 @@ func getForUpdate(domain app.Apper) telebot.HandlerFunc {
 		qID := ctx.Data()
 		id, err := strconv.Atoi(qID)
 		if err != nil {
-			return err
+			return sendErrorResponse(ctx, err.Error())
 		}
 		q, err := domain.GetQuestionAnswers(GetContext(ctx), int64(id))
 		if err != nil {
-			return err
+			return sendErrorResponse(ctx, err.Error())
 		}
 
 		var btns [][]telebot.InlineButton
@@ -339,11 +339,11 @@ func getTagsByTask(domain *app.App) telebot.HandlerFunc {
 
 		tags, err := domain.GetUniqueTagsByTask(GetContext(ctx), u.TGUserID)
 		if err != nil {
-			return ctx.Send(err.Error())
+			return sendErrorResponse(ctx, err.Error())
 		}
 
 		if len(tags) == 0 {
-			return ctx.Send(MSG_EMPTY)
+			return sendErrorResponse(ctx, MSG_EMPTY)
 		}
 
 		var tagButtons [][]telebot.InlineButton
@@ -370,7 +370,7 @@ func nextTask(domain *app.App) telebot.HandlerFunc {
 
 		uq, err := domain.GetTask(GetContext(ctx), GetUserFromContext(ctx).TGUserID, tag)
 		if err != nil {
-			return err
+			return sendErrorResponse(ctx, err.Error())
 		}
 
 		q := uq.R.GetQuestion()
@@ -428,4 +428,40 @@ func nextTask(domain *app.App) telebot.HandlerFunc {
 				},
 			})
 	}
+}
+
+// handlePageNavigation обрабатывает навигацию по страницам
+func handlePageNavigation(ctx telebot.Context, pageOffset int) error {
+	page, tag, err := parsePageAndTag(ctx.Data())
+	if err != nil {
+		return sendErrorResponse(ctx, err.Error())
+	}
+	return showQuestionsPage(ctx, tag, page+pageOffset)
+}
+
+// parsePageAndTag парсит данные callback'а и возвращает номер страницы и тег
+func parsePageAndTag(data string) (int, string, error) {
+	dataParts := strings.Split(data, "_")
+	if len(dataParts) != 2 {
+		return 0, "", fmt.Errorf("Ошибка: неверный формат данных")
+	}
+
+	page, err := strconv.Atoi(dataParts[0])
+	if err != nil {
+		return 0, "", fmt.Errorf("Ошибка: неверный номер страницы")
+	}
+
+	tag := dataParts[1]
+	if tag == "" {
+		return 0, "", fmt.Errorf("Ошибка: не указан тег")
+	}
+
+	return page, tag, nil
+}
+
+// sendErrorResponse отправляет ответ с ошибкой
+func sendErrorResponse(ctx telebot.Context, text string) error {
+	return ctx.Respond(&telebot.CallbackResponse{
+		Text: text,
+	})
 }
