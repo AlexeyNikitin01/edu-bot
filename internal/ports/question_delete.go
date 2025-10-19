@@ -2,6 +2,7 @@ package ports
 
 import (
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 
@@ -99,7 +100,7 @@ func deleteQuestionByTag(domain app.Apper) telebot.HandlerFunc {
 	}
 }
 
-func deleteQuestionAfterPoll(_ *app.App, dispatcher *QuestionDispatcher) telebot.HandlerFunc {
+func deleteQuestionAfterPoll(_ app.Apper, dispatcher *QuestionDispatcher) telebot.HandlerFunc {
 	return func(ctx telebot.Context) error {
 		qidStr := ctx.Data()
 		questionID, err := strconv.Atoi(qidStr)
@@ -123,15 +124,14 @@ func deleteQuestionAfterPoll(_ *app.App, dispatcher *QuestionDispatcher) telebot
 			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
 		}
 
-		dispatcher.mu.Lock()
-		dispatcher.waitingForAnswer[GetUserFromContext(ctx).TGUserID] = false
-		dispatcher.mu.Unlock()
-
+		if err = dispatcher.cache.SetUserWaiting(dispatcher.ctx, GetUserFromContext(ctx).TGUserID, false); err != nil {
+			log.Printf("Ошибка сброса статуса waiting в Redis для пользователя %d: %v", GetUserFromContext(ctx).TGUserID, err)
+		}
 		return nil
 	}
 }
 
-func deleteQuestionAfterPollHigh(_ *app.App, dispatcher *QuestionDispatcher) telebot.HandlerFunc {
+func deleteQuestionAfterPollHigh(_ app.Apper, dispatcher *QuestionDispatcher) telebot.HandlerFunc {
 	return func(ctx telebot.Context) error {
 		qidStr := ctx.Data()
 		questionID, err := strconv.Atoi(qidStr)
@@ -155,9 +155,9 @@ func deleteQuestionAfterPollHigh(_ *app.App, dispatcher *QuestionDispatcher) tel
 			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
 		}
 
-		dispatcher.mu.Lock()
-		dispatcher.waitingForAnswer[GetUserFromContext(ctx).TGUserID] = false
-		dispatcher.mu.Unlock()
+		if err = dispatcher.cache.SetUserWaiting(dispatcher.ctx, GetUserFromContext(ctx).TGUserID, false); err != nil {
+			log.Printf("Ошибка сброса статуса waiting в Redis для пользователя %d: %v", GetUserFromContext(ctx).TGUserID, err)
+		}
 
 		return nil
 	}

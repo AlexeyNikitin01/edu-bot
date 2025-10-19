@@ -1,6 +1,7 @@
 package adapters
 
 import (
+	"bot/cmd/cfg"
 	"fmt"
 	"log"
 
@@ -8,20 +9,11 @@ import (
 	_ "github.com/lib/pq"
 )
 
-type Config struct {
-	Host   string `json:"host,omitempty" yaml:"host"`
-	Port   string `json:"port,omitempty" yaml:"port"`
-	User   string `json:"user,omitempty" yaml:"user"`
-	Dbname string `json:"dbname,omitempty" yaml:"dbname"`
-	Pass   string `json:"pass,omitempty" yaml:"pass"`
-	SSL    string `json:"ssl,omitempty" yaml:"ssl"`
-}
-
-func OpenConnectPostgres(cfg *Config) (*sqlx.DB, error) {
+func OpenConnectPostgres(cfg *cfg.PG) (*sqlx.DB, error) {
 	log.Println(fmt.Sprintf("host=%s port=%s user=%s dbname=%s password=%s sslmode=%s",
-		cfg.Host, cfg.Port, cfg.User, cfg.Dbname, cfg.Pass, cfg.SSL))
+		cfg.Host, cfg.Port, cfg.User, cfg.DBName, cfg.Password, cfg.SSLmode))
 	db, err := sqlx.Open("postgres", fmt.Sprintf("host=%s port=%s user=%s dbname=%s password=%s sslmode=%s",
-		cfg.Host, cfg.Port, cfg.User, cfg.Dbname, cfg.Pass, cfg.SSL))
+		cfg.Host, cfg.Port, cfg.User, cfg.DBName, cfg.Password, cfg.SSLmode))
 	if err != nil {
 		return nil, err
 	}

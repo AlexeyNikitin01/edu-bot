@@ -2,12 +2,11 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"github.com/redis/go-redis/v9"
 	"log"
 	"time"
 
 	"github.com/golang-migrate/migrate/v4"
-	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 	"gopkg.in/telebot.v3"
 
@@ -24,41 +23,31 @@ import (
 
 func main() {
 	log.Println("Starting bot...")
-
 	ctx := context.Background()
 
-	db, err := adapters.OpenConnectPostgres(getPostgresCfg())
+	connectDB(cfg.GetConfig().PSQL)
+
+	ports.StartBot(
+		ctx,
+		connectBot(cfg.GetConfig().Token),
+		app.NewApp(),
+		app.NewRedisUserCache(connectRedis(ctx, cfg.GetConfig().CACHE)),
+	)
+}
+
+func connectDB(cfg *cfg.PG) {
+	db, err := adapters.OpenConnectPostgres(cfg)
 	if err != nil {
 		log.Fatal(err)
 	}
 	boil.SetDB(db)
 
-	if err = runMigrations(db); err != nil {
-		log.Fatal(err)
-	}
-
-	domain := app.NewApp()
-
-	pref := telebot.Settings{
-		Token:  getToken(),
-		Poller: &telebot.LongPoller{Timeout: 10 * time.Second},
-	}
-
-	b, err := telebot.NewBot(pref)
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
-
-	ports.StartBot(ctx, b, domain)
-}
-
-func runMigrations(db *sqlx.DB) error {
+	// авто-миграции
 	driver, err := postgresMigrate.WithInstance(db.DB, &postgresMigrate.Config{
 		MigrationsTable: "schema_migrations",
 	})
 	if err != nil {
-		return fmt.Errorf("failed to create migration driver: %w", err)
+		log.Fatal(err)
 	}
 
 	m, err := migrate.NewWithDatabaseInstance(
@@ -67,38 +56,34 @@ func runMigrations(db *sqlx.DB) error {
 		driver,
 	)
 	if err != nil {
-		return fmt.Errorf("failed to create migration instance: %w", err)
+		log.Fatal(err)
 	}
 
-	if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
-		return fmt.Errorf("failed to apply migrations: %w", err)
+	if err = m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+		log.Fatal(err)
 	}
 
 	log.Println("Migrations applied successfully")
-	return nil
 }
 
-func getPostgresCfg() *adapters.Config {
-	config, err := cfg.NewCfgPostgres()
+func connectBot(token string) *telebot.Bot {
+	pref := telebot.Settings{
+		Token:  token,
+		Poller: &telebot.LongPoller{Timeout: 10 * time.Second},
+	}
+
+	b, err := telebot.NewBot(pref)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	return &adapters.Config{
-		Host:   config.PSQL.Host,
-		Port:   config.PSQL.Port,
-		User:   config.PSQL.User,
-		Dbname: config.PSQL.DBName,
-		Pass:   config.PSQL.Password,
-		SSL:    config.PSQL.SSLmode,
-	}
+	return b
 }
 
-func getToken() string {
-	config, err := cfg.NewToken()
+func connectRedis(ctx context.Context, cfg *cfg.Redis) *redis.Client {
+	r, err := adapters.NewClientRedis(ctx, cfg)
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	return config.Token
+	return r
 }

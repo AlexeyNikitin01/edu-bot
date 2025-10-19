@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-func (a *App) GetQuestionsAnswers(ctx context.Context, userID int64) (edu.UsersQuestionSlice, error) {
+func (a *App) GetRandomNearestQuestionWithAnswer(ctx context.Context, userID int64) (*edu.UsersQuestion, error) {
 	now := time.Now().UTC()
 
 	questions, err := edu.UsersQuestions(
@@ -41,8 +41,31 @@ func (a *App) GetQuestionsAnswers(ctx context.Context, userID int64) (edu.UsersQ
 		edu.QuestionWhere.IsTask.EQ(false),
 		edu.TagWhere.IsPause.EQ(false),
 		edu.AnswerWhere.DeletedAt.IsNull(),
+		edu.AnswerWhere.IsCorrect.EQ(true),
 		qm.OrderBy("RANDOM()"),
-	).All(ctx, boil.GetContextDB())
+	).One(ctx, boil.GetContextDB())
+	if err != nil {
+		log.Println("Ошибка при выборке вопросов:", err)
+		return nil, err
+	}
+
+	return questions, nil
+}
+
+func (a *App) GetUserQuestion(ctx context.Context, userID, qID int64) (*edu.UsersQuestion, error) {
+	questions, err := edu.UsersQuestions(
+		qm.Load(qm.Rels(edu.UsersQuestionRels.Question, edu.QuestionRels.Answers)),
+		qm.Load(qm.Rels(edu.UsersQuestionRels.Question, edu.QuestionRels.Tag)),
+		qm.InnerJoin(
+			fmt.Sprintf("%s ON %s = %s",
+				edu.TableNames.Questions,
+				edu.QuestionTableColumns.ID,
+				edu.UsersQuestionTableColumns.QuestionID,
+			),
+		),
+		edu.UsersQuestionWhere.UserID.EQ(userID),
+		edu.QuestionWhere.ID.EQ(qID),
+	).One(ctx, boil.GetContextDB())
 	if err != nil {
 		log.Println("Ошибка при выборке вопросов:", err)
 		return nil, err

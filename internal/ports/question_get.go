@@ -333,7 +333,7 @@ func getForUpdate(domain app.Apper) telebot.HandlerFunc {
 	}
 }
 
-func getTagsByTask(domain *app.App) telebot.HandlerFunc {
+func getTagsByTask(domain app.Apper) telebot.HandlerFunc {
 	return func(ctx telebot.Context) error {
 		u := GetUserFromContext(ctx)
 
@@ -364,7 +364,7 @@ func getTagsByTask(domain *app.App) telebot.HandlerFunc {
 	}
 }
 
-func nextTask(domain *app.App) telebot.HandlerFunc {
+func nextTask(domain app.Apper) telebot.HandlerFunc {
 	return func(ctx telebot.Context) error {
 		tag := ctx.Data()
 

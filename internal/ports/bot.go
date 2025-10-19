@@ -9,11 +9,11 @@ import (
 	"bot/internal/app"
 )
 
-func StartBot(ctx context.Context, bot *telebot.Bot, domain *app.App) {
+func StartBot(ctx context.Context, bot *telebot.Bot, domain app.Apper, cache app.UserCacher) {
 	bot.Use(ContextMiddleware(ctx))
 	bot.Use(AuthMiddleware(ctx, domain))
 
-	dispatcher := NewDispatcher(ctx, domain, bot)
+	dispatcher := NewDispatcher(ctx, domain, bot, cache)
 
 	routers(bot, domain, dispatcher)
 

@@ -8,7 +8,8 @@ import (
 )
 
 type Apper interface {
-	GetQuestionsAnswers(context.Context, int64) (edu.UsersQuestionSlice, error)
+	GetRandomNearestQuestionWithAnswer(ctx context.Context, userID int64) (*edu.UsersQuestion, error)
+	GetUserQuestion(ctx context.Context, userID, qID int64) (*edu.UsersQuestion, error)
 	UpdateRepeatTime(context.Context, *edu.UsersQuestion, bool) error
 	GetUniqueTags(context.Context, int64) ([]*edu.Tag, error)
 	SaveQuestions(context.Context, string, string, []string, int64) error

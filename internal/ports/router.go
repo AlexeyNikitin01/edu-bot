@@ -9,7 +9,7 @@ import (
 	"bot/internal/repo/edu"
 )
 
-func routers(b *telebot.Bot, domain *app.App, dispatcher *QuestionDispatcher) {
+func routers(b *telebot.Bot, domain app.Apper, dispatcher *QuestionDispatcher) {
 	b.Handle(CMD_START, func(ctx telebot.Context) error {
 		return ctx.Send(MSG_GRETING, mainMenu())
 	})
@@ -42,8 +42,8 @@ func routers(b *telebot.Bot, domain *app.App, dispatcher *QuestionDispatcher) {
 	b.Handle(&telebot.InlineButton{Unique: INLINE_EDIT_NAME_QUESTION}, setEdit(edu.QuestionTableColumns.Question, domain))
 	b.Handle(&telebot.InlineButton{Unique: INLINE_EDIT_NAME_TAG_QUESTION}, setEdit(edu.QuestionTableColumns.TagID, domain))
 	b.Handle(&telebot.InlineButton{Unique: INLINE_EDIT_ANSWER_QUESTION}, setEdit(edu.AnswerTableColumns.Answer, domain))
-	b.Handle(&telebot.InlineButton{Unique: INLINE_SHOW_ANSWER}, registerShowAnswerHandler())
-	b.Handle(&telebot.InlineButton{Unique: INLINE_TURN_ANSWER}, turnAnswerHandler())
+	b.Handle(&telebot.InlineButton{Unique: INLINE_SHOW_ANSWER}, viewAnswer(domain, true))
+	b.Handle(&telebot.InlineButton{Unique: INLINE_TURN_ANSWER}, viewAnswer(domain, false))
 	b.Handle(&telebot.InlineButton{Unique: INLINE_BTN_TASK_BY_TAG}, nextTask(domain))
 	b.Handle(&telebot.InlineButton{Unique: INLINE_BTN_QUESTION_PAGE + "_prev"}, func(ctx telebot.Context) error {
 		return handlePageNavigation(ctx, -1)

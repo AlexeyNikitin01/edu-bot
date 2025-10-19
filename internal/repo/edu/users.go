@@ -31,6 +31,7 @@ type User struct {
 	UpdatedAt time.Time `db:"updated_at" pg:"updated_at" boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
 	DeletedAt null.Time `db:"deleted_at" pg:"deleted_at" boil:"deleted_at" json:"deleted_at,omitempty" toml:"deleted_at" yaml:"deleted_at,omitempty"`
 	Block     bool      `db:"block" pg:"block" boil:"block" json:"block" toml:"block" yaml:"block"`
+	IsWait    bool      `db:"is_wait" pg:"is_wait" boil:"is_wait" json:"is_wait" toml:"is_wait" yaml:"is_wait"`
 
 	R *userR `db:"-" pg:"-" boil:"-" json:"-" toml:"-" yaml:"-"`
 	L userL  `db:"-" pg:"-" boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -44,6 +45,7 @@ var UserColumns = struct {
 	UpdatedAt string
 	DeletedAt string
 	Block     string
+	IsWait    string
 }{
 	TGUserID:  "tg_user_id",
 	ChatID:    "chat_id",
@@ -52,6 +54,7 @@ var UserColumns = struct {
 	UpdatedAt: "updated_at",
 	DeletedAt: "deleted_at",
 	Block:     "block",
+	IsWait:    "is_wait",
 }
 
 var UserTableColumns = struct {
@@ -62,6 +65,7 @@ var UserTableColumns = struct {
 	UpdatedAt string
 	DeletedAt string
 	Block     string
+	IsWait    string
 }{
 	TGUserID:  "users.tg_user_id",
 	ChatID:    "users.chat_id",
@@ -70,6 +74,7 @@ var UserTableColumns = struct {
 	UpdatedAt: "users.updated_at",
 	DeletedAt: "users.deleted_at",
 	Block:     "users.block",
+	IsWait:    "users.is_wait",
 }
 
 // Generated where
@@ -82,6 +87,7 @@ var UserWhere = struct {
 	UpdatedAt whereHelpertime_Time
 	DeletedAt whereHelpernull_Time
 	Block     whereHelperbool
+	IsWait    whereHelperbool
 }{
 	TGUserID:  whereHelperint64{field: "\"users\".\"tg_user_id\""},
 	ChatID:    whereHelperint64{field: "\"users\".\"chat_id\""},
@@ -90,6 +96,7 @@ var UserWhere = struct {
 	UpdatedAt: whereHelpertime_Time{field: "\"users\".\"updated_at\""},
 	DeletedAt: whereHelpernull_Time{field: "\"users\".\"deleted_at\""},
 	Block:     whereHelperbool{field: "\"users\".\"block\""},
+	IsWait:    whereHelperbool{field: "\"users\".\"is_wait\""},
 }
 
 // UserRels is where relationship names are stored.
@@ -129,9 +136,9 @@ func (r *userR) GetUsersQuestions() UsersQuestionSlice {
 type userL struct{}
 
 var (
-	userAllColumns            = []string{"tg_user_id", "chat_id", "first_name", "created_at", "updated_at", "deleted_at", "block"}
+	userAllColumns            = []string{"tg_user_id", "chat_id", "first_name", "created_at", "updated_at", "deleted_at", "block", "is_wait"}
 	userColumnsWithoutDefault = []string{}
-	userColumnsWithDefault    = []string{"tg_user_id", "chat_id", "first_name", "created_at", "updated_at", "deleted_at", "block"}
+	userColumnsWithDefault    = []string{"tg_user_id", "chat_id", "first_name", "created_at", "updated_at", "deleted_at", "block", "is_wait"}
 	userPrimaryKeyColumns     = []string{"tg_user_id"}
 	userGeneratedColumns      = []string{}
 )

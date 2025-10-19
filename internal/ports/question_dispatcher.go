@@ -3,9 +3,8 @@ package ports
 import (
 	"context"
 	"fmt"
-	"github.com/aarondl/null/v8"
+	"github.com/aarondl/sqlboiler/v4/queries/qm"
 	"log"
-	"math/rand"
 	"strconv"
 	"strings"
 	"sync"
@@ -22,31 +21,38 @@ const (
 	MSG_FORGOT        = "СЛОЖНО"
 	MSG_REMEMBER      = "ЛЕГКО"
 	MSG_NEXT_QUESTION = "😎"
-	MSG_WRONG         = "Нет правильного ответа для вопроса"
+
+	BtnShowAnswer = "📝 Показать ответ"
+	BtnRepeat     = "🔔"
+	BtnRepeatEdu  = "💤"
+	BtnDelete     = "🗑️"
+	BtnEdit       = "✏️"
 )
 
 type QuestionDispatcher struct {
-	mu               sync.Mutex
-	workers          map[int64]chan *edu.UsersQuestion
-	waitingForAnswer map[int64]bool
-	domain           app.Apper
-	bot              *telebot.Bot
-	ctx              context.Context
+	mu      sync.Mutex
+	workers map[int64]struct{}
+	domain  app.Apper
+	bot     *telebot.Bot
+	ctx     context.Context
+	cache   app.UserCacher
+	wg      sync.WaitGroup
 }
 
-func NewDispatcher(ctx context.Context, domain app.Apper, bot *telebot.Bot) *QuestionDispatcher {
+func NewDispatcher(ctx context.Context, domain app.Apper, bot *telebot.Bot, cache app.UserCacher) *QuestionDispatcher {
 	return &QuestionDispatcher{
-		mu:               sync.Mutex{},
-		workers:          make(map[int64]chan *edu.UsersQuestion),
-		waitingForAnswer: make(map[int64]bool),
-		domain:           domain,
-		bot:              bot,
-		ctx:              ctx,
+		mu:      sync.Mutex{},
+		workers: make(map[int64]struct{}),
+		domain:  domain,
+		bot:     bot,
+		ctx:     ctx,
+		cache:   cache,
+		wg:      sync.WaitGroup{},
 	}
 }
 
 func (d *QuestionDispatcher) StartPollingLoop() {
-	go func() {
+	d.wg.Go(func() {
 		ticker := time.NewTicker(2 * time.Second)
 		defer ticker.Stop()
 
@@ -55,89 +61,133 @@ func (d *QuestionDispatcher) StartPollingLoop() {
 			case <-d.ctx.Done():
 				return
 			case <-ticker.C:
-				d.checkAndDispatch()
+				// Получаем пользователей для которых запущены воркеры
+				activeWorkers, err := d.cache.GetActiveWorkers(d.ctx)
+				if err != nil {
+					log.Println("Ошибка получения активных воркеров из Redis:", err)
+					continue
+				}
+
+				// Забираем всех пользователей для которых не запущен воркер
+				users, err := edu.Users(
+					qm.Select(edu.UserColumns.TGUserID),
+					edu.UserWhere.TGUserID.NIN(activeWorkers),
+					edu.UserWhere.Block.EQ(false),
+				).All(d.ctx, boil.GetContextDB())
+				if err != nil {
+					log.Println("Ошибка получения пользователей:", err)
+					continue
+				}
+
+				for _, user := range users {
+					userID := user.TGUserID
+
+					if err = d.cache.AddWorker(d.ctx, userID); err != nil {
+						log.Printf("Ошибка добавления воркера %d в Redis: %v", userID, err)
+						continue
+					}
+
+					d.wg.Go(func() {
+						d.worker(userID)
+						defer d.cache.RemoveWorker(d.ctx, userID)
+					})
+				}
 			}
 		}
-	}()
+	})
 }
 
-func (d *QuestionDispatcher) checkAndDispatch() {
-	users, err := edu.Users(
-		edu.UserWhere.Block.EQ(false),
-	).All(d.ctx, boil.GetContextDB())
-	if err != nil {
-		log.Println("Ошибка получения пользователей:", err)
-		return
-	}
-
-	for _, user := range users {
-		userID := user.TGUserID
-
-		d.mu.Lock()
-		ch, exists := d.workers[userID]
-		if !exists {
-			ch = make(chan *edu.UsersQuestion, 1) // буферизированный канал
-			d.workers[userID] = ch
-			go d.worker(userID, ch)
-		}
-		d.mu.Unlock()
-
-		uqs, err := d.domain.GetQuestionsAnswers(d.ctx, userID)
-		if err != nil || len(uqs) == 0 {
-			continue
-		}
-
-		for _, q := range uqs {
-			select {
-			case ch <- q:
-			default:
-				log.Printf("Очередь переполнена для пользователя %d", userID)
-			}
-		}
-	}
-}
-
-func (d *QuestionDispatcher) worker(userID int64, ch chan *edu.UsersQuestion) {
+func (d *QuestionDispatcher) worker(userID int64) {
+	t := time.NewTicker(time.Second * 2)
+	defer t.Stop()
 	for {
 		select {
 		case <-d.ctx.Done():
 			return
-		case uq := <-ch:
-			d.mu.Lock()
-			if d.waitingForAnswer[userID] {
-				// ждем ответ
-				d.mu.Unlock()
-				time.Sleep(2 * time.Second)
+		case <-t.C:
+			log.Println(fmt.Sprintf("%d пытаемся отправить зарпос", userID))
+			waiting, err := d.cache.GetUserWaiting(d.ctx, userID)
+			if err != nil {
+				log.Printf("Ошибка получения статуса waiting из Redis для пользователя %d: %v", userID, err)
 				continue
 			}
-			d.waitingForAnswer[userID] = true
-			d.mu.Unlock()
 
-			if err := d.sendQuestion(userID, uq); err != nil {
-				log.Printf("Ошибка отправки вопроса %d пользователю %d: %v", uq.QuestionID, userID, err)
-
-				d.mu.Lock()
-				d.waitingForAnswer[userID] = false
-				d.mu.Unlock()
+			if waiting {
+				log.Println(fmt.Sprintf("%d ждем пока пользователь ответит", userID))
+				continue
 			}
+
+			if err = d.cache.SetUserWaiting(d.ctx, userID, true); err != nil {
+				log.Printf("Ошибка установки статуса waiting в Redis для пользователя %d: %v", userID, err)
+				continue
+			}
+
+			if err = d.sendRandomQuestionForUser(userID); err != nil {
+				log.Printf("Ошибка отправки вопроса %d пользователю %v", userID, err)
+				if err = d.cache.SetUserWaiting(d.ctx, userID, false); err != nil {
+					log.Printf("Ошибка сброса статуса waiting в Redis для пользователя %d: %v", userID, err)
+				}
+			}
+			log.Println(fmt.Sprintf("%d отправили вопрос пользователю, ждём пока ответит", userID))
 		}
 	}
 }
 
-func (d *QuestionDispatcher) sendQuestion(userID int64, uq *edu.UsersQuestion) error {
-	answers := uq.R.GetQuestion().R.GetAnswers()
-
-	if len(answers) == 1 || uq.TotalSerial > 4 {
-		for _, answer := range answers {
-			if answer.IsCorrect {
-				return d.questionWithHigh(userID, uq, uq.R.GetQuestion(), answers[0])
-			}
-		}
-		_, err := d.bot.Send(&telebot.User{ID: userID}, MSG_WRONG)
+func (d *QuestionDispatcher) sendRandomQuestionForUser(userID int64) error {
+	uq, err := d.domain.GetRandomNearestQuestionWithAnswer(d.ctx, userID)
+	if err != nil {
 		return err
 	}
 
-	return d.questionWithTest(userID, uq)
+	tag := escapeMarkdown(uq.GetQuestion().R.GetTag().Tag)
+	questionText := escapeMarkdown(uq.GetQuestion().Question)
+
+	buttons := getQuestionButtons(uq, false)
+
+	rec := &telebot.User{ID: userID}
+	_, err = d.bot.Send(
+		rec,
+		tag+": "+questionText,
+		telebot.ModeMarkdownV2,
+		&telebot.ReplyMarkup{
+			InlineKeyboard: buttons,
+		},
+	)
+
+	return err
+}
+
+// viewAnswer обработчик для отображения вопросов после взаимодействия "показать" или "спрятать"
+func viewAnswer(domain app.Apper, showAnswer bool) telebot.HandlerFunc {
+	return func(ctx telebot.Context) error {
+		data := ctx.Data()
+		qID, err := strconv.Atoi(data)
+		if err != nil {
+			return err
+		}
+
+		uq, err := domain.GetUserQuestion(GetContext(ctx), GetUserFromContext(ctx).TGUserID, int64(qID))
+		if err != nil {
+			return err
+		}
+
+		question := uq.GetQuestion().Question
+		tag := uq.R.GetQuestion().R.GetTag().Tag
+		answer := uq.R.GetQuestion().R.GetAnswers()[0]
+
+		result := escapeMarkdown(tag) + ": " + escapeMarkdown(question)
+		if showAnswer {
+			result += "\n\n" + escapeMarkdown(answer.Answer)
+		}
+
+		return ctx.Edit(
+			result,
+			telebot.ModeMarkdownV2,
+			&telebot.ReplyMarkup{
+				InlineKeyboard: getQuestionButtons(uq, showAnswer),
+			},
+		)
+	}
 }
 
 func escapeMarkdown(text string) string {
@@ -148,318 +198,15 @@ func escapeMarkdown(text string) string {
 	return text
 }
 
-func (d *QuestionDispatcher) questionWithHigh(
-	id int64, uq *edu.UsersQuestion, q *edu.Question, answer *edu.Answer,
-) error {
-	tag := escapeMarkdown(q.R.GetTag().Tag)
-	questionText := escapeMarkdown(q.Question)
-	answerText := escapeMarkdown(answer.Answer)
-
-	forgot := telebot.InlineButton{
-		Unique: INLINE_FORGOT_HIGH_QUESTION,
-		Text:   MSG_FORGOT,
-		Data:   fmt.Sprintf("%d", q.ID),
-	}
-
-	easy := telebot.InlineButton{
-		Unique: INLINE_REMEMBER_HIGH_QUESTION,
-		Text:   MSG_REMEMBER,
-		Data:   fmt.Sprintf("%d", q.ID),
-	}
-
-	label := "🔔"
-	if uq.IsEdu {
-		label = "💤"
-	}
-
-	repeatBtn := telebot.InlineButton{
-		Unique: INLINE_BTN_REPEAT_QUESTION_AFTER_POLL_HIGH,
-		Text:   label,
-		Data:   fmt.Sprintf("%d", uq.QuestionID),
-	}
-
-	deleteBtn := telebot.InlineButton{
-		Unique: INLINE_BTN_DELETE_QUESTION_AFTER_POLL_HIGH,
-		Text:   INLINE_NAME_DELETE_AFTER_POLL,
-		Data:   fmt.Sprintf("%d", uq.QuestionID),
-	}
-
-	editBtn := telebot.InlineButton{
-		Unique: INLINE_EDIT_QUESTION,
-		Text:   "✏️",
-		Data:   fmt.Sprintf("%d", uq.QuestionID),
-	}
-
-	if len(answer.Answer) > 100 {
-		showAnswerBtn := telebot.InlineButton{
-			Unique: INLINE_SHOW_ANSWER,
-			Text:   "📝 Показать ответ",
-			Data:   fmt.Sprintf("%d", uq.QuestionID),
-		}
-
-		rec := &telebot.User{ID: id}
-		_, err := d.bot.Send(
-			rec,
-			tag+": "+questionText,
-			telebot.ModeMarkdownV2,
-			&telebot.ReplyMarkup{
-				InlineKeyboard: [][]telebot.InlineButton{
-					{showAnswerBtn},
-					{easy, forgot},
-					{repeatBtn, deleteBtn, editBtn},
-				},
-			},
-		)
-		return err
-	}
-
-	rec := &telebot.User{ID: id}
-	_, err := d.bot.Send(
-		rec,
-		tag+": "+questionText+"\n\n||"+answerText+"||",
-		telebot.ModeMarkdownV2,
-		&telebot.ReplyMarkup{
-			InlineKeyboard: [][]telebot.InlineButton{{easy, forgot}, {repeatBtn, deleteBtn, editBtn}},
-		},
-	)
-	return err
-}
-
-// registerShowAnswerHandler обработчик для кнопки "показать ответ"
-func registerShowAnswerHandler() telebot.HandlerFunc {
-	return func(ctx telebot.Context) error {
-		data := ctx.Data()
-		qID, err := strconv.Atoi(data)
-		if err != nil {
-			return err
-		}
-
-		q, err := edu.FindQuestion(GetContext(ctx), boil.GetContextDB(), int64(qID))
-		if err != nil {
-			return ctx.Respond(&telebot.CallbackResponse{Text: "Ошибка загрузки вопроса"})
-		}
-
-		tag, err := edu.FindTag(GetContext(ctx), boil.GetContextDB(), q.TagID)
-		if err != nil {
-			return err
-		}
-
-		answer, err := edu.Answers(edu.AnswerWhere.QuestionID.EQ(q.ID)).One(GetContext(ctx), boil.GetContextDB())
-		if err != nil {
-			return ctx.Respond(&telebot.CallbackResponse{Text: "Ошибка загрузки ответа"})
-		}
-
-		uq, err := edu.UsersQuestions(
-			edu.UsersQuestionWhere.QuestionID.EQ(q.ID),
-		).One(GetContext(ctx), boil.GetContextDB())
-
-		label := "🔔"
-		if uq.IsEdu {
-			label = "💤"
-		}
-
-		return ctx.Edit(
-			escapeMarkdown(tag.Tag)+": "+escapeMarkdown(q.Question)+"\n\n"+escapeMarkdown(answer.Answer),
-			telebot.ModeMarkdownV2,
-			&telebot.ReplyMarkup{
-				InlineKeyboard: [][]telebot.InlineButton{
-					{
-						telebot.InlineButton{
-							Unique: INLINE_TURN_ANSWER,
-							Text:   "📝 Свернуть ответ",
-							Data:   fmt.Sprintf("%d", uq.QuestionID),
-						},
-					},
-					{
-						telebot.InlineButton{
-							Unique: INLINE_REMEMBER_HIGH_QUESTION,
-							Text:   MSG_REMEMBER,
-							Data:   fmt.Sprintf("%d", qID),
-						},
-						telebot.InlineButton{
-							Unique: INLINE_FORGOT_HIGH_QUESTION,
-							Text:   MSG_FORGOT,
-							Data:   fmt.Sprintf("%d", qID),
-						},
-					},
-					{
-						telebot.InlineButton{
-							Unique: INLINE_BTN_REPEAT_QUESTION_AFTER_POLL_HIGH,
-							Text:   label,
-							Data:   fmt.Sprintf("%d", qID),
-						},
-						telebot.InlineButton{
-							Unique: INLINE_BTN_DELETE_QUESTION_AFTER_POLL_HIGH,
-							Text:   INLINE_NAME_DELETE_AFTER_POLL,
-							Data:   fmt.Sprintf("%d", qID),
-						},
-						telebot.InlineButton{
-							Unique: INLINE_EDIT_QUESTION,
-							Text:   "✏️",
-							Data:   fmt.Sprintf("%d", qID),
-						},
-					},
-				},
-			},
-		)
-	}
-}
-
-// turnAnswerHandler обработчик для кнопки "свернуть ответ"
-func turnAnswerHandler() telebot.HandlerFunc {
-	return func(ctx telebot.Context) error {
-		data := ctx.Data()
-		qID, err := strconv.Atoi(data)
-		if err != nil {
-			return err
-		}
-
-		q, err := edu.FindQuestion(GetContext(ctx), boil.GetContextDB(), int64(qID))
-		if err != nil {
-			return ctx.Respond(&telebot.CallbackResponse{Text: "Ошибка загрузки вопроса"})
-		}
-
-		tag, err := edu.FindTag(GetContext(ctx), boil.GetContextDB(), q.TagID)
-		if err != nil {
-			return err
-		}
-
-		uq, err := edu.UsersQuestions(
-			edu.UsersQuestionWhere.QuestionID.EQ(q.ID),
-		).One(GetContext(ctx), boil.GetContextDB())
-
-		label := "🔔"
-		if uq.IsEdu {
-			label = "💤"
-		}
-
-		return ctx.Edit(
-			escapeMarkdown(tag.Tag)+": "+escapeMarkdown(q.Question),
-			telebot.ModeMarkdownV2,
-			&telebot.ReplyMarkup{
-				InlineKeyboard: [][]telebot.InlineButton{
-					{
-						telebot.InlineButton{
-							Unique: INLINE_SHOW_ANSWER,
-							Text:   "📝 Показать ответ",
-							Data:   fmt.Sprintf("%d", uq.QuestionID),
-						},
-					},
-					{
-						telebot.InlineButton{
-							Unique: INLINE_REMEMBER_HIGH_QUESTION,
-							Text:   MSG_REMEMBER,
-							Data:   fmt.Sprintf("%d", qID),
-						},
-						telebot.InlineButton{
-							Unique: INLINE_FORGOT_HIGH_QUESTION,
-							Text:   MSG_FORGOT,
-							Data:   fmt.Sprintf("%d", qID),
-						},
-					},
-					{
-						telebot.InlineButton{
-							Unique: INLINE_BTN_REPEAT_QUESTION_AFTER_POLL_HIGH,
-							Text:   label,
-							Data:   fmt.Sprintf("%d", qID),
-						},
-						telebot.InlineButton{
-							Unique: INLINE_BTN_DELETE_QUESTION_AFTER_POLL_HIGH,
-							Text:   INLINE_NAME_DELETE_AFTER_POLL,
-							Data:   fmt.Sprintf("%d", qID),
-						},
-						telebot.InlineButton{
-							Unique: INLINE_EDIT_QUESTION,
-							Text:   "✏️",
-							Data:   fmt.Sprintf("%d", qID),
-						},
-					},
-				},
-			},
-		)
-	}
-}
-
-// questionWithTest DEPRECATE
-func (d *QuestionDispatcher) questionWithTest(userID int64, uq *edu.UsersQuestion) error {
-	answers := uq.R.GetQuestion().R.GetAnswers()
-
-	shuffled := make([]*edu.Answer, len(answers))
-	copy(shuffled, answers)
-
-	rand.Seed(time.Now().UnixNano())
-	rand.Shuffle(len(shuffled), func(i, j int) {
-		shuffled[i], shuffled[j] = shuffled[j], shuffled[i]
-	})
-
-	options := make([]telebot.PollOption, len(shuffled))
-	correctIndex := -1
-
-	for i, ans := range shuffled {
-		options[i] = telebot.PollOption{Text: ans.Answer}
-		if ans.IsCorrect {
-			correctIndex = i
-		}
-	}
-
-	poll := &telebot.Poll{
-		Question:        uq.R.GetQuestion().Question,
-		Options:         options,
-		Type:            telebot.PollQuiz,
-		CorrectOption:   correctIndex,
-		Anonymous:       false,
-		MultipleAnswers: false,
-	}
-
-	label := "🔔"
-	if uq.IsEdu {
-		label = "💤"
-	}
-
-	repeatBtn := telebot.InlineButton{
-		Unique: INLINE_BTN_REPEAT_QUESTION_AFTER_POLL,
-		Text:   label,
-		Data:   fmt.Sprintf("%d", uq.QuestionID),
-	}
-
-	deleteBtn := telebot.InlineButton{
-		Unique: INLINE_BTN_DELETE_QUESTION_AFTER_POLL,
-		Text:   INLINE_NAME_DELETE_AFTER_POLL,
-		Data:   fmt.Sprintf("%d", uq.QuestionID),
-	}
-
-	editBtn := telebot.InlineButton{
-		Unique: INLINE_EDIT_QUESTION,
-		Text:   "✏️",
-		Data:   fmt.Sprintf("%d", uq.QuestionID),
-	}
-
-	recipient := &telebot.User{ID: userID}
-	msg, err := d.bot.Send(recipient, poll, &telebot.ReplyMarkup{
-		InlineKeyboard: [][]telebot.InlineButton{{repeatBtn, deleteBtn, editBtn}},
-	})
-	if err != nil {
-		return err
-	}
-
-	uq.PollID = null.StringFrom(msg.Poll.ID)
-	uq.CorrectAnswer = null.Int64From(int64(correctIndex))
-	if _, err = uq.Update(d.ctx, boil.GetContextDB(),
-		boil.Whitelist(edu.UsersQuestionColumns.PollID, edu.UsersQuestionColumns.CorrectAnswer)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func nextQuestion(dispatcher *QuestionDispatcher) telebot.HandlerFunc {
+// nextQuestion кнопка дальше
+func nextQuestion(d *QuestionDispatcher) telebot.HandlerFunc {
 	return func(ctx telebot.Context) error {
 		if err := ctx.Send(MSG_NEXT_QUESTION); err != nil {
 			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
 		}
 
 		user := GetUserFromContext(ctx)
-		t, err := dispatcher.domain.GetNearestTimeRepeat(GetContext(ctx), user.TGUserID)
+		t, err := d.domain.GetNearestTimeRepeat(GetContext(ctx), user.TGUserID)
 		if err != nil {
 			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
 		}
@@ -467,7 +214,6 @@ func nextQuestion(dispatcher *QuestionDispatcher) telebot.HandlerFunc {
 		now := time.Now().UTC()
 		if !now.After(t) {
 			duration := t.Sub(now)
-
 			msg := fmt.Sprintf("⏳ Следующий вопрос будет доступен через: %s", timeLeftMsg(duration))
 
 			if err = ctx.Send(msg, telebot.ModeMarkdown); err != nil {
@@ -475,9 +221,9 @@ func nextQuestion(dispatcher *QuestionDispatcher) telebot.HandlerFunc {
 			}
 		}
 
-		dispatcher.mu.Lock()
-		dispatcher.waitingForAnswer[user.TGUserID] = false
-		dispatcher.mu.Unlock()
+		if err = d.cache.SetUserWaiting(d.ctx, user.TGUserID, false); err != nil {
+			log.Printf("Ошибка сброса статуса waiting в Redis для пользователя %d: %v", user.TGUserID, err)
+		}
 
 		return nil
 	}
@@ -523,4 +269,64 @@ func timeLeftMsg(duration time.Duration) string {
 	}
 
 	return t
+}
+
+// getQuestionButtons создает клавиатуру для сообщения с вопросом
+func getQuestionButtons(uq *edu.UsersQuestion, showAnswer bool) [][]telebot.InlineButton {
+	forgot := telebot.InlineButton{
+		Unique: INLINE_FORGOT_HIGH_QUESTION,
+		Text:   MSG_FORGOT,
+		Data:   fmt.Sprintf("%d", uq.QuestionID),
+	}
+
+	easy := telebot.InlineButton{
+		Unique: INLINE_REMEMBER_HIGH_QUESTION,
+		Text:   MSG_REMEMBER,
+		Data:   fmt.Sprintf("%d", uq.QuestionID),
+	}
+
+	label := BtnRepeat
+	if uq.IsEdu {
+		label = BtnRepeatEdu
+	}
+
+	repeatBtn := telebot.InlineButton{
+		Unique: INLINE_BTN_REPEAT_QUESTION_AFTER_POLL_HIGH,
+		Text:   label,
+		Data:   fmt.Sprintf("%d", uq.QuestionID),
+	}
+
+	deleteBtn := telebot.InlineButton{
+		Unique: INLINE_BTN_DELETE_QUESTION_AFTER_POLL_HIGH,
+		Text:   BtnDelete,
+		Data:   fmt.Sprintf("%d", uq.QuestionID),
+	}
+
+	editBtn := telebot.InlineButton{
+		Unique: INLINE_EDIT_QUESTION,
+		Text:   BtnEdit,
+		Data:   fmt.Sprintf("%d", uq.QuestionID),
+	}
+
+	// Определяем кнопку показа/скрытия ответа
+	var answerBtn telebot.InlineButton
+	if showAnswer {
+		answerBtn = telebot.InlineButton{
+			Unique: INLINE_TURN_ANSWER,
+			Text:   "📝 Свернуть ответ",
+			Data:   fmt.Sprintf("%d", uq.QuestionID),
+		}
+	} else {
+		answerBtn = telebot.InlineButton{
+			Unique: INLINE_SHOW_ANSWER,
+			Text:   BtnShowAnswer,
+			Data:   fmt.Sprintf("%d", uq.QuestionID),
+		}
+	}
+
+	return [][]telebot.InlineButton{
+		{answerBtn},
+		{easy, forgot},
+		{repeatBtn, deleteBtn, editBtn},
+	}
 }

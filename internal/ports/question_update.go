@@ -15,7 +15,7 @@ import (
 	"bot/internal/repo/edu"
 )
 
-func forgotQuestion(domain *app.App, dispatcher *QuestionDispatcher) telebot.HandlerFunc {
+func forgotQuestion(domain app.Apper, dispatcher *QuestionDispatcher) telebot.HandlerFunc {
 	return func(ctx telebot.Context) error {
 		qidStr := ctx.Data()
 		questionID, err := strconv.Atoi(qidStr)
@@ -46,15 +46,15 @@ func forgotQuestion(domain *app.App, dispatcher *QuestionDispatcher) telebot.Han
 			return ctx.Respond(&telebot.CallbackResponse{Text: err.Error()})
 		}
 
-		dispatcher.mu.Lock()
-		dispatcher.waitingForAnswer[GetUserFromContext(ctx).TGUserID] = false
-		dispatcher.mu.Unlock()
+		if err = dispatcher.cache.SetUserWaiting(dispatcher.ctx, GetUserFromContext(ctx).TGUserID, false); err != nil {
+			log.Printf("Ошибка сброса статуса waiting в Redis для пользователя %d: %v", GetUserFromContext(ctx).TGUserID, err)
+		}
 
 		return nil
 	}
 }
 
-func rememberQuestion(domain *app.App, dispatcher *QuestionDispatcher) telebot.HandlerFunc {
+func rememberQuestion(domain app.Apper, dispatcher *QuestionDispatcher) telebot.HandlerFunc {
 	return func(ctx telebot.Context) error {
 		qidStr := ctx.Data()
 		questionID, err := strconv.Atoi(qidStr)
@@ -105,15 +105,16 @@ func rememberQuestion(domain *app.App, dispatcher *QuestionDispatcher) telebot.H
 			}
 		}
 
-		dispatcher.mu.Lock()
-		dispatcher.waitingForAnswer[GetUserFromContext(ctx).TGUserID] = false
-		dispatcher.mu.Unlock()
+		// Сбрасываем флаг ожидания ответа в Redis
+		if err = dispatcher.cache.SetUserWaiting(dispatcher.ctx, GetUserFromContext(ctx).TGUserID, false); err != nil {
+			log.Printf("Ошибка сброса статуса waiting в Redis для пользователя %d: %v", GetUserFromContext(ctx).TGUserID, err)
+		}
 
 		return nil
 	}
 }
 
-func repeatQuestionAfterPoll(domain *app.App) telebot.HandlerFunc {
+func repeatQuestionAfterPoll(domain app.Apper) telebot.HandlerFunc {
 	return func(ctx telebot.Context) error {
 		qidStr := ctx.Data() // получаем questionID из callback data
 		questionID, err := strconv.Atoi(qidStr)
@@ -144,7 +145,7 @@ func repeatQuestionAfterPoll(domain *app.App) telebot.HandlerFunc {
 	}
 }
 
-func repeatQuestionAfterPollHigh(domain *app.App) telebot.HandlerFunc {
+func repeatQuestionAfterPollHigh(domain app.Apper) telebot.HandlerFunc {
 	return func(ctx telebot.Context) error {
 		qidStr := ctx.Data() // получаем questionID из callback data
 		questionID, err := strconv.Atoi(qidStr)
@@ -187,7 +188,7 @@ func repeatQuestionAfterPollHigh(domain *app.App) telebot.HandlerFunc {
 	}
 }
 
-func checkPollAnswer(domain *app.App, dispatcher *QuestionDispatcher) telebot.HandlerFunc {
+func checkPollAnswer(domain app.Apper, dispatcher *QuestionDispatcher) telebot.HandlerFunc {
 	return func(c telebot.Context) error {
 		poll := c.PollAnswer()
 		userID := poll.Sender.ID
@@ -206,9 +207,9 @@ func checkPollAnswer(domain *app.App, dispatcher *QuestionDispatcher) telebot.Ha
 			return err
 		}
 
-		dispatcher.mu.Lock()
-		dispatcher.waitingForAnswer[userID] = false
-		dispatcher.mu.Unlock()
+		if err = dispatcher.cache.SetUserWaiting(dispatcher.ctx, GetUserFromContext(c).TGUserID, false); err != nil {
+			log.Printf("Ошибка сброса статуса waiting в Redis для пользователя %d: %v", GetUserFromContext(c).TGUserID, err)
+		}
 
 		return nil
 	}
