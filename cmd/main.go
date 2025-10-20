@@ -4,6 +4,9 @@ import (
 	"context"
 	"github.com/redis/go-redis/v9"
 	"log"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/golang-migrate/migrate/v4"
@@ -26,13 +29,32 @@ func main() {
 	ctx := context.Background()
 
 	connectDB(cfg.GetConfig().PSQL)
+	bot := connectBot(cfg.GetConfig().Token)
+	domain := app.NewApp()
+	cache := app.NewRedisUserCache(connectRedis(ctx, cfg.GetConfig().CACHE))
+	dispatcher := ports.NewDispatcher(ctx, domain, bot, cache)
 
 	ports.StartBot(
 		ctx,
-		connectBot(cfg.GetConfig().Token),
-		app.NewApp(),
-		app.NewRedisUserCache(connectRedis(ctx, cfg.GetConfig().CACHE)),
+		bot,
+		domain,
+		cache,
+		dispatcher,
 	)
+	waitForShutdown(bot, dispatcher)
+}
+
+func waitForShutdown(bot *telebot.Bot, d *ports.QuestionDispatcher) {
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+
+	<-sigChan
+
+	d.Stop()
+	bot.Stop()
+
+	log.Println("Приложение завершено")
+	os.Exit(0)
 }
 
 func connectDB(cfg *cfg.PG) {

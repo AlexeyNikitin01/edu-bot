@@ -9,14 +9,15 @@ import (
 	"bot/internal/app"
 )
 
-func StartBot(ctx context.Context, bot *telebot.Bot, domain app.Apper, cache app.UserCacher) {
+func StartBot(ctx context.Context, bot *telebot.Bot, domain app.Apper, cache app.UserCacher, d *QuestionDispatcher) {
 	bot.Use(ContextMiddleware(ctx))
 	bot.Use(AuthMiddleware(ctx, domain))
 
-	dispatcher := NewDispatcher(ctx, domain, bot, cache)
-
-	routers(bot, domain, dispatcher)
+	routers(bot, domain, d)
 
 	log.Println("Bot is now running. Press CTRL+C to exit")
-	bot.Start()
+
+	go func() {
+		bot.Start()
+	}()
 }

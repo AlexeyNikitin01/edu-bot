@@ -36,6 +36,7 @@ type QuestionDispatcher struct {
 	bot     *telebot.Bot
 	ctx     context.Context
 	cache   app.UserCacher
+	done    chan struct{}
 	wg      sync.WaitGroup
 }
 
@@ -47,17 +48,30 @@ func NewDispatcher(ctx context.Context, domain app.Apper, bot *telebot.Bot, cach
 		bot:     bot,
 		ctx:     ctx,
 		cache:   cache,
+		done:    make(chan struct{}),
 		wg:      sync.WaitGroup{},
 	}
 }
 
+func (d *QuestionDispatcher) Stop() {
+	close(d.done) // Закрываем канал для уведомления всех воркеров
+	d.wg.Wait()   // Ждем завершения всех воркеров
+	log.Println("QuestionDispatcher stopped")
+}
+
 func (d *QuestionDispatcher) StartPollingLoop() {
-	d.wg.Go(func() {
+	log.Println("QuestionDispatcher start")
+	d.wg.Add(1)
+	go func() {
+		defer d.wg.Done()
+
 		ticker := time.NewTicker(2 * time.Second)
 		defer ticker.Stop()
 
 		for {
 			select {
+			case <-d.done:
+				return
 			case <-d.ctx.Done():
 				return
 			case <-ticker.C:
@@ -87,25 +101,35 @@ func (d *QuestionDispatcher) StartPollingLoop() {
 						continue
 					}
 
-					d.wg.Go(func() {
+					d.wg.Add(1)
+					go func() {
+						defer d.wg.Done()
 						d.worker(userID)
-						defer d.cache.RemoveWorker(d.ctx, userID)
-					})
+					}()
 				}
 			}
 		}
-	})
+	}()
 }
 
 func (d *QuestionDispatcher) worker(userID int64) {
 	t := time.NewTicker(time.Second * 2)
 	defer t.Stop()
+	defer func() {
+		if err := d.cache.RemoveWorker(d.ctx, userID); err != nil {
+			log.Printf("Ошибка удаления воркера %d из Redis: %v", userID, err)
+		}
+		log.Printf("Воркер для пользователя %d завершен", userID)
+	}()
+
 	for {
 		select {
+		case <-d.done:
+			return
 		case <-d.ctx.Done():
 			return
 		case <-t.C:
-			log.Println(fmt.Sprintf("%d пытаемся отправить зарпос", userID))
+			log.Printf("%d пытаемся отправить запрос", userID)
 			waiting, err := d.cache.GetUserWaiting(d.ctx, userID)
 			if err != nil {
 				log.Printf("Ошибка получения статуса waiting из Redis для пользователя %d: %v", userID, err)
@@ -113,7 +137,7 @@ func (d *QuestionDispatcher) worker(userID int64) {
 			}
 
 			if waiting {
-				log.Println(fmt.Sprintf("%d ждем пока пользователь ответит", userID))
+				log.Printf("%d ждем пока пользователь ответит", userID)
 				continue
 			}
 
@@ -123,12 +147,12 @@ func (d *QuestionDispatcher) worker(userID int64) {
 			}
 
 			if err = d.sendRandomQuestionForUser(userID); err != nil {
-				log.Printf("Ошибка отправки вопроса %d пользователю %v", userID, err)
+				log.Printf("Ошибка отправки вопроса пользователю %d: %v", userID, err)
 				if err = d.cache.SetUserWaiting(d.ctx, userID, false); err != nil {
 					log.Printf("Ошибка сброса статуса waiting в Redis для пользователя %d: %v", userID, err)
 				}
 			}
-			log.Println(fmt.Sprintf("%d отправили вопрос пользователю, ждём пока ответит", userID))
+			log.Printf("%d отправили вопрос пользователю, ждём пока ответит", userID)
 		}
 	}
 }
