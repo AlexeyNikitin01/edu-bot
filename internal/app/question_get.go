@@ -262,3 +262,11 @@ func (a *App) GetUniqueTagsByTask(ctx context.Context, userID int64) ([]*edu.Tag
 
 	return ts, nil
 }
+
+func (a *App) GetTagByID(ctx context.Context, tagID int64) (*edu.Tag, error) {
+	return edu.FindTag(ctx, boil.GetContextDB(), tagID)
+}
+
+func (a *App) GetAnswerByID(ctx context.Context, answerID int64) (*edu.Answer, error) {
+	return edu.FindAnswer(ctx, boil.GetContextDB(), answerID)
+}

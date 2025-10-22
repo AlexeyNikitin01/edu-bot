@@ -19,7 +19,7 @@ func routers(b *telebot.Bot, domain app.Apper, dispatcher *QuestionDispatcher) {
 	b.Handle(&telebot.InlineButton{Unique: INLINE_BTN_DELETE_QUESTION}, deleteQuestion(domain))
 	b.Handle(&telebot.InlineButton{Unique: INLINE_BTN_DELETE_QUESTIONS_BY_TAG}, deleteQuestionByTag(domain))
 	b.Handle(&telebot.InlineButton{Unique: INLINE_BTN_TAGS}, func(c telebot.Context) error {
-		return add(domain)(c)
+		return upsertUserQuestion(domain)(c)
 	})
 	b.Handle(&telebot.InlineButton{Unique: INLINE_BTN_QUESTION_BY_TAG}, func(ctx telebot.Context) error {
 		return questionByTag(ctx.Data())(ctx)
@@ -57,7 +57,7 @@ func routers(b *telebot.Bot, domain app.Apper, dispatcher *QuestionDispatcher) {
 	b.Handle(telebot.OnText, func(ctx telebot.Context) error {
 		// Если пользователь в процессе добавления вопроса
 		if draft, ok := drafts[GetUserFromContext(ctx).TGUserID]; ok && draft.Step > 0 {
-			return add(domain)(ctx)
+			return upsertUserQuestion(domain)(ctx)
 		}
 
 		text := ctx.Text()
@@ -69,7 +69,7 @@ func routers(b *telebot.Bot, domain app.Apper, dispatcher *QuestionDispatcher) {
 
 		switch ctx.Text() {
 		case BTN_ADD_QUESTION:
-			return add(domain)(ctx)
+			return upsertUserQuestion(domain)(ctx)
 		case BTN_MANAGMENT_QUESTION:
 			return showRepeatTagList(domain)(ctx)
 		case BTN_ADD_CSV:

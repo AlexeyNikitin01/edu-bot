@@ -24,6 +24,8 @@ type Apper interface {
 	GetNearestTimeRepeat(ctx context.Context, userID int64) (time.Time, error)
 	GetTask(ctx context.Context, userID int64, tag string) (*edu.UsersQuestion, error)
 	GetUniqueTagsByTask(ctx context.Context, userID int64) ([]*edu.Tag, error)
+	GetTagByID(ctx context.Context, tagID int64) (*edu.Tag, error)
+	GetAnswerByID(ctx context.Context, answerID int64) (*edu.Answer, error)
 }
 
 type App struct {
