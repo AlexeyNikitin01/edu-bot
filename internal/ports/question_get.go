@@ -2,6 +2,7 @@ package ports
 
 import (
 	"fmt"
+	"html"
 	"strconv"
 	"strings"
 	"time"
@@ -464,4 +465,102 @@ func sendErrorResponse(ctx telebot.Context, text string) error {
 	return ctx.Respond(&telebot.CallbackResponse{
 		Text: text,
 	})
+}
+
+// / showCurrentValue отображает текущее значение редактируемой сущности
+func showCurrentValue(domain app.Apper) telebot.HandlerFunc {
+	return func(ctx telebot.Context) error {
+		user := GetUserFromContext(ctx)
+		draft, exists := drafts[user.TGUserID]
+		if !exists || draft == nil {
+			return ctx.Send("❌ Черновик не найден. Начните редактирование заново.")
+		}
+
+		strID := ctx.Data()
+		id, err := strconv.Atoi(strID)
+		if err != nil {
+			return err
+		}
+
+		var currentValue string
+		var entityType string
+
+		// Определяем, какая сущность редактируется и получаем ее текущее значение
+		switch {
+		case draft.TagID == int64(id):
+			// Получаем тег
+			tag, err := domain.GetTagByID(GetContext(ctx), int64(id))
+			if err != nil {
+				return ctx.Send("❌ Не удалось загрузить тег")
+			}
+			currentValue = tag.Tag
+			entityType = "тег"
+
+		case draft.QuestionIDByName == int64(id):
+			// Получаем вопрос
+			question, err := domain.GetQuestionAnswers(GetContext(ctx), int64(id))
+			if err != nil {
+				return ctx.Send("❌ Не удалось загрузить вопрос")
+			}
+			currentValue = question.Question
+			entityType = "вопрос"
+
+		case draft.QuestionIDByTag == int64(id):
+			// Получаем вопрос для изменения тега
+			q, err := domain.GetQuestionAnswers(GetContext(ctx), int64(id))
+			if err != nil {
+				return ctx.Send("❌ Не удалось загрузить вопрос")
+			}
+			tag, err := domain.GetTagByID(GetContext(ctx), q.TagID)
+			if err != nil {
+				currentValue = "Тег не найден"
+			} else {
+				currentValue = tag.Tag
+			}
+			entityType = "тег вопроса"
+
+		case draft.AnswerID == int64(id):
+			// Получаем ответ
+			answer, err := domain.GetAnswerByID(GetContext(ctx), int64(id))
+			if err != nil {
+				return ctx.Send("❌ Не удалось загрузить ответ")
+			}
+			currentValue = answer.Answer
+			entityType = "ответ"
+
+		default:
+			return ctx.Send("❌ Неизвестная сущность для редактирования")
+		}
+
+		message := fmt.Sprintf("<b>Введите новое значение для или нажмите /cancel для отмены:</b>\n\n 📋 Текущее значение %s:\n\n<code>%s</code>💡",
+			entityType,
+			html.EscapeString(currentValue))
+
+		// Создаем клавиатуру с кнопкой "Свернуть"
+		menu := &telebot.ReplyMarkup{}
+		btnCollapse := menu.Data("📁 Свернуть", INLINE_COLLAPSE_VALUE, strID)
+		menu.Inline(menu.Row(btnCollapse))
+
+		// Редактируем сообщение, заменяя кнопку на значение
+		if ctx.Callback() != nil {
+			return ctx.Edit(message, menu, telebot.ModeHTML)
+		}
+
+		return ctx.Send(message, menu, telebot.ModeHTML)
+	}
+}
+
+// collapseValue скрывает значение и возвращает кнопку просмотра
+func collapseValue(domain app.Apper) telebot.HandlerFunc {
+	return func(ctx telebot.Context) error {
+		strID := ctx.Data()
+
+		// Создаем клавиатуру с кнопкой для просмотра текущего значения
+		menu := &telebot.ReplyMarkup{}
+		btnShowCurrent := menu.Data("👀 Посмотреть текущее значение", INLINE_SHOW_CURRENT_VALUE, strID)
+		menu.Inline(menu.Row(btnShowCurrent))
+
+		// Редактируем сообщение, возвращая исходное состояние
+		return ctx.Edit(MSG_EDIT, menu, telebot.ModeHTML)
+	}
 }

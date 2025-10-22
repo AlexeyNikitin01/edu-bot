@@ -51,6 +51,8 @@ func routers(b *telebot.Bot, domain app.Apper, dispatcher *QuestionDispatcher) {
 	b.Handle(&telebot.InlineButton{Unique: INLINE_BTN_QUESTION_PAGE + "_next"}, func(ctx telebot.Context) error {
 		return handlePageNavigation(ctx, 1)
 	})
+	b.Handle(&telebot.InlineButton{Unique: INLINE_SHOW_CURRENT_VALUE}, showCurrentValue(domain))
+	b.Handle(&telebot.InlineButton{Unique: INLINE_COLLAPSE_VALUE}, collapseValue(domain))
 
 	b.Handle(telebot.OnDocument, setQuestionsByCSV(domain))
 

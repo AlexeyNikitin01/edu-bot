@@ -24,6 +24,8 @@ const (
 	INLINE_SHOW_ANSWER                         = "show_answer"
 	INLINE_TURN_ANSWER                         = "turn_answer"
 	INLINE_BTN_TASK_BY_TAG                     = "inline_btn_task_by_tag"
+	INLINE_SHOW_CURRENT_VALUE                  = "show_current_value"
+	INLINE_COLLAPSE_VALUE                      = "collapse_value"
 
 	INLINE_NAME_DELETE_AFTER_POLL = "🗑️"
 	INLINE_NAME_REPEAT_AFTER_POLL = "️ПОВТОРЕНИЕ"

@@ -24,7 +24,7 @@ const (
 	MSG_ADD_CORRECT_ANSWER             = "✍✅ Введите правильный ответ или нажмите /cancel для отмены: "
 	MSG_CANCEL                         = "Вы отменили действие👊!"
 	MSG_SUCCESS                        = "✅ Успех!"
-	MSG_EDIT                           = "Введите новое значение для или нажмите /cancel для отмены: "
+	MSG_EDIT                           = "<b>Введите новое значение для или нажмите /cancel для отмены:</b>\n\n "
 	MSG_SUCCESS_UPDATE_TAG             = "Тэг обновлен"
 	MSG_SUCCESS_UPDATE_NAME_QUESTION   = "Вопрос обновлен"
 	MSG_SUCCESS_UPDATE_ANSWER          = "Ответ обновлен"
@@ -88,7 +88,12 @@ func setEdit(field string, domain app.Apper) telebot.HandlerFunc {
 			draft.AnswerID = int64(id)
 		}
 
-		return ctx.Send(MSG_EDIT)
+		// Создаем клавиатуру с кнопкой для просмотра текущего значения
+		menu := &telebot.ReplyMarkup{}
+		btnShowCurrent := menu.Data("👀 Посмотреть текущее значение", INLINE_SHOW_CURRENT_VALUE, strID)
+		menu.Inline(menu.Row(btnShowCurrent))
+
+		return ctx.Send(MSG_EDIT, menu, telebot.ModeHTML)
 	}
 }
 
