@@ -30,26 +30,22 @@ const (
 )
 
 type QuestionDispatcher struct {
-	mu      sync.Mutex
-	workers map[int64]struct{}
-	domain  app.Apper
-	bot     *telebot.Bot
-	ctx     context.Context
-	cache   app.UserCacher
-	done    chan struct{}
-	wg      sync.WaitGroup
+	domain app.Apper
+	bot    *telebot.Bot
+	ctx    context.Context
+	cache  app.UserCacher
+	done   chan struct{}
+	wg     sync.WaitGroup
 }
 
 func NewDispatcher(ctx context.Context, domain app.Apper, bot *telebot.Bot, cache app.UserCacher) *QuestionDispatcher {
 	return &QuestionDispatcher{
-		mu:      sync.Mutex{},
-		workers: make(map[int64]struct{}),
-		domain:  domain,
-		bot:     bot,
-		ctx:     ctx,
-		cache:   cache,
-		done:    make(chan struct{}),
-		wg:      sync.WaitGroup{},
+		domain: domain,
+		bot:    bot,
+		ctx:    ctx,
+		cache:  cache,
+		done:   make(chan struct{}),
+		wg:     sync.WaitGroup{},
 	}
 }
 
