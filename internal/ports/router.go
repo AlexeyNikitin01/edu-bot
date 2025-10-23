@@ -9,7 +9,7 @@ import (
 	"bot/internal/repo/edu"
 )
 
-func routers(b *telebot.Bot, domain app.Apper, dispatcher *QuestionDispatcher) {
+func routers(b *telebot.Bot, domain app.Apper, dispatcher *QuestionDispatcher, cache app.UserCacher) {
 	b.Handle(CMD_START, func(ctx telebot.Context) error {
 		return ctx.Send(MSG_GRETING, mainMenu())
 	})
@@ -19,7 +19,7 @@ func routers(b *telebot.Bot, domain app.Apper, dispatcher *QuestionDispatcher) {
 	b.Handle(&telebot.InlineButton{Unique: INLINE_BTN_DELETE_QUESTION}, deleteQuestion(domain))
 	b.Handle(&telebot.InlineButton{Unique: INLINE_BTN_DELETE_QUESTIONS_BY_TAG}, deleteQuestionByTag(domain))
 	b.Handle(&telebot.InlineButton{Unique: INLINE_BTN_TAGS}, func(c telebot.Context) error {
-		return upsertUserQuestion(domain)(c)
+		return upsertUserQuestion(domain, cache)(c)
 	})
 	b.Handle(&telebot.InlineButton{Unique: INLINE_BTN_QUESTION_BY_TAG}, func(ctx telebot.Context) error {
 		return questionByTag(ctx.Data())(ctx)
@@ -37,11 +37,11 @@ func routers(b *telebot.Bot, domain app.Apper, dispatcher *QuestionDispatcher) {
 	b.Handle(&telebot.InlineButton{Unique: INLINE_BTN_DELETE_QUESTION_AFTER_POLL}, deleteQuestionAfterPoll(domain, dispatcher))
 	b.Handle(&telebot.InlineButton{Unique: INLINE_BTN_DELETE_QUESTION_AFTER_POLL_HIGH}, deleteQuestionAfterPollHigh(domain, dispatcher))
 	b.Handle(&telebot.InlineButton{Unique: INLINE_NEXT_QUESTION}, nextQuestion(dispatcher))
-	b.Handle(&telebot.InlineButton{Unique: INLINE_EDIT_TAG}, setEdit(edu.TableNames.Tags, domain))
+	b.Handle(&telebot.InlineButton{Unique: INLINE_EDIT_TAG}, setEdit(edu.TableNames.Tags, domain, cache))
 	b.Handle(&telebot.InlineButton{Unique: INLINE_EDIT_QUESTION}, getForUpdate(domain))
-	b.Handle(&telebot.InlineButton{Unique: INLINE_EDIT_NAME_QUESTION}, setEdit(edu.QuestionTableColumns.Question, domain))
-	b.Handle(&telebot.InlineButton{Unique: INLINE_EDIT_NAME_TAG_QUESTION}, setEdit(edu.QuestionTableColumns.TagID, domain))
-	b.Handle(&telebot.InlineButton{Unique: INLINE_EDIT_ANSWER_QUESTION}, setEdit(edu.AnswerTableColumns.Answer, domain))
+	b.Handle(&telebot.InlineButton{Unique: INLINE_EDIT_NAME_QUESTION}, setEdit(edu.QuestionTableColumns.Question, domain, cache))
+	b.Handle(&telebot.InlineButton{Unique: INLINE_EDIT_NAME_TAG_QUESTION}, setEdit(edu.QuestionTableColumns.TagID, domain, cache))
+	b.Handle(&telebot.InlineButton{Unique: INLINE_EDIT_ANSWER_QUESTION}, setEdit(edu.AnswerTableColumns.Answer, domain, cache))
 	b.Handle(&telebot.InlineButton{Unique: INLINE_SHOW_ANSWER}, viewAnswer(domain, true))
 	b.Handle(&telebot.InlineButton{Unique: INLINE_TURN_ANSWER}, viewAnswer(domain, false))
 	b.Handle(&telebot.InlineButton{Unique: INLINE_BTN_TASK_BY_TAG}, nextTask(domain))
@@ -51,15 +51,26 @@ func routers(b *telebot.Bot, domain app.Apper, dispatcher *QuestionDispatcher) {
 	b.Handle(&telebot.InlineButton{Unique: INLINE_BTN_QUESTION_PAGE + "_next"}, func(ctx telebot.Context) error {
 		return handlePageNavigation(ctx, 1)
 	})
-	b.Handle(&telebot.InlineButton{Unique: INLINE_SHOW_CURRENT_VALUE}, showCurrentValue(domain))
+	b.Handle(&telebot.InlineButton{Unique: INLINE_SHOW_CURRENT_VALUE}, showCurrentValue(domain, cache))
 	b.Handle(&telebot.InlineButton{Unique: INLINE_COLLAPSE_VALUE}, collapseValue(domain))
 
 	b.Handle(telebot.OnDocument, setQuestionsByCSV(domain))
 
 	b.Handle(telebot.OnText, func(ctx telebot.Context) error {
-		// Если пользователь в процессе добавления вопроса
-		if draft, ok := drafts[GetUserFromContext(ctx).TGUserID]; ok && draft.Step > 0 {
-			return upsertUserQuestion(domain)(ctx)
+		user := GetUserFromContext(ctx)
+		if user == nil {
+			return ctx.Send(MSG_WRONG_BTN, mainMenu())
+		}
+
+		// Проверяем, есть ли активный черновик у пользователя в Redis
+		draft, err := cache.GetDraft(GetContext(ctx), user.TGUserID)
+		if err != nil {
+			return err
+		}
+
+		// Если есть активный черновик, обрабатываем его
+		if draft != nil && draft.Step > 0 {
+			return upsertUserQuestion(domain, cache)(ctx)
 		}
 
 		text := ctx.Text()
@@ -71,7 +82,7 @@ func routers(b *telebot.Bot, domain app.Apper, dispatcher *QuestionDispatcher) {
 
 		switch ctx.Text() {
 		case BTN_ADD_QUESTION:
-			return upsertUserQuestion(domain)(ctx)
+			return upsertUserQuestion(domain, cache)(ctx)
 		case BTN_MANAGMENT_QUESTION:
 			return showRepeatTagList(domain)(ctx)
 		case BTN_ADD_CSV:

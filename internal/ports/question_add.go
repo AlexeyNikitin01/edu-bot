@@ -1,6 +1,7 @@
 package ports
 
 import (
+	"bot/internal/repo/dto"
 	"errors"
 	"strconv"
 	"strings"
@@ -13,8 +14,10 @@ import (
 
 // Ошибки приложения
 var (
-	ErrGetTag = errors.New("ошибка получения тэгов")
-	ErrSave   = errors.New("невозможно сохранить")
+	ErrGetTag    = errors.New("ошибка получения тэгов")
+	ErrSave      = errors.New("невозможно сохранить")
+	ErrSaveDraft = errors.New("ошибка сохранения черновика")
+	ErrGetDraft  = errors.New("ошибка получения черновика")
 )
 
 // Константы сообщений
@@ -32,25 +35,11 @@ const (
 	MSG_SUCCESS_UPDATE_TAG_BY_QUESTION = "Тэг для вопроса обновлен"
 )
 
-// QuestionDraft представляет черновик вопроса для создания или редактирования
-type QuestionDraft struct {
-	Step             int      // Текущий шаг в процессе создания
-	Question         string   // Текст вопроса
-	Tag              string   // Тег вопроса
-	Answers          []string // Список ответов
-	TagID            int64    // ID тега для редактирования
-	QuestionIDByTag  int64    // ID вопроса для изменения тега
-	QuestionIDByName int64    // ID вопроса для изменения названия
-	AnswerID         int64    // ID ответа для редактирования
-}
-
-// drafts хранит активные черновики пользователей по их ID
-var drafts = make(map[int64]*QuestionDraft)
-
 // setEdit инициализирует черновик редактирования для указанного поля
 // field - тип сущности для редактирования (тег, вопрос, ответ)
 // domain - слой приложения для работы с данными
-func setEdit(field string, domain app.Apper) telebot.HandlerFunc {
+// cache - кэш для хранения черновиков
+func setEdit(field string, domain app.Apper, cache app.DraftCacher) telebot.HandlerFunc {
 	return func(ctx telebot.Context) (err error) {
 		// Парсим ID сущности из данных callback
 		strID := ctx.Data()
@@ -61,14 +50,13 @@ func setEdit(field string, domain app.Apper) telebot.HandlerFunc {
 
 		// Получаем или создаем черновик для пользователя
 		user := GetUserFromContext(ctx)
-		draft, exists := drafts[user.TGUserID]
-		if !exists {
-			drafts[user.TGUserID] = &QuestionDraft{Step: 1}
-			draft, _ = drafts[user.TGUserID]
+		draft, err := cache.GetDraft(GetContext(ctx), user.TGUserID)
+		if err != nil {
+			return errors.Join(ErrGetDraft, err)
 		}
 
 		if draft == nil {
-			return nil
+			draft = &dto.QuestionDraft{Step: 1}
 		}
 
 		// Устанавливаем соответствующий ID в зависимости от типа редактирования
@@ -88,6 +76,11 @@ func setEdit(field string, domain app.Apper) telebot.HandlerFunc {
 			draft.AnswerID = int64(id)
 		}
 
+		// Сохраняем черновик в кэш
+		if err = cache.SaveDraft(GetContext(ctx), user.TGUserID, draft); err != nil {
+			return errors.Join(ErrSaveDraft, err)
+		}
+
 		// Создаем клавиатуру с кнопкой для просмотра текущего значения
 		menu := &telebot.ReplyMarkup{}
 		btnShowCurrent := menu.Data("👀 Посмотреть текущее значение", INLINE_SHOW_CURRENT_VALUE, strID)
@@ -99,36 +92,43 @@ func setEdit(field string, domain app.Apper) telebot.HandlerFunc {
 
 // upsertUserQuestion обрабатывает создание или редактирование вопроса пользователя
 // Объединяет логику создания нового вопроса и редактирования существующих сущностей
-func upsertUserQuestion(domain app.Apper) telebot.HandlerFunc {
+func upsertUserQuestion(domain app.Apper, cache app.DraftCacher) telebot.HandlerFunc {
 	return func(ctx telebot.Context) (err error) {
 		msg := strings.TrimSpace(ctx.Message().Text)
 		u := GetUserFromContext(ctx)
 
-		// Получаем черновик пользователя
-		draft, exists := drafts[u.TGUserID]
-		if !exists {
-			return initNewDraft(ctx, u, domain)
+		// Получаем черновик пользователя из кэша
+		draft, err := cache.GetDraft(GetContext(ctx), u.TGUserID)
+		if err != nil {
+			return errors.Join(ErrGetDraft, err)
+		}
+
+		if draft == nil {
+			return initNewDraft(ctx, u, domain, cache)
 		}
 
 		// Обработка отмены действия
 		if msg == CMD_CANCEL {
-			return cancelDraft(ctx, u)
+			return cancelDraft(ctx, u, cache)
 		}
 
 		// Приоритетная обработка черновиков редактирования
 		if draft.TagID != 0 || draft.QuestionIDByName != 0 || draft.AnswerID != 0 || draft.QuestionIDByTag != 0 {
-			return updateUserQuestion(ctx, draft, msg, u, domain)
+			return updateUserQuestion(ctx, draft, msg, u, domain, cache)
 		}
 
 		// Обработка создания нового вопроса
-		return createUserQuestion(ctx, draft, msg, u, domain)
+		return createUserQuestion(ctx, draft, msg, u, domain, cache)
 	}
 }
 
 // initNewDraft инициализирует новый черновик для создания вопроса
 // Показывает пользователю список доступных тегов
-func initNewDraft(ctx telebot.Context, u *edu.User, domain app.Apper) error {
-	drafts[u.TGUserID] = &QuestionDraft{Step: 1}
+func initNewDraft(ctx telebot.Context, u *edu.User, domain app.Apper, cache app.DraftCacher) error {
+	draft := &dto.QuestionDraft{Step: 1}
+	if err := cache.SaveDraft(GetContext(ctx), u.TGUserID, draft); err != nil {
+		return errors.Join(ErrSaveDraft, err)
+	}
 	if err := ctx.Send(MSG_LIST_TAGS); err != nil {
 		return err
 	}
@@ -136,57 +136,65 @@ func initNewDraft(ctx telebot.Context, u *edu.User, domain app.Apper) error {
 }
 
 // cancelDraft отменяет текущий черновик и очищает состояние
-func cancelDraft(ctx telebot.Context, u *edu.User) error {
-	delete(drafts, u.TGUserID)
+func cancelDraft(ctx telebot.Context, u *edu.User, cache app.DraftCacher) error {
+	if err := cache.DeleteDraft(GetContext(ctx), u.TGUserID); err != nil {
+		return err
+	}
 	return ctx.Send(MSG_CANCEL)
 }
 
 // updateUserQuestion обрабатывает редактирование существующих сущностей (тегов, вопросов, ответов)
 // Определяет тип редактирования и делегирует выполнение соответствующему обработчику
-func updateUserQuestion(ctx telebot.Context, draft *QuestionDraft, msg string, u *edu.User, domain app.Apper) error {
+func updateUserQuestion(ctx telebot.Context, draft *dto.QuestionDraft, msg string, u *edu.User, domain app.Apper, cache app.DraftCacher) error {
 	switch {
 	case draft.TagID != 0:
-		return updateTag(ctx, draft, msg, u, domain)
+		return updateTag(ctx, draft, msg, u, domain, cache)
 	case draft.QuestionIDByName != 0:
-		return updateQuestionName(ctx, draft, msg, u, domain)
+		return updateQuestionName(ctx, draft, msg, u, domain, cache)
 	case draft.AnswerID != 0:
-		return updateAnswer(ctx, draft, msg, u, domain)
+		return updateAnswer(ctx, draft, msg, u, domain, cache)
 	case draft.QuestionIDByTag != 0:
-		return updateTagByQuestion(ctx, draft, u, domain)
+		return updateTagByQuestion(ctx, draft, u, domain, cache)
 	}
 	return nil
 }
 
 // updateTag обновляет текст существующего тега
-func updateTag(ctx telebot.Context, draft *QuestionDraft, msg string, u *edu.User, domain app.Apper) error {
+func updateTag(ctx telebot.Context, draft *dto.QuestionDraft, msg string, u *edu.User, domain app.Apper, cache app.DraftCacher) error {
 	if err := domain.UpdateTag(GetContext(ctx), draft.TagID, msg); err != nil {
 		return err
 	}
-	delete(drafts, u.TGUserID)
+	if err := cache.DeleteDraft(GetContext(ctx), u.TGUserID); err != nil {
+		return err
+	}
 	return ctx.Send(MSG_SUCCESS_UPDATE_TAG)
 }
 
 // updateQuestionName обновляет текст существующего вопроса
-func updateQuestionName(ctx telebot.Context, draft *QuestionDraft, msg string, u *edu.User, domain app.Apper) error {
+func updateQuestionName(ctx telebot.Context, draft *dto.QuestionDraft, msg string, u *edu.User, domain app.Apper, cache app.DraftCacher) error {
 	if err := domain.UpdateQuestionName(GetContext(ctx), draft.QuestionIDByName, msg); err != nil {
 		return err
 	}
-	delete(drafts, u.TGUserID)
+	if err := cache.DeleteDraft(GetContext(ctx), u.TGUserID); err != nil {
+		return err
+	}
 	return ctx.Send(MSG_SUCCESS_UPDATE_NAME_QUESTION)
 }
 
 // updateAnswer обновляет текст существующего ответа
-func updateAnswer(ctx telebot.Context, draft *QuestionDraft, msg string, u *edu.User, domain app.Apper) error {
+func updateAnswer(ctx telebot.Context, draft *dto.QuestionDraft, msg string, u *edu.User, domain app.Apper, cache app.DraftCacher) error {
 	if err := domain.UpdateAnswer(GetContext(ctx), draft.AnswerID, msg); err != nil {
 		return err
 	}
-	delete(drafts, u.TGUserID)
+	if err := cache.DeleteDraft(GetContext(ctx), u.TGUserID); err != nil {
+		return err
+	}
 	return ctx.Send(MSG_SUCCESS_UPDATE_ANSWER)
 }
 
 // updateTagByQuestion обновляет тег для существующего вопроса
 // Поддерживает выбор тега из списка или ввод нового
-func updateTagByQuestion(ctx telebot.Context, draft *QuestionDraft, u *edu.User, domain app.Apper) error {
+func updateTagByQuestion(ctx telebot.Context, draft *dto.QuestionDraft, u *edu.User, domain app.Apper, cache app.DraftCacher) error {
 	tag := ""
 
 	// Получаем тег из сообщения или callback
@@ -204,27 +212,29 @@ func updateTagByQuestion(ctx telebot.Context, draft *QuestionDraft, u *edu.User,
 	if err := domain.UpdateTagByQuestion(GetContext(ctx), draft.QuestionIDByTag, tag); err != nil {
 		return err
 	}
-	delete(drafts, u.TGUserID)
+	if err := cache.DeleteDraft(GetContext(ctx), u.TGUserID); err != nil {
+		return err
+	}
 	return ctx.Send(MSG_SUCCESS_UPDATE_TAG_BY_QUESTION)
 }
 
 // createUserQuestion обрабатывает процесс создания нового вопроса
 // Последовательно проходит через шаги: выбор тега → ввод вопроса → ввод ответа
-func createUserQuestion(ctx telebot.Context, draft *QuestionDraft, msg string, u *edu.User, domain app.Apper) error {
+func createUserQuestion(ctx telebot.Context, draft *dto.QuestionDraft, msg string, u *edu.User, domain app.Apper, cache app.DraftCacher) error {
 	switch draft.Step {
 	case 1:
-		return processTagSelection(ctx, draft)
+		return processTagSelection(ctx, draft, cache)
 	case 2:
-		return processQuestionInput(ctx, draft, msg)
+		return processQuestionInput(ctx, draft, msg, cache)
 	case 3:
-		return processCorrectAnswerInputAndSaveQuestion(ctx, draft, msg, u, domain)
+		return processCorrectAnswerInputAndSaveQuestion(ctx, draft, msg, u, domain, cache)
 	}
 	return nil
 }
 
 // processTagSelection обрабатывает выбор тега для нового вопроса
 // Поддерживает выбор из списка или ввод пользовательского тега
-func processTagSelection(ctx telebot.Context, draft *QuestionDraft) error {
+func processTagSelection(ctx telebot.Context, draft *dto.QuestionDraft, cache app.DraftCacher) error {
 	tag := ""
 
 	// Получаем тег из сообщения или callback
@@ -241,21 +251,37 @@ func processTagSelection(ctx telebot.Context, draft *QuestionDraft) error {
 
 	draft.Tag = tag
 	draft.Step++
+
+	// Сохраняем обновленный черновик в кэш
+	if err := cache.SaveDraft(GetContext(ctx), GetUserFromContext(ctx).TGUserID, draft); err != nil {
+		return errors.Join(ErrSaveDraft, err)
+	}
+
 	return ctx.Send(MSG_ADD_QUESTION)
 }
 
 // processQuestionInput обрабатывает ввод текста вопроса
-func processQuestionInput(ctx telebot.Context, draft *QuestionDraft, msg string) error {
+func processQuestionInput(ctx telebot.Context, draft *dto.QuestionDraft, msg string, cache app.DraftCacher) error {
 	draft.Question = msg
 	draft.Step++
+
+	// Сохраняем обновленный черновик в кэш
+	if err := cache.SaveDraft(GetContext(ctx), GetUserFromContext(ctx).TGUserID, draft); err != nil {
+		return errors.Join(ErrSaveDraft, err)
+	}
+
 	return ctx.Send(MSG_ADD_CORRECT_ANSWER)
 }
 
 // processCorrectAnswerInputAndSaveQuestion обрабатывает ввод правильного ответа и сохраняет вопрос
 // Завершает процесс создания вопроса и очищает черновик
-func processCorrectAnswerInputAndSaveQuestion(ctx telebot.Context, draft *QuestionDraft, msg string, u *edu.User, domain app.Apper) error {
+func processCorrectAnswerInputAndSaveQuestion(
+	ctx telebot.Context, draft *dto.QuestionDraft, msg string, u *edu.User, domain app.Apper, cache app.DraftCacher,
+) error {
 	draft.Answers = append(draft.Answers, msg)
-	defer delete(drafts, u.TGUserID)
+
+	// Удаляем черновик после сохранения вопроса (даже если будет ошибка)
+	defer cache.DeleteDraft(GetContext(ctx), u.TGUserID)
 
 	if err := domain.SaveQuestions(
 		GetContext(ctx), draft.Question, draft.Tag, draft.Answers, u.TGUserID,

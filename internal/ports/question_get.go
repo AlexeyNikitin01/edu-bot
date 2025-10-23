@@ -467,12 +467,21 @@ func sendErrorResponse(ctx telebot.Context, text string) error {
 	})
 }
 
-// / showCurrentValue отображает текущее значение редактируемой сущности
-func showCurrentValue(domain app.Apper) telebot.HandlerFunc {
+// showCurrentValue отображает текущее значение редактируемой сущности
+func showCurrentValue(domain app.Apper, cache app.DraftCacher) telebot.HandlerFunc {
 	return func(ctx telebot.Context) error {
 		user := GetUserFromContext(ctx)
-		draft, exists := drafts[user.TGUserID]
-		if !exists || draft == nil {
+		if user == nil {
+			return ctx.Send("❌ Пользователь не найден")
+		}
+
+		// Получаем черновик из кэша
+		draft, err := cache.GetDraft(GetContext(ctx), user.TGUserID)
+		if err != nil {
+			return ctx.Send("❌ Ошибка при получении черновика")
+		}
+
+		if draft == nil {
 			return ctx.Send("❌ Черновик не найден. Начните редактирование заново.")
 		}
 
