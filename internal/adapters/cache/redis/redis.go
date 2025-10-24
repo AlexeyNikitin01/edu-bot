@@ -1,10 +1,11 @@
-package cache
+package redis
 
 import (
 	"bot/cmd/cfg"
 	"context"
 	"fmt"
 	"github.com/redis/go-redis/v9"
+	"time"
 )
 
 func NewClientRedis(ctx context.Context, cfg *cfg.Redis) (*redis.Client, error) {
@@ -25,4 +26,16 @@ func NewClientRedis(ctx context.Context, cfg *cfg.Redis) (*redis.Client, error) 
 	}
 
 	return db, nil
+}
+
+type RedisCache struct {
+	client *redis.Client
+	ttl    time.Duration
+}
+
+func NewCache(client *redis.Client) *RedisCache {
+	return &RedisCache{
+		client: client,
+		ttl:    24 * time.Hour,
+	}
 }

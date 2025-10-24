@@ -1,4 +1,4 @@
-package adapters
+package postres
 
 import (
 	"bot/cmd/cfg"
