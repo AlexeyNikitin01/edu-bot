@@ -1,26 +1,21 @@
 package main
 
 import (
+	initRedis "bot/internal/adapters/cache/redis"
+	"bot/internal/domain/distpatcher"
+	"bot/internal/domain/user"
+	"bot/internal/domain/userQuestion"
 	"context"
-	"github.com/redis/go-redis/v9"
+	"gopkg.in/telebot.v3"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
-	"github.com/golang-migrate/migrate/v4"
-	"github.com/pkg/errors"
-	"gopkg.in/telebot.v3"
-
-	"github.com/aarondl/sqlboiler/v4/boil"
-
-	postgresMigrate "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 
 	"bot/cmd/cfg"
-	"bot/internal/adapters"
-	"bot/internal/app"
+	"bot/internal/domain"
 	"bot/internal/ports"
 )
 
@@ -28,23 +23,29 @@ func main() {
 	log.Println("Starting bot...")
 	ctx := context.Background()
 
-	connectDB(cfg.GetConfig().PSQL)
-	bot := connectBot(cfg.GetConfig().Token)
-	domain := app.NewApp()
-	cache := app.NewRedisUserCache(connectRedis(ctx, cfg.GetConfig().CACHE))
-	dispatcher := ports.NewDispatcher(ctx, domain, bot, cache)
+	// инициализация подключений к сторонним модулям
+	ConnectDB(cfg.GetConfig().PSQL)
+	c := initRedis.NewCache(ConnectRedis(ctx, cfg.GetConfig().CACHE))
+	bot := ConnectBot(cfg.GetConfig().Token)
 
-	ports.StartBot(
-		ctx,
-		bot,
-		domain,
-		cache,
-		dispatcher,
+	// инициализация сервисов
+	a := domain.NewDomain(
+		domain.WithDefaultUserService(),
+		domain.WithDefaultQuestionService(),
+		domain.WithDefaultUserQuestionService(),
+		domain.WithDefaultTagService(),
+		domain.WithDefaultAnswerService(),
+		domain.WithDefaultDispatcher(distpatcher.NewDispatcher(user.NewUser(), userQuestion.NewUserQuestion(), c)),
 	)
-	waitForShutdown(bot, dispatcher)
+
+	// запуск транспортного слоя
+	ports.StartBot(ctx, bot, a)
+
+	// gracefully shutdown
+	waitForShutdown(bot, a)
 }
 
-func waitForShutdown(bot *telebot.Bot, d *ports.QuestionDispatcher) {
+func waitForShutdown(bot *telebot.Bot, d domain.UseCases) {
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
@@ -55,57 +56,4 @@ func waitForShutdown(bot *telebot.Bot, d *ports.QuestionDispatcher) {
 
 	log.Println("Приложение завершено")
 	os.Exit(0)
-}
-
-func connectDB(cfg *cfg.PG) {
-	db, err := adapters.OpenConnectPostgres(cfg)
-	if err != nil {
-		log.Fatal(err)
-	}
-	boil.SetDB(db)
-
-	// авто-миграции
-	driver, err := postgresMigrate.WithInstance(db.DB, &postgresMigrate.Config{
-		MigrationsTable: "schema_migrations",
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	m, err := migrate.NewWithDatabaseInstance(
-		"file://migrations/postgres",
-		"postgres",
-		driver,
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	if err = m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
-		log.Fatal(err)
-	}
-
-	log.Println("Migrations applied successfully")
-}
-
-func connectBot(token string) *telebot.Bot {
-	pref := telebot.Settings{
-		Token:  token,
-		Poller: &telebot.LongPoller{Timeout: 10 * time.Second},
-	}
-
-	b, err := telebot.NewBot(pref)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	return b
-}
-
-func connectRedis(ctx context.Context, cfg *cfg.Redis) *redis.Client {
-	r, err := adapters.NewClientRedis(ctx, cfg)
-	if err != nil {
-		log.Fatal(err)
-	}
-	return r
 }

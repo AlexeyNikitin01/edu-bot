@@ -1,4 +1,4 @@
-package app
+package question
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 	"github.com/aarondl/sqlboiler/v4/boil"
 )
 
-func (a *App) SaveQuestions(ctx context.Context, question, tag string, answers []string, userID int64) (err error) {
+func (q Question) SaveQuestions(ctx context.Context, question, tag string, answers []string, userID int64) (err error) {
 	eduTag, err := edu.Tags(
 		edu.TagWhere.Tag.EQ(tag),
 	).One(ctx, boil.GetContextDB())
@@ -29,24 +29,24 @@ func (a *App) SaveQuestions(ctx context.Context, question, tag string, answers [
 		}
 	}
 
-	q := &edu.Question{
+	newQuestion := &edu.Question{
 		Question: question,
 		TagID:    eduTag.ID,
 	}
 	if strings.HasPrefix(question, "ЗАДАЧА") {
-		q.IsTask = true
+		newQuestion.IsTask = true
 	}
-	if err = q.Insert(ctx, boil.GetContextDB(), boil.Infer()); err != nil {
+	if err = newQuestion.Insert(ctx, boil.GetContextDB(), boil.Infer()); err != nil {
 		return err
 	}
 
-	if err = q.Reload(ctx, boil.GetContextDB()); err != nil {
+	if err = newQuestion.Reload(ctx, boil.GetContextDB()); err != nil {
 		return err
 	}
 
 	for i, answer := range answers {
 		answr := edu.Answer{
-			QuestionID: q.ID,
+			QuestionID: newQuestion.ID,
 			Answer:     answer,
 			IsCorrect:  i == 0,
 		}
@@ -56,7 +56,7 @@ func (a *App) SaveQuestions(ctx context.Context, question, tag string, answers [
 	}
 
 	uq := edu.UsersQuestion{
-		QuestionID: q.ID,
+		QuestionID: newQuestion.ID,
 		UserID:     userID,
 		IsEdu:      true,
 		TimeRepeat: time.Now().Add(time.Minute * 5),

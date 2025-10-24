@@ -1,4 +1,4 @@
-package adapters
+package cache
 
 import (
 	"bot/cmd/cfg"

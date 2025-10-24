@@ -1,18 +1,16 @@
-package app
+package userQuestion
 
 import (
 	"bot/internal/repo/edu"
 	"context"
-	"database/sql"
 	"github.com/aarondl/sqlboiler/v4/boil"
 	"github.com/aarondl/sqlboiler/v4/queries/qm"
-	"github.com/pkg/errors"
 	"math"
 	"math/rand"
 	"time"
 )
 
-func (a *App) UpdateRepeatTime(ctx context.Context, question *edu.UsersQuestion, correct bool) error {
+func (UserQuestion) UpdateRepeatTime(ctx context.Context, question *edu.UsersQuestion, correct bool) error {
 	var serial int64
 
 	if correct {
@@ -66,7 +64,7 @@ func (a *App) UpdateRepeatTime(ctx context.Context, question *edu.UsersQuestion,
 	return nil
 }
 
-func (a *App) UpdateIsEduUserQuestion(ctx context.Context, userID, questionID int64) error {
+func (UserQuestion) UpdateIsEduUserQuestion(ctx context.Context, userID, questionID int64) error {
 	uq, err := edu.UsersQuestions(
 		edu.UsersQuestionWhere.UserID.EQ(userID),
 		edu.UsersQuestionWhere.QuestionID.EQ(questionID),
@@ -79,82 +77,6 @@ func (a *App) UpdateIsEduUserQuestion(ctx context.Context, userID, questionID in
 	uq.IsEdu = !uq.IsEdu
 	_, err = uq.Update(ctx, boil.GetContextDB(), boil.Infer())
 	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (a *App) UpdateTag(ctx context.Context, tagID int64, s string) error {
-	tag, err := edu.FindTag(ctx, boil.GetContextDB(), tagID)
-	if err != nil {
-		return err
-	}
-
-	tag.Tag = s
-
-	if _, err = tag.Update(ctx, boil.GetContextDB(), boil.Whitelist(edu.TagColumns.Tag)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (a *App) UpdateQuestionName(ctx context.Context, qID int64, question string) error {
-	q, err := edu.FindQuestion(ctx, boil.GetContextDB(), qID)
-	if err != nil {
-		return err
-	}
-
-	q.Question = question
-
-	if _, err = q.Update(ctx, boil.GetContextDB(), boil.Whitelist(edu.QuestionColumns.Question)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (a *App) UpdateAnswer(ctx context.Context, aID int64, answerText string) error {
-	answer, err := edu.FindAnswer(ctx, boil.GetContextDB(), aID)
-	if err != nil {
-		return err
-	}
-
-	answer.Answer = answerText
-
-	if _, err = answer.Update(ctx, boil.GetContextDB(), boil.Whitelist(edu.AnswerColumns.Answer)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (a *App) UpdateTagByQuestion(ctx context.Context, qID int64, newTag string) error {
-	t, err := edu.Tags(
-		edu.TagWhere.Tag.EQ(newTag)).One(ctx, boil.GetContextDB())
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return err
-	} else if errors.Is(err, sql.ErrNoRows) {
-		t = &edu.Tag{
-			Tag: newTag,
-		}
-		if err = t.Insert(ctx, boil.GetContextDB(), boil.Infer()); err != nil {
-			return err
-		}
-		if err = t.Reload(ctx, boil.GetContextDB()); err != nil {
-			return err
-		}
-	}
-
-	q, err := edu.FindQuestion(ctx, boil.GetContextDB(), qID)
-	if err != nil {
-		return err
-	}
-
-	q.TagID = t.ID
-
-	if _, err = q.Update(ctx, boil.GetContextDB(), boil.Whitelist(edu.QuestionColumns.TagID)); err != nil {
 		return err
 	}
 
