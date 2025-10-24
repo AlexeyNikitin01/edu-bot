@@ -1,18 +1,17 @@
-package ports
+package question
 
 import (
+	"bot/internal/domain"
+	"bot/internal/middleware"
+	"bot/internal/repo/edu"
+	"context"
 	"fmt"
+	"gopkg.in/telebot.v3"
 	"html"
+	"log"
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/aarondl/sqlboiler/v4/boil"
-	"github.com/aarondl/sqlboiler/v4/queries/qm"
-	"gopkg.in/telebot.v3"
-
-	"bot/internal/app"
-	"bot/internal/repo/edu"
 )
 
 const (
@@ -22,9 +21,10 @@ const (
 	MSG_BACK_TAGS     = "НАЗАД К ТЭГАМ"
 
 	QuestionsPerPage = 10 // Оставляем место для кнопок пагинации и возврата
+
 )
 
-func showRepeatTagList(domain app.Apper) telebot.HandlerFunc {
+func ShowRepeatTagList(ctx context.Context, domain domain.UseCases) telebot.HandlerFunc {
 	return func(ctx telebot.Context) error {
 
 		tagButtons, err := getButtonsTags(ctx, domain)
@@ -38,10 +38,10 @@ func showRepeatTagList(domain app.Apper) telebot.HandlerFunc {
 	}
 }
 
-func backTags(domain app.Apper) telebot.HandlerFunc {
+func BackTags(ctx context.Context, d domain.UseCases) telebot.HandlerFunc {
 	return func(ctx telebot.Context) error {
 
-		tagButtons, err := getButtonsTags(ctx, domain)
+		tagButtons, err := getButtonsTags(ctx, d)
 		if err != nil {
 			return err
 		}
@@ -52,7 +52,7 @@ func backTags(domain app.Apper) telebot.HandlerFunc {
 	}
 }
 
-func getButtonsTags(ctx telebot.Context, domain app.Apper) ([][]telebot.InlineButton, error) {
+func getButtonsTags(ctx telebot.Context, domain domain.UseCases) ([][]telebot.InlineButton, error) {
 	u := GetUserFromContext(ctx)
 
 	tags, err := domain.GetUniqueTags(GetContext(ctx), u.TGUserID)
@@ -69,13 +69,13 @@ func getButtonsTags(ctx telebot.Context, domain app.Apper) ([][]telebot.InlineBu
 	for _, tag := range tags {
 		tagBtn := telebot.InlineButton{
 			Unique: INLINE_BTN_QUESTION_BY_TAG,
-			Text:   tag.Tag,
-			Data:   tag.Tag,
+			Text:   tag.TagService,
+			Data:   tag.TagService,
 		}
 		deleteBtn := telebot.InlineButton{
 			Unique: INLINE_BTN_DELETE_QUESTIONS_BY_TAG,
 			Text:   INLINE_NAME_DELETE,
-			Data:   tag.Tag,
+			Data:   tag.TagService,
 		}
 		editBtn := telebot.InlineButton{
 			Unique: INLINE_EDIT_TAG,
@@ -100,7 +100,7 @@ func getButtonsTags(ctx telebot.Context, domain app.Apper) ([][]telebot.InlineBu
 	return tagButtons, nil
 }
 
-func questionByTag(tag string) telebot.HandlerFunc {
+func QuestionByTag(tag string) telebot.HandlerFunc {
 	return func(ctx telebot.Context) error {
 		return showQuestionsPage(ctx, tag, 0)
 	}
@@ -112,53 +112,45 @@ func showQuestionsPage(ctx telebot.Context, tag string, page int) error {
 	})
 }
 
-// handleToggleRepeat выбор учить или не учить вопрос.
-func handleToggleRepeat(domain app.Apper) telebot.HandlerFunc {
-	return func(ctx telebot.Context) error {
+// HandleToggleRepeat выбор учить или не учить вопрос.
+func HandleToggleRepeat(ctx context.Context, d domain.UseCases) telebot.HandlerFunc {
+	return func(ctxBot telebot.Context) error {
+		userID := middleware.GetUserFromContext(ctxBot).TGUserID
+
 		// Разбираем данные callback: "questionID_page_tag"
-		parts := strings.Split(ctx.Data(), "_")
+		parts := strings.Split(ctxBot.Data(), "_")
 		if len(parts) < 3 {
-			return sendErrorResponse(ctx, "Ошибка формата данных")
+			return errors.New("invalid command")
 		}
 
 		questionID, err := strconv.Atoi(parts[0])
 		if err != nil {
-			return sendErrorResponse(ctx, err.Error())
+			return err
 		}
 
 		page, err := strconv.Atoi(parts[1])
 		if err != nil {
-			return sendErrorResponse(ctx, err.Error())
+			return err
 		}
 
 		tag := strings.Join(parts[2:], "_")
 
 		// Обновляем статус вопроса
-		if err = domain.UpdateIsEduUserQuestion(GetContext(ctx), GetUserFromContext(ctx).TGUserID, int64(questionID)); err != nil {
-			return sendErrorResponse(ctx, err.Error())
+		if err = d.UpdateIsEduUserQuestion(ctx, userID, int64(questionID)); err != nil {
+			return err
 		}
 
 		// Получаем обновленный список вопросов с сохранением текущей страницы
-		return ctx.Edit(&telebot.ReplyMarkup{
-			InlineKeyboard: getQuestionBtns(ctx, tag, page),
+		return ctxBot.Edit(&telebot.ReplyMarkup{
+			InlineKeyboard: getQuestionBtns(ctx, ctxBot, d, tag, page, userID),
 		})
 	}
 }
 
-func getQuestionBtns(ctx telebot.Context, tag string, page int) [][]telebot.InlineButton {
-	qs, err := edu.Questions(
-		qm.InnerJoin(fmt.Sprintf("%s ON %s = %s", edu.TableNames.UsersQuestions,
-			edu.QuestionTableColumns.ID,
-			edu.UsersQuestionTableColumns.QuestionID,
-		)),
-		qm.InnerJoin(fmt.Sprintf("%s ON %s = %s", edu.TableNames.Tags,
-			edu.TagTableColumns.ID,
-			edu.QuestionTableColumns.TagID,
-		)),
-		edu.UsersQuestionWhere.UserID.EQ(GetUserFromContext(ctx).TGUserID),
-		edu.TagWhere.Tag.EQ(tag),
-		edu.UsersQuestionWhere.DeletedAt.IsNull(),
-	).All(GetContext(ctx), boil.GetContextDB())
+func getQuestionBtns(
+	ctx context.Context, ctxBot telebot.Context, d domain.UseCases, tag string, page int, userID int64,
+) [][]telebot.InlineButton {
+	qs, err := d.GetAllQuestions(ctx, userID, tag)
 	if err != nil || len(qs) == 0 {
 		return nil
 	}
@@ -178,119 +170,32 @@ func getQuestionBtns(ctx telebot.Context, tag string, page int) [][]telebot.Inli
 	}
 	pageQuestions := qs[start:end]
 
-	var btns [][]telebot.InlineButton
-
+	// Получаем UsersQuestion для каждого вопроса
+	userQuestions := make(map[int64]*edu.UsersQuestion)
 	for _, q := range pageQuestions {
-		questionButtons := getQuestionBtn(
-			ctx,
-			q.ID,
-			INLINE_BTN_REPEAT_QUESTION,
-			q.Question,
-			INLINE_NAME_DELETE,
-			INLINE_BTN_DELETE_QUESTION,
-			page,
-			tag,
-		)
-		btns = append(btns, []telebot.InlineButton{questionButtons[0]},
-			[]telebot.InlineButton{questionButtons[1], questionButtons[2], questionButtons[3], questionButtons[4]})
+		uq, err := d.GetUserQuestion(ctx, userID, q.ID)
+		if err == nil {
+			userQuestions[q.ID] = uq
+		}
 	}
+
+	builder := NewQuestionButtonBuilder()
+
+	// Создаем клавиатуру с вопросами
+	btns := builder.BuildQuestionsKeyboard(pageQuestions, userQuestions, page, tag)
 
 	// Добавляем кнопки пагинации, если нужно
-	var paginationRow []telebot.InlineButton
-
-	if page > 0 {
-		paginationRow = append(paginationRow, telebot.InlineButton{
-			Unique: INLINE_BTN_QUESTION_PAGE + "_prev",
-			Text:   "⬅️ Назад",
-			Data:   fmt.Sprintf("%d_%s", page, tag),
-		})
-	}
-
-	// Кнопка возврата к тегам всегда в центре
-	paginationRow = append(paginationRow, telebot.InlineButton{
-		Unique: INLINE_BACK_TAGS,
-		Text:   MSG_BACK_TAGS,
-	})
-
-	if page < totalPages-1 {
-		paginationRow = append(paginationRow, telebot.InlineButton{
-			Unique: INLINE_BTN_QUESTION_PAGE + "_next",
-			Text:   "Вперед ➡️",
-			Data:   fmt.Sprintf("%d_%s", page, tag),
-		})
-	}
-
-	if len(paginationRow) > 0 {
-		btns = append(btns, paginationRow)
+	if totalPages > 1 {
+		paginationRow := builder.BuildPaginationButtons(page, totalPages, tag)
+		if len(paginationRow) > 0 {
+			btns = append(btns, paginationRow)
+		}
 	}
 
 	return btns
 }
 
-func getQuestionBtn(
-	ctx telebot.Context, qID int64, repeat, repeatMSG, deleteMSG, delete string, page int, tag string,
-) []telebot.InlineButton {
-	uq, err := edu.UsersQuestions(
-		edu.UsersQuestionWhere.UserID.EQ(GetUserFromContext(ctx).TGUserID),
-		edu.UsersQuestionWhere.QuestionID.EQ(qID),
-		edu.UsersQuestionWhere.DeletedAt.IsNull(),
-	).One(GetContext(ctx), boil.GetContextDB())
-	if err != nil {
-		return nil
-	}
-
-	makeData := func(qID int64, page int, tag string) string {
-		if page == -1 && tag == "" {
-			return fmt.Sprintf("%d", qID)
-		}
-		if page == -1 {
-			return fmt.Sprintf("%d_%s", qID, tag)
-		}
-		if tag == "" {
-			return fmt.Sprintf("%d_%d", qID, page)
-		}
-		return fmt.Sprintf("%d_%d_%s", qID, page, tag)
-	}
-
-	now := time.Now().UTC()
-	duration := uq.TimeRepeat.Sub(now)
-
-	questionText := telebot.InlineButton{
-		Text: repeatMSG,
-		Data: makeData(qID, page, tag),
-	}
-
-	label := "🔔"
-	if uq.IsEdu {
-		label = "💤"
-	}
-
-	repeatBtn := telebot.InlineButton{
-		Unique: repeat,
-		Text:   label,
-		Data:   makeData(qID, page, tag),
-	}
-
-	deleteBtn := telebot.InlineButton{
-		Unique: delete,
-		Text:   deleteMSG,
-		Data:   makeData(qID, page, tag),
-	}
-
-	editBtn := telebot.InlineButton{
-		Unique: INLINE_EDIT_QUESTION,
-		Text:   "✏️",
-		Data:   fmt.Sprintf("%d", qID),
-	}
-
-	timeInline := telebot.InlineButton{
-		Text: "⏳" + timeLeftMsg(duration),
-	}
-
-	return []telebot.InlineButton{questionText, repeatBtn, deleteBtn, editBtn, timeInline}
-}
-
-func getForUpdate(domain app.Apper) telebot.HandlerFunc {
+func GetForUpdate(ctx context.Context, domain domain.UseCases) telebot.HandlerFunc {
 	return func(ctx telebot.Context) error {
 		qID := ctx.Data()
 		id, err := strconv.Atoi(qID)
@@ -306,13 +211,13 @@ func getForUpdate(domain app.Apper) telebot.HandlerFunc {
 
 		editQuestion := telebot.InlineButton{
 			Unique: INLINE_EDIT_NAME_QUESTION,
-			Text:   "вопрос: " + q.Question,
+			Text:   "вопрос: " + q.QuestionService,
 			Data:   fmt.Sprintf("%d", id),
 		}
 
 		editTag := telebot.InlineButton{
 			Unique: INLINE_EDIT_NAME_TAG_QUESTION,
-			Text:   "тэг: " + q.R.GetTag().Tag,
+			Text:   "тэг: " + q.R.GetTag().TagService,
 			Data:   fmt.Sprintf("%d", id),
 		}
 
@@ -322,7 +227,7 @@ func getForUpdate(domain app.Apper) telebot.HandlerFunc {
 		for _, a := range q.R.GetAnswers() {
 			answer := telebot.InlineButton{
 				Unique: INLINE_EDIT_ANSWER_QUESTION,
-				Text:   "ответ: " + a.Answer,
+				Text:   "ответ: " + a.AnswerService,
 				Data:   fmt.Sprintf("%d", a.ID),
 			}
 			btns = append(btns, []telebot.InlineButton{answer})
@@ -334,8 +239,8 @@ func getForUpdate(domain app.Apper) telebot.HandlerFunc {
 	}
 }
 
-// handlePageNavigation обрабатывает навигацию по страницам
-func handlePageNavigation(ctx telebot.Context, pageOffset int) error {
+// HandlePageNavigation обрабатывает навигацию по страницам
+func HandlePageNavigation(ctx telebot.Context, pageOffset int) error {
 	page, tag, err := parsePageAndTag(ctx.Data())
 	if err != nil {
 		return sendErrorResponse(ctx, err.Error())
@@ -363,15 +268,8 @@ func parsePageAndTag(data string) (int, string, error) {
 	return page, tag, nil
 }
 
-// sendErrorResponse отправляет ответ с ошибкой
-func sendErrorResponse(ctx telebot.Context, text string) error {
-	return ctx.Respond(&telebot.CallbackResponse{
-		Text: text,
-	})
-}
-
-// showCurrentValue отображает текущее значение редактируемой сущности
-func showCurrentValue(domain app.Apper, cache app.DraftCacher) telebot.HandlerFunc {
+// ShowCurrentValue отображает текущее значение редактируемой сущности
+func ShowCurrentValue(ctx context.Context, domain domain.UseCases) telebot.HandlerFunc {
 	return func(ctx telebot.Context) error {
 		user := GetUserFromContext(ctx)
 		if user == nil {
@@ -405,7 +303,7 @@ func showCurrentValue(domain app.Apper, cache app.DraftCacher) telebot.HandlerFu
 			if err != nil {
 				return ctx.Send("❌ Не удалось загрузить тег")
 			}
-			currentValue = tag.Tag
+			currentValue = tag.TagService
 			entityType = "тег"
 
 		case draft.QuestionIDByName == int64(id):
@@ -414,7 +312,7 @@ func showCurrentValue(domain app.Apper, cache app.DraftCacher) telebot.HandlerFu
 			if err != nil {
 				return ctx.Send("❌ Не удалось загрузить вопрос")
 			}
-			currentValue = question.Question
+			currentValue = question.QuestionService
 			entityType = "вопрос"
 
 		case draft.QuestionIDByTag == int64(id):
@@ -427,7 +325,7 @@ func showCurrentValue(domain app.Apper, cache app.DraftCacher) telebot.HandlerFu
 			if err != nil {
 				currentValue = "Тег не найден"
 			} else {
-				currentValue = tag.Tag
+				currentValue = tag.TagService
 			}
 			entityType = "тег вопроса"
 
@@ -437,7 +335,7 @@ func showCurrentValue(domain app.Apper, cache app.DraftCacher) telebot.HandlerFu
 			if err != nil {
 				return ctx.Send("❌ Не удалось загрузить ответ")
 			}
-			currentValue = answer.Answer
+			currentValue = answer.AnswerService
 			entityType = "ответ"
 
 		default:
@@ -462,8 +360,8 @@ func showCurrentValue(domain app.Apper, cache app.DraftCacher) telebot.HandlerFu
 	}
 }
 
-// collapseValue скрывает значение и возвращает кнопку просмотра
-func collapseValue(domain app.Apper) telebot.HandlerFunc {
+// CollapseValue скрывает значение и возвращает кнопку просмотра
+func CollapseValue(ctx context.Context, domain domain.UseCases) telebot.HandlerFunc {
 	return func(ctx telebot.Context) error {
 		strID := ctx.Data()
 
@@ -474,5 +372,70 @@ func collapseValue(domain app.Apper) telebot.HandlerFunc {
 
 		// Редактируем сообщение, возвращая исходное состояние
 		return ctx.Edit(MSG_EDIT, menu, telebot.ModeHTML)
+	}
+}
+
+func viewAnswer(ctx context.Context, d domain.UseCases, showAnswer bool) telebot.HandlerFunc {
+	return func(ctxBot telebot.Context) error {
+		data := ctxBot.Data()
+		qID, err := strconv.Atoi(data)
+		if err != nil {
+			return err
+		}
+
+		userID := middleware.GetUserFromContext(ctxBot).TGUserID
+
+		uq, err := d.GetUserQuestion(ctx, userID, int64(qID))
+		if err != nil {
+			return err
+		}
+
+		question := uq.GetQuestion().Question
+		tag := uq.R.GetQuestion().R.GetTag().Tag
+		answer := uq.R.GetQuestion().R.GetAnswers()[0]
+
+		result := escapeMarkdown(tag) + ": " + escapeMarkdown(question)
+		if showAnswer {
+			result += "\n\n" + escapeMarkdown(answer.Answer)
+		}
+
+		return ctxBot.Edit(
+			result,
+			telebot.ModeMarkdownV2,
+			&telebot.ReplyMarkup{
+				InlineKeyboard: NewQuestionButtonBuilder().BuildFullKeyboard(uq, showAnswer),
+			},
+		)
+	}
+}
+
+func NextQuestion(ctx context.Context, d domain.UseCases) telebot.HandlerFunc {
+	return func(ctxBot telebot.Context) error {
+		if err := ctxBot.Send(MSG_NEXT_QUESTION); err != nil {
+			return err
+		}
+
+		userID := middleware.GetUserFromContext(ctxBot).TGUserID
+
+		t, err := d.GetNearestTimeRepeat(ctx, userID)
+		if err != nil {
+			return ctxBot.Respond(&telebot.CallbackResponse{Text: err.Error()})
+		}
+
+		now := time.Now().UTC()
+		if !now.After(t) {
+			duration := t.Sub(now)
+			msg := fmt.Sprintf("⏳ Следующий вопрос будет доступен через: %s", timeLeftMsg(duration))
+
+			if err = ctxBot.Send(msg, telebot.ModeMarkdown); err != nil {
+				return ctxBot.Respond(&telebot.CallbackResponse{Text: err.Error()})
+			}
+		}
+
+		if err = d.SetUserWaiting(ctx, userID, false); err != nil {
+			log.Printf("Ошибка сброса статуса waiting в Redis для пользователя %d: %v", userID, err)
+		}
+
+		return nil
 	}
 }

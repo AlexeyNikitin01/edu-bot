@@ -1,6 +1,8 @@
-package ports
+package question
 
 import (
+	"bot/internal/middleware"
+	"context"
 	"encoding/csv"
 	"fmt"
 	"io"
@@ -8,7 +10,7 @@ import (
 
 	"gopkg.in/telebot.v3"
 
-	"bot/internal/app"
+	"bot/internal/domain"
 )
 
 const (
@@ -28,43 +30,43 @@ const (
 	MSG_CSV_FORMAT_EXAMPLE     = "Пример правильного формата:\n\"Вопрос с ; внутри\";Тег;\"Ответ с ;\"\nОбычный вопрос;Тег;Ответ"
 )
 
-func setQuestionsByCSV(domain app.Apper) telebot.HandlerFunc {
-	return func(ctx telebot.Context) error {
+func SetQuestionsByCSV(ctx context.Context, d domain.UseCases) telebot.HandlerFunc {
+	return func(ctxBot telebot.Context) error {
 		var records [][]string
 		var err error
 		var isFile bool
 
 		// Обработка входящих данных
-		if ctx.Message().Document != nil {
-			if !strings.HasSuffix(ctx.Message().Document.FileName, ".csv") {
-				return ctx.Send(MSG_CSV_INVALID_FILE)
+		if ctxBot.Message().Document != nil {
+			if !strings.HasSuffix(ctxBot.Message().Document.FileName, ".csv") {
+				return ctxBot.Send(MSG_CSV_INVALID_FILE)
 			}
 
-			file, err := ctx.Bot().File(&ctx.Message().Document.File)
+			file, err := ctxBot.Bot().File(&ctxBot.Message().Document.File)
 			if err != nil {
-				return ctx.Send(MSG_CSV_FILE_LOAD_ERROR + err.Error())
+				return ctxBot.Send(MSG_CSV_FILE_LOAD_ERROR + err.Error())
 			}
 			defer file.Close()
 
 			records, err = parseCSV(file)
 			if err != nil {
-				return ctx.Send(fmt.Sprintf(MSG_CSV_PARSE_ERROR, err))
+				return ctxBot.Send(fmt.Sprintf(MSG_CSV_PARSE_ERROR, err))
 			}
 			isFile = true
 		} else {
-			text := strings.TrimSpace(ctx.Text())
+			text := strings.TrimSpace(ctxBot.Text())
 			if text == "" {
-				return ctx.Send(MSG_CSV_INVALID_FORMAT + "\n\n" + MSG_CSV_FORMAT_EXAMPLE)
+				return ctxBot.Send(MSG_CSV_INVALID_FORMAT + "\n\n" + MSG_CSV_FORMAT_EXAMPLE)
 			}
 
 			records, err = parseCSV(strings.NewReader(text))
 			if err != nil {
-				return ctx.Send(fmt.Sprintf(MSG_CSV_PARSE_ERROR, err) + "\n\n" + MSG_CSV_FORMAT_EXAMPLE)
+				return ctxBot.Send(fmt.Sprintf(MSG_CSV_PARSE_ERROR, err) + "\n\n" + MSG_CSV_FORMAT_EXAMPLE)
 			}
 		}
 
 		// Обработка записей
-		userID := ctx.Sender().ID
+		userID := ctxBot.Sender().ID
 		var successCount, errorCount int
 		var errorLines []string
 
@@ -99,8 +101,8 @@ func setQuestionsByCSV(domain app.Apper) telebot.HandlerFunc {
 
 			// Сохранение вопроса
 			allAnswers := append([]string{correctAnswer}, wrongAnswers...)
-			if err := domain.SaveQuestions(
-				GetContext(ctx), question, tag, allAnswers, userID,
+			if err := d.SaveQuestions(
+				middleware.GetContext(ctxBot), question, tag, allAnswers, userID,
 			); err != nil {
 				errorCount++
 				errorLines = append(errorLines, fmt.Sprintf("• Строка %d: %v", lineNum, err))
@@ -130,7 +132,7 @@ func setQuestionsByCSV(domain app.Apper) telebot.HandlerFunc {
 			msg = MSG_CSV_ALL_FAILED + "\n\n" + MSG_CSV_FORMAT_EXAMPLE
 		}
 
-		return ctx.Send(msg, telebot.ModeHTML)
+		return ctxBot.Send(msg, telebot.ModeHTML)
 	}
 }
 

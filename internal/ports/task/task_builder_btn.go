@@ -1,6 +1,7 @@
-package ports
+package task
 
 import (
+	"bot/internal/ports/question"
 	"fmt"
 	"gopkg.in/telebot.v3"
 )
@@ -49,7 +50,7 @@ func NewTaskButtonsBuilder() *TaskButtonsBuilder {
 //   - *TaskButtonsBuilder: текущий билдер для цепочки вызовов
 func (b *TaskButtonsBuilder) AddShowAnswer(questionID int64) *TaskButtonsBuilder {
 	btn := telebot.InlineButton{
-		Unique: INLINE_SHOW_ANSWER,
+		Unique: question.INLINE_SHOW_ANSWER,
 		Text:   "📝 Показать ответ",
 		Data:   fmt.Sprintf("%d", questionID),
 	}
@@ -104,8 +105,8 @@ func (b *TaskButtonsBuilder) AddNavigation(qID int64) *TaskButtonsBuilder {
 		Data:   fmt.Sprintf("%d", qID),
 	}
 	continueQuestionsBtn := telebot.InlineButton{
-		Unique: BTN_NEXT_QUESTION,
-		Text:   BTN_NEXT_QUESTION,
+		Unique: question.BTN_NEXT_QUESTION,
+		Text:   question.BTN_NEXT_QUESTION,
 		Data:   fmt.Sprintf("%d", qID),
 	}
 	b.buttons = append(b.buttons, []telebot.InlineButton{nextTaskBtn})
@@ -131,17 +132,17 @@ func (b *TaskButtonsBuilder) AddNavigation(qID int64) *TaskButtonsBuilder {
 //   - Метка "💤" вопрос в выборке
 func (b *TaskButtonsBuilder) AddActions(qID int64, label string) *TaskButtonsBuilder {
 	repeatBtn := telebot.InlineButton{
-		Unique: INLINE_BTN_REPEAT_QUESTION_AFTER_POLL_HIGH,
+		Unique: question.INLINE_BTN_REPEAT_QUESTION_AFTER_POLL_HIGH,
 		Text:   label,
 		Data:   fmt.Sprintf("%d", qID),
 	}
 	deleteBtn := telebot.InlineButton{
-		Unique: INLINE_BTN_DELETE_QUESTION_AFTER_POLL_HIGH,
-		Text:   INLINE_NAME_DELETE_AFTER_POLL,
+		Unique: question.INLINE_BTN_DELETE_QUESTION_AFTER_POLL_HIGH,
+		Text:   question.INLINE_NAME_DELETE_AFTER_POLL,
 		Data:   fmt.Sprintf("%d", qID),
 	}
 	editBtn := telebot.InlineButton{
-		Unique: INLINE_EDIT_QUESTION,
+		Unique: question.INLINE_EDIT_QUESTION,
 		Text:   "✏️",
 		Data:   fmt.Sprintf("%d", qID),
 	}

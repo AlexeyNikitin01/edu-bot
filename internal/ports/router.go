@@ -1,115 +1,155 @@
 package ports
 
 import (
+	"bot/internal/middleware"
+	"bot/internal/ports/question"
+	"bot/internal/ports/task"
+	"context"
+	"gopkg.in/telebot.v3"
 	"strings"
 
-	"gopkg.in/telebot.v3"
-
-	"bot/internal/app"
+	"bot/internal/domain"
 	"bot/internal/repo/edu"
 )
 
-func routers(b *telebot.Bot, domain app.Apper, dispatcher *QuestionDispatcher, cache app.UserCacher) {
-	b.Handle(CMD_START, func(ctx telebot.Context) error {
-		return ctx.Send(MSG_GRETING, mainMenu())
+func routers(ctx context.Context, b *telebot.Bot, d domain.UseCases) {
+	setupCommandHandlers(b)
+
+	setupQuestionHandlers(b, ctx, d)
+
+	setupTagHandlers(b, ctx, d)
+
+	setupEditHandlers(b, ctx, d)
+
+	setupTaskHandlers(ctx, b, d)
+
+	setupContentHandlers(ctx, b, d)
+
+	question.SendQuestion(ctx, b, d)
+}
+
+func setupCommandHandlers(b *telebot.Bot) {
+	b.Handle(question.CMD_START, func(ctx telebot.Context) error {
+		return ctx.Send(question.MSG_GRETING, mainMenu())
+	})
+}
+
+func setupQuestionHandlers(b *telebot.Bot, ctx context.Context, d domain.UseCases) {
+	// Создание вопросов
+	b.Handle(telebot.OnText, createQuestionTextHandler(ctx, d))
+
+	// Чтение вопросов
+	b.Handle(&telebot.InlineButton{Unique: question.INLINE_NEXT_QUESTION}, question.NextQuestion(ctx, d))
+	b.Handle(&telebot.InlineButton{Unique: question.INLINE_BTN_QUESTION_BY_TAG}, func(ctx telebot.Context) error {
+		return question.QuestionByTag(ctx.Data())(ctx)
 	})
 
-	// INLINES BUTTONS
-	b.Handle(&telebot.InlineButton{Unique: INLINE_BTN_REPEAT_QUESTION}, handleToggleRepeat(domain))
-	b.Handle(&telebot.InlineButton{Unique: INLINE_BTN_DELETE_QUESTION}, deleteQuestion(domain))
-	b.Handle(&telebot.InlineButton{Unique: INLINE_BTN_DELETE_QUESTIONS_BY_TAG}, deleteQuestionByTag(domain))
-	b.Handle(&telebot.InlineButton{Unique: INLINE_BTN_TAGS}, func(c telebot.Context) error {
-		return upsertUserQuestion(domain, cache)(c)
-	})
-	b.Handle(&telebot.InlineButton{Unique: INLINE_BTN_QUESTION_BY_TAG}, func(ctx telebot.Context) error {
-		return questionByTag(ctx.Data())(ctx)
-	})
-	b.Handle(&telebot.InlineButton{Unique: INLINE_BACK_TAGS}, func(ctx telebot.Context) error {
-		return backTags(domain)(ctx)
-	})
-	b.Handle(&telebot.InlineButton{Unique: INLINE_PAUSE_TAG}, func(ctx telebot.Context) error {
-		return pauseTag(domain)(ctx)
-	})
-	b.Handle(&telebot.InlineButton{Unique: INLINE_FORGOT_HIGH_QUESTION}, forgotQuestion(domain, dispatcher))
-	b.Handle(&telebot.InlineButton{Unique: INLINE_REMEMBER_HIGH_QUESTION}, rememberQuestion(domain, dispatcher))
-	b.Handle(&telebot.InlineButton{Unique: INLINE_BTN_REPEAT_QUESTION_AFTER_POLL}, repeatQuestionAfterPoll(domain))
-	b.Handle(&telebot.InlineButton{Unique: INLINE_BTN_REPEAT_QUESTION_AFTER_POLL_HIGH}, repeatQuestionAfterPollHigh(domain))
-	b.Handle(&telebot.InlineButton{Unique: INLINE_BTN_DELETE_QUESTION_AFTER_POLL}, deleteQuestionAfterPoll(domain, dispatcher))
-	b.Handle(&telebot.InlineButton{Unique: INLINE_BTN_DELETE_QUESTION_AFTER_POLL_HIGH}, deleteQuestionAfterPollHigh(domain, dispatcher))
-	b.Handle(&telebot.InlineButton{Unique: INLINE_NEXT_QUESTION}, nextQuestion(dispatcher))
-	b.Handle(&telebot.InlineButton{Unique: INLINE_EDIT_TAG}, setEdit(edu.TableNames.Tags, domain, cache))
-	b.Handle(&telebot.InlineButton{Unique: INLINE_EDIT_QUESTION}, getForUpdate(domain))
-	b.Handle(&telebot.InlineButton{Unique: INLINE_EDIT_NAME_QUESTION}, setEdit(edu.QuestionTableColumns.Question, domain, cache))
-	b.Handle(&telebot.InlineButton{Unique: INLINE_EDIT_NAME_TAG_QUESTION}, setEdit(edu.QuestionTableColumns.TagID, domain, cache))
-	b.Handle(&telebot.InlineButton{Unique: INLINE_EDIT_ANSWER_QUESTION}, setEdit(edu.AnswerTableColumns.Answer, domain, cache))
-	b.Handle(&telebot.InlineButton{Unique: INLINE_SHOW_ANSWER}, viewAnswer(domain, true))
-	b.Handle(&telebot.InlineButton{Unique: INLINE_TURN_ANSWER}, viewAnswer(domain, false))
-	b.Handle(&telebot.InlineButton{Unique: INLINE_BTN_TASK_BY_TAG}, nextTask(domain))
-	b.Handle(&telebot.InlineButton{Unique: INLINE_BTN_QUESTION_PAGE + "_prev"}, func(ctx telebot.Context) error {
-		return handlePageNavigation(ctx, -1)
-	})
-	b.Handle(&telebot.InlineButton{Unique: INLINE_BTN_QUESTION_PAGE + "_next"}, func(ctx telebot.Context) error {
-		return handlePageNavigation(ctx, 1)
-	})
-	b.Handle(&telebot.InlineButton{Unique: INLINE_SHOW_CURRENT_VALUE}, showCurrentValue(domain, cache))
-	b.Handle(&telebot.InlineButton{Unique: INLINE_COLLAPSE_VALUE}, collapseValue(domain))
+	// Обновление вопросов
+	b.Handle(&telebot.InlineButton{Unique: question.INLINE_BTN_REPEAT_QUESTION}, question.HandleToggleRepeat(ctx, d))
+	b.Handle(&telebot.InlineButton{Unique: question.INLINE_REMEMBER_HIGH_QUESTION}, question.RememberQuestion(ctx, d))
+	b.Handle(&telebot.InlineButton{Unique: question.INLINE_BTN_REPEAT_QUESTION_AFTER_POLL}, question.RepeatQuestionAfterPoll(ctx, d))
+	b.Handle(&telebot.InlineButton{Unique: question.INLINE_BTN_REPEAT_QUESTION_AFTER_POLL_HIGH}, question.RepeatQuestionAfterPollHigh(ctx, d))
 
-	b.Handle(telebot.OnDocument, setQuestionsByCSV(domain))
+	// Удаление вопросов
+	b.Handle(&telebot.InlineButton{Unique: question.INLINE_BTN_DELETE_QUESTION}, question.DeleteQuestion(ctx, d))
+	b.Handle(&telebot.InlineButton{Unique: question.INLINE_BTN_DELETE_QUESTIONS_BY_TAG}, question.DeleteQuestionByTag(ctx, d))
+	b.Handle(&telebot.InlineButton{Unique: question.INLINE_BTN_DELETE_QUESTION_AFTER_POLL}, question.DeleteQuestionAfterPoll(ctx, d))
+	b.Handle(&telebot.InlineButton{Unique: question.INLINE_BTN_DELETE_QUESTION_AFTER_POLL_HIGH}, question.DeleteQuestionAfterPollHigh(ctx, d))
+	b.Handle(&telebot.InlineButton{Unique: question.INLINE_FORGOT_HIGH_QUESTION}, question.ForgotQuestion(ctx, d))
 
-	b.Handle(telebot.OnText, func(ctx telebot.Context) error {
-		user := GetUserFromContext(ctx)
+	// Пагинация вопросов
+	b.Handle(&telebot.InlineButton{Unique: question.INLINE_BTN_QUESTION_PAGE + "_prev"}, func(ctx telebot.Context) error {
+		return question.HandlePageNavigation(ctx, -1)
+	})
+	b.Handle(&telebot.InlineButton{Unique: question.INLINE_BTN_QUESTION_PAGE + "_next"}, func(ctx telebot.Context) error {
+		return question.HandlePageNavigation(ctx, 1)
+	})
+}
+
+// Блок тегов
+func setupTagHandlers(b *telebot.Bot, ctx context.Context, d domain.UseCases) {
+	b.Handle(&telebot.InlineButton{Unique: question.INLINE_BTN_TAGS}, func(c telebot.Context) error {
+		return question.UpsertUserQuestion(ctx, d)(c)
+	})
+	b.Handle(&telebot.InlineButton{Unique: question.INLINE_BACK_TAGS}, func(botCtx telebot.Context) error {
+		return question.BackTags(ctx, d)(botCtx)
+	})
+	b.Handle(&telebot.InlineButton{Unique: question.INLINE_PAUSE_TAG}, func(botCtx telebot.Context) error {
+		return question.PauseTag(ctx, d)(botCtx)
+	})
+}
+
+// Блок редактирования
+func setupEditHandlers(b *telebot.Bot, ctx context.Context, d domain.UseCases) {
+	b.Handle(&telebot.InlineButton{Unique: question.INLINE_EDIT_TAG}, question.SetEdit(ctx, edu.TableNames.Tags, d))
+	b.Handle(&telebot.InlineButton{Unique: question.INLINE_EDIT_QUESTION}, question.GetForUpdate(ctx, d))
+	b.Handle(&telebot.InlineButton{Unique: question.INLINE_EDIT_NAME_QUESTION}, question.SetEdit(ctx, edu.QuestionTableColumns.Question, d))
+	b.Handle(&telebot.InlineButton{Unique: question.INLINE_EDIT_NAME_TAG_QUESTION}, question.SetEdit(ctx, edu.QuestionTableColumns.TagID, d))
+	b.Handle(&telebot.InlineButton{Unique: question.INLINE_EDIT_ANSWER_QUESTION}, question.SetEdit(ctx, edu.AnswerTableColumns.Answer, d))
+	b.Handle(&telebot.InlineButton{Unique: question.INLINE_SHOW_CURRENT_VALUE}, question.ShowCurrentValue(ctx, d))
+	b.Handle(&telebot.InlineButton{Unique: question.INLINE_COLLAPSE_VALUE}, question.CollapseValue(ctx, d))
+}
+
+// Блок задач
+func setupTaskHandlers(ctx context.Context, b *telebot.Bot, d domain.UseCases) {
+	b.Handle(&telebot.InlineButton{Unique: question.INLINE_BTN_TASK_BY_TAG}, task.NextTask(ctx, d))
+}
+
+// Блок обработки контента
+func setupContentHandlers(ctx context.Context, b *telebot.Bot, d domain.UseCases) {
+	b.Handle(telebot.OnDocument, question.SetQuestionsByCSV(ctx, d))
+	b.Handle(telebot.OnPollAnswer, question.CheckPollAnswer(ctx, d))
+}
+
+// Обработчик текстовых команд для создания вопросов
+func createQuestionTextHandler(ctx context.Context, d domain.UseCases) func(telebot.Context) error {
+	return func(ctxBot telebot.Context) error {
+		user := middleware.GetUserFromContext(ctxBot)
 		if user == nil {
-			return ctx.Send(MSG_WRONG_BTN, mainMenu())
+			return ctxBot.Send(question.MSG_WRONG_BTN, mainMenu())
 		}
 
 		// Проверяем, есть ли активный черновик у пользователя в Redis
-		draft, err := cache.GetDraft(GetContext(ctx), user.TGUserID)
-		if err != nil {
-			return err
-		}
+		//draft, err := cache.GetDraft(ctxBot, user.TGUserID)
+		//if err != nil {
+		//	return err
+		//}
 
 		// Если есть активный черновик, обрабатываем его
-		if draft != nil && draft.Step > 0 {
-			return upsertUserQuestion(domain, cache)(ctx)
-		}
+		//if draft != nil && draft.Step > 0 {
+		//	return question.UpsertUserQuestion(d, cache)(ctxBot)
+		//}
 
-		text := ctx.Text()
+		text := ctxBot.Text()
 
 		// Проверяем, может ли текст быть CSV (содержит хотя бы один разделитель)
 		if strings.Contains(text, ";") && len(strings.Split(text, ";")) >= 3 {
-			return setQuestionsByCSV(domain)(ctx)
+			return question.SetQuestionsByCSV(ctx, d)(ctxBot)
 		}
 
-		switch ctx.Text() {
-		case BTN_ADD_QUESTION:
-			return upsertUserQuestion(domain, cache)(ctx)
-		case BTN_MANAGMENT_QUESTION:
-			return showRepeatTagList(domain)(ctx)
-		case BTN_ADD_CSV:
-			return ctx.Send(MSG_CSV, telebot.ModeHTML)
-		case BTN_NEXT_QUESTION:
-			return nextQuestion(dispatcher)(ctx)
-		case BTN_NEXT_TASK:
-			return getTagsByTask(domain)(ctx)
+		switch ctxBot.Text() {
+		case question.BTN_ADD_QUESTION:
+			return question.UpsertUserQuestion(ctx, d)(ctxBot)
+		case question.BTN_MANAGMENT_QUESTION:
+			return question.ShowRepeatTagList(ctx, d)(ctxBot)
+		case question.BTN_ADD_CSV:
+			return ctxBot.Send(question.MSG_CSV, telebot.ModeHTML)
+		case question.BTN_NEXT_TASK:
+			return task.GetTagsByTask(ctx, d)(ctxBot)
 		default:
-			return ctx.Send(MSG_WRONG_BTN, mainMenu())
+			return ctxBot.Send(question.MSG_WRONG_BTN, mainMenu())
 		}
-	})
-
-	b.Handle(telebot.OnPollAnswer, checkPollAnswer(domain, dispatcher))
-
-	// Воркер для каждого пользователя, каждые 2 секунды рассылка вопросов для пользователей
-	dispatcher.StartPollingLoop()
+	}
 }
 
 func mainMenu() *telebot.ReplyMarkup {
 	menu := &telebot.ReplyMarkup{ResizeKeyboard: true}
 
-	btnAdd := menu.Text(BTN_ADD_QUESTION)
-	btnMark := menu.Text(BTN_MANAGMENT_QUESTION)
-	btnCSV := menu.Text(BTN_ADD_CSV)
-	btnNext := menu.Text(BTN_NEXT_QUESTION)
-	btnNextTask := menu.Text(BTN_NEXT_TASK)
+	btnAdd := menu.Text(question.BTN_ADD_QUESTION)
+	btnMark := menu.Text(question.BTN_MANAGMENT_QUESTION)
+	btnCSV := menu.Text(question.BTN_ADD_CSV)
+	btnNext := menu.Text(question.BTN_NEXT_QUESTION)
+	btnNextTask := menu.Text(question.BTN_NEXT_TASK)
 
 	menu.Reply(
 		menu.Row(btnAdd, btnCSV),

@@ -31,6 +31,7 @@ type QuestionService interface {
 	GetQuestionAnswers(ctx context.Context, qID int64) (*edu.Question, error)
 	UpdateQuestionName(context.Context, int64, string) error
 	SaveQuestions(context.Context, string, string, []string, int64) error
+	GetAllQuestions(context.Context, int64, string) (edu.QuestionSlice, error)
 }
 
 type UserQuestionService interface {
@@ -40,6 +41,7 @@ type UserQuestionService interface {
 	UpdateIsEduUserQuestion(context.Context, int64, int64) error
 	GetNearestTimeRepeat(ctx context.Context, userID int64) (time.Time, error)
 	GetTask(ctx context.Context, userID int64, tag string) (*edu.UsersQuestion, error)
+	DeleteQuestionUser(ctx context.Context, userID int64, qID int64) error
 }
 
 type TagService interface {
@@ -48,6 +50,7 @@ type TagService interface {
 	UpdateTagByQuestion(ctx context.Context, qID int64, newTag string) error
 	GetUniqueTagsByTask(ctx context.Context, userID int64) ([]*edu.Tag, error)
 	GetTagByID(ctx context.Context, tagID int64) (*edu.Tag, error)
+	DeleteQuestionsByTag(ctx context.Context, userID int64, tag string) error
 }
 
 type AnswerService interface {

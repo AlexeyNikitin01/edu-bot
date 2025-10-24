@@ -32,9 +32,9 @@ services:
     ports:
       - "28080:8080"
     volumes:
-      - ./etc/config_example.yml:/app/config.yml:ro
+      - ./etc/config_example.yml:/domain/config.yml:ro
     environment:
-      CONFIG_PATH: /app/config.yml
+      CONFIG_PATH: /domain/config.yml
       REDIS_ADDR: redis:6379
       REDIS_PASSWORD: redispass123
     restart: unless-stopped
