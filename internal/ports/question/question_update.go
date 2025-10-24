@@ -202,7 +202,7 @@ func PauseTag(ctx context.Context, d domain.UseCases) telebot.HandlerFunc {
 			return ctxBot.Respond(&telebot.CallbackResponse{Text: err.Error()})
 		}
 
-		tagButtons, err := getButtonsTags(ctxBot, d)
+		tagButtons, err := getButtonsTags(ctx, ctxBot, d)
 		if err != nil {
 			return err
 		}

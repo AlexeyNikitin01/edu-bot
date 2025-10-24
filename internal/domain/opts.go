@@ -20,9 +20,9 @@ func WithDefaultQuestionService() OptFunc {
 	}
 }
 
-func WithDefaultUserQuestionService() OptFunc {
+func WithUserQuestionService(uq *userQuestion.UserQuestion) OptFunc {
 	return func(app *App) {
-		app.UserQuestionService = userQuestion.NewUserQuestion()
+		app.UserQuestionService = uq
 	}
 }
 
@@ -38,7 +38,7 @@ func WithDefaultAnswerService() OptFunc {
 	}
 }
 
-func WithDefaultDispatcher(d Dispatcher) OptFunc {
+func WithDispatcher(d Dispatcher) OptFunc {
 	return func(app *App) {
 		app.Dispatcher = d
 	}

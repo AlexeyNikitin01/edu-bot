@@ -6,6 +6,7 @@ import (
 	"bot/internal/repo/edu"
 	"context"
 	"fmt"
+	"github.com/pkg/errors"
 	"gopkg.in/telebot.v3"
 	"html"
 	"log"
@@ -25,57 +26,58 @@ const (
 )
 
 func ShowRepeatTagList(ctx context.Context, domain domain.UseCases) telebot.HandlerFunc {
-	return func(ctx telebot.Context) error {
+	return func(ctxBot telebot.Context) error {
 
-		tagButtons, err := getButtonsTags(ctx, domain)
+		tagButtons, err := getButtonsTags(ctx, ctxBot, domain)
 		if err != nil {
 			return err
 		}
 
-		return ctx.Send(MSG_LIST_TAGS, &telebot.ReplyMarkup{
+		return ctxBot.Send(MSG_LIST_TAGS, &telebot.ReplyMarkup{
 			InlineKeyboard: tagButtons,
 		})
 	}
 }
 
 func BackTags(ctx context.Context, d domain.UseCases) telebot.HandlerFunc {
-	return func(ctx telebot.Context) error {
+	return func(ctxBot telebot.Context) error {
 
-		tagButtons, err := getButtonsTags(ctx, d)
+		tagButtons, err := getButtonsTags(ctx, ctxBot, d)
 		if err != nil {
 			return err
 		}
 
-		return ctx.Edit(MSG_LIST_TAGS, &telebot.ReplyMarkup{
+		return ctxBot.Edit(MSG_LIST_TAGS, &telebot.ReplyMarkup{
 			InlineKeyboard: tagButtons,
 		})
 	}
 }
 
-func getButtonsTags(ctx telebot.Context, domain domain.UseCases) ([][]telebot.InlineButton, error) {
-	u := GetUserFromContext(ctx)
+func getButtonsTags(ctx context.Context, ctxBot telebot.Context, d domain.UseCases) ([][]telebot.InlineButton, error) {
+	userID := middleware.GetUserFromContext(ctxBot).TGUserID
 
-	tags, err := domain.GetUniqueTags(GetContext(ctx), u.TGUserID)
+	tags, err := d.GetUniqueTags(ctx, userID)
 	if err != nil {
-		return nil, sendErrorResponse(ctx, err.Error())
+		return nil, err
 	}
 
 	if len(tags) == 0 {
-		return nil, sendErrorResponse(ctx, MSG_EMPTY)
+		return nil, nil
 	}
 
 	var tagButtons [][]telebot.InlineButton
 
+	// todo кнопки
 	for _, tag := range tags {
 		tagBtn := telebot.InlineButton{
 			Unique: INLINE_BTN_QUESTION_BY_TAG,
-			Text:   tag.TagService,
-			Data:   tag.TagService,
+			Text:   tag.Tag,
+			Data:   tag.Tag,
 		}
 		deleteBtn := telebot.InlineButton{
 			Unique: INLINE_BTN_DELETE_QUESTIONS_BY_TAG,
 			Text:   INLINE_NAME_DELETE,
-			Data:   tag.TagService,
+			Data:   tag.Tag,
 		}
 		editBtn := telebot.InlineButton{
 			Unique: INLINE_EDIT_TAG,
@@ -100,20 +102,23 @@ func getButtonsTags(ctx telebot.Context, domain domain.UseCases) ([][]telebot.In
 	return tagButtons, nil
 }
 
-func QuestionByTag(tag string) telebot.HandlerFunc {
-	return func(ctx telebot.Context) error {
-		return showQuestionsPage(ctx, tag, 0)
+func QuestionByTag(ctx context.Context, tag string, d domain.UseCases) telebot.HandlerFunc {
+	return func(ctxBot telebot.Context) error {
+		userID := middleware.GetUserFromContext(ctxBot).TGUserID
+		return showQuestionsPage(ctx, ctxBot, tag, 0, userID, d)
 	}
 }
 
-func showQuestionsPage(ctx telebot.Context, tag string, page int) error {
-	return ctx.Edit(fmt.Sprintf("%s %s (Стр. %d)", tag, MSG_LIST_QUESTION, page+1), &telebot.ReplyMarkup{
-		InlineKeyboard: getQuestionBtns(ctx, tag, page),
+func showQuestionsPage(
+	ctx context.Context, ctxBot telebot.Context, tag string, page int, userID int64, d domain.UseCases,
+) error {
+	return ctxBot.Edit(fmt.Sprintf("%s %s (Стр. %d)", tag, MSG_LIST_QUESTION, page+1), &telebot.ReplyMarkup{
+		InlineKeyboard: getQuestionBtns(ctx, ctxBot, d, tag, page, userID),
 	})
 }
 
-// HandleToggleRepeat выбор учить или не учить вопрос.
-func HandleToggleRepeat(ctx context.Context, d domain.UseCases) telebot.HandlerFunc {
+// IsRepeat выбор учить или не учить вопрос.
+func IsRepeat(ctx context.Context, d domain.UseCases) telebot.HandlerFunc {
 	return func(ctxBot telebot.Context) error {
 		userID := middleware.GetUserFromContext(ctxBot).TGUserID
 
@@ -196,28 +201,28 @@ func getQuestionBtns(
 }
 
 func GetForUpdate(ctx context.Context, domain domain.UseCases) telebot.HandlerFunc {
-	return func(ctx telebot.Context) error {
-		qID := ctx.Data()
+	return func(ctxBot telebot.Context) error {
+		qID := ctxBot.Data()
 		id, err := strconv.Atoi(qID)
 		if err != nil {
-			return sendErrorResponse(ctx, err.Error())
+			return err
 		}
-		q, err := domain.GetQuestionAnswers(GetContext(ctx), int64(id))
+		q, err := domain.GetQuestionAnswers(ctx, int64(id))
 		if err != nil {
-			return sendErrorResponse(ctx, err.Error())
+			return err
 		}
 
 		var btns [][]telebot.InlineButton
 
 		editQuestion := telebot.InlineButton{
 			Unique: INLINE_EDIT_NAME_QUESTION,
-			Text:   "вопрос: " + q.QuestionService,
+			Text:   "вопрос: " + q.Question,
 			Data:   fmt.Sprintf("%d", id),
 		}
 
 		editTag := telebot.InlineButton{
 			Unique: INLINE_EDIT_NAME_TAG_QUESTION,
-			Text:   "тэг: " + q.R.GetTag().TagService,
+			Text:   "тэг: " + q.R.GetTag().Tag,
 			Data:   fmt.Sprintf("%d", id),
 		}
 
@@ -227,25 +232,26 @@ func GetForUpdate(ctx context.Context, domain domain.UseCases) telebot.HandlerFu
 		for _, a := range q.R.GetAnswers() {
 			answer := telebot.InlineButton{
 				Unique: INLINE_EDIT_ANSWER_QUESTION,
-				Text:   "ответ: " + a.AnswerService,
+				Text:   "ответ: " + a.Answer,
 				Data:   fmt.Sprintf("%d", a.ID),
 			}
 			btns = append(btns, []telebot.InlineButton{answer})
 		}
 
-		return ctx.Send("Выберите поле: ", &telebot.ReplyMarkup{
+		return ctxBot.Send("Выберите поле: ", &telebot.ReplyMarkup{
 			InlineKeyboard: btns,
 		})
 	}
 }
 
 // HandlePageNavigation обрабатывает навигацию по страницам
-func HandlePageNavigation(ctx telebot.Context, pageOffset int) error {
-	page, tag, err := parsePageAndTag(ctx.Data())
+func HandlePageNavigation(ctx context.Context, ctxBot telebot.Context, pageOffset int, d domain.UseCases) error {
+	userID := middleware.GetUserFromContext(ctxBot).TGUserID
+	page, tag, err := parsePageAndTag(ctxBot.Data())
 	if err != nil {
-		return sendErrorResponse(ctx, err.Error())
+		return err
 	}
-	return showQuestionsPage(ctx, tag, page+pageOffset)
+	return showQuestionsPage(ctx, ctxBot, tag, page+pageOffset, userID, d)
 }
 
 // parsePageAndTag парсит данные callback'а и возвращает номер страницы и тег
@@ -269,24 +275,20 @@ func parsePageAndTag(data string) (int, string, error) {
 }
 
 // ShowCurrentValue отображает текущее значение редактируемой сущности
-func ShowCurrentValue(ctx context.Context, domain domain.UseCases) telebot.HandlerFunc {
-	return func(ctx telebot.Context) error {
-		user := GetUserFromContext(ctx)
-		if user == nil {
-			return ctx.Send("❌ Пользователь не найден")
-		}
+func ShowCurrentValue(ctx context.Context, d domain.UseCases) telebot.HandlerFunc {
+	return func(ctxBot telebot.Context) error {
+		userID := middleware.GetUserFromContext(ctxBot).TGUserID
 
-		// Получаем черновик из кэша
-		draft, err := cache.GetDraft(GetContext(ctx), user.TGUserID)
+		draft, err := d.GetDraftQuestion(ctx, userID)
 		if err != nil {
-			return ctx.Send("❌ Ошибка при получении черновика")
+			return err
 		}
 
 		if draft == nil {
-			return ctx.Send("❌ Черновик не найден. Начните редактирование заново.")
+			return err
 		}
 
-		strID := ctx.Data()
+		strID := ctxBot.Data()
 		id, err := strconv.Atoi(strID)
 		if err != nil {
 			return err
@@ -299,47 +301,47 @@ func ShowCurrentValue(ctx context.Context, domain domain.UseCases) telebot.Handl
 		switch {
 		case draft.TagID == int64(id):
 			// Получаем тег
-			tag, err := domain.GetTagByID(GetContext(ctx), int64(id))
+			tag, err := d.GetTagByID(ctx, int64(id))
 			if err != nil {
-				return ctx.Send("❌ Не удалось загрузить тег")
+				return ctxBot.Send("❌ Не удалось загрузить тег")
 			}
-			currentValue = tag.TagService
+			currentValue = tag.Tag
 			entityType = "тег"
 
 		case draft.QuestionIDByName == int64(id):
 			// Получаем вопрос
-			question, err := domain.GetQuestionAnswers(GetContext(ctx), int64(id))
+			question, err := d.GetQuestionAnswers(ctx, int64(id))
 			if err != nil {
-				return ctx.Send("❌ Не удалось загрузить вопрос")
+				return ctxBot.Send("❌ Не удалось загрузить вопрос")
 			}
-			currentValue = question.QuestionService
+			currentValue = question.Question
 			entityType = "вопрос"
 
 		case draft.QuestionIDByTag == int64(id):
 			// Получаем вопрос для изменения тега
-			q, err := domain.GetQuestionAnswers(GetContext(ctx), int64(id))
+			q, err := d.GetQuestionAnswers(ctx, int64(id))
 			if err != nil {
-				return ctx.Send("❌ Не удалось загрузить вопрос")
+				return ctxBot.Send("❌ Не удалось загрузить вопрос")
 			}
-			tag, err := domain.GetTagByID(GetContext(ctx), q.TagID)
+			tag, err := d.GetTagByID(ctx, q.TagID)
 			if err != nil {
 				currentValue = "Тег не найден"
 			} else {
-				currentValue = tag.TagService
+				currentValue = tag.Tag
 			}
 			entityType = "тег вопроса"
 
 		case draft.AnswerID == int64(id):
 			// Получаем ответ
-			answer, err := domain.GetAnswerByID(GetContext(ctx), int64(id))
+			answer, err := d.GetAnswerByID(ctx, int64(id))
 			if err != nil {
-				return ctx.Send("❌ Не удалось загрузить ответ")
+				return ctxBot.Send("❌ Не удалось загрузить ответ")
 			}
-			currentValue = answer.AnswerService
+			currentValue = answer.Answer
 			entityType = "ответ"
 
 		default:
-			return ctx.Send("❌ Неизвестная сущность для редактирования")
+			return ctxBot.Send("❌ Неизвестная сущность для редактирования")
 		}
 
 		message := fmt.Sprintf("<b>Введите новое значение для или нажмите /cancel для отмены:</b>\n\n 📋 Текущее значение %s:\n\n<code>%s</code>💡",
@@ -352,11 +354,11 @@ func ShowCurrentValue(ctx context.Context, domain domain.UseCases) telebot.Handl
 		menu.Inline(menu.Row(btnCollapse))
 
 		// Редактируем сообщение, заменяя кнопку на значение
-		if ctx.Callback() != nil {
-			return ctx.Edit(message, menu, telebot.ModeHTML)
+		if ctxBot.Callback() != nil {
+			return ctxBot.Edit(message, menu, telebot.ModeHTML)
 		}
 
-		return ctx.Send(message, menu, telebot.ModeHTML)
+		return ctxBot.Send(message, menu, telebot.ModeHTML)
 	}
 }
 
@@ -394,9 +396,9 @@ func viewAnswer(ctx context.Context, d domain.UseCases, showAnswer bool) telebot
 		tag := uq.R.GetQuestion().R.GetTag().Tag
 		answer := uq.R.GetQuestion().R.GetAnswers()[0]
 
-		result := escapeMarkdown(tag) + ": " + escapeMarkdown(question)
+		result := EscapeMarkdown(tag) + ": " + EscapeMarkdown(question)
 		if showAnswer {
-			result += "\n\n" + escapeMarkdown(answer.Answer)
+			result += "\n\n" + EscapeMarkdown(answer.Answer)
 		}
 
 		return ctxBot.Edit(

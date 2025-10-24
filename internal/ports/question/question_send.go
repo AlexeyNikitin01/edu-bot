@@ -17,8 +17,8 @@ func SendQuestion(ctx context.Context, b *telebot.Bot, dis domain.Dispatcher) {
 		select {
 		case uq := <-ch:
 			// Форматируем текст вопроса
-			tag := escapeMarkdown(uq.GetQuestion().R.GetTag().Tag)
-			questionText := escapeMarkdown(uq.GetQuestion().Question)
+			tag := EscapeMarkdown(uq.GetQuestion().R.GetTag().Tag)
+			questionText := EscapeMarkdown(uq.GetQuestion().Question)
 
 			// Создаем интерактивные кнопки
 

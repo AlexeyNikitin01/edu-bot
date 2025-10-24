@@ -3,6 +3,7 @@ package task
 import (
 	"bot/internal/domain"
 	"bot/internal/middleware"
+	"bot/internal/ports/question"
 	"context"
 	"gopkg.in/telebot.v3"
 	"strconv"
@@ -10,9 +11,9 @@ import (
 
 func GetTagsByTask(ctx context.Context, d domain.UseCases) telebot.HandlerFunc {
 	return func(ctxBot telebot.Context) error {
-		u := middleware.GetUserFromContext(ctxBot)
+		userID := middleware.GetUserFromContext(ctxBot).TGUserID
 
-		tags, err := d.GetUniqueTagsByTask(GetContext(ctxBot), u.TGUserID)
+		tags, err := d.GetUniqueTagsByTask(ctx, userID)
 		if err != nil {
 			return err
 		}
@@ -25,15 +26,15 @@ func GetTagsByTask(ctx context.Context, d domain.UseCases) telebot.HandlerFunc {
 
 		for _, tag := range tags {
 			tagBtn := telebot.InlineButton{
-				Unique: INLINE_BTN_TASK_BY_TAG,
-				Text:   tag.TagService,
-				Data:   tag.TagService,
+				Unique: question.INLINE_BTN_TASK_BY_TAG,
+				Text:   tag.Tag,
+				Data:   tag.Tag,
 			}
 
 			tagButtons = append(tagButtons, []telebot.InlineButton{tagBtn})
 		}
 
-		return ctxBot.Send(MSG_LIST_TAGS, &telebot.ReplyMarkup{
+		return ctxBot.Send(question.MSG_LIST_TAGS, &telebot.ReplyMarkup{
 			InlineKeyboard: tagButtons,
 		})
 	}
@@ -42,15 +43,15 @@ func GetTagsByTask(ctx context.Context, d domain.UseCases) telebot.HandlerFunc {
 func NextTask(ctx context.Context, d domain.UseCases) telebot.HandlerFunc {
 	return func(ctxBot telebot.Context) error {
 		tag := ctxBot.Data()
-
-		uq, err := d.GetTask(GetContext(ctxBot), GetUserFromContext(ctxBot).TGUserID, tag)
+		userID := middleware.GetUserFromContext(ctxBot).TGUserID
+		uq, err := d.GetTask(ctx, userID, tag)
 		if err != nil {
 			return err
 		}
 
 		q := uq.R.GetQuestion()
-		tag = domain.escapeMarkdown(q.R.GetTag().TagService)
-		questionText := domain.escapeMarkdown(q.QuestionService)
+		tag = question.EscapeMarkdown(q.R.GetTag().Tag)
+		questionText := question.EscapeMarkdown(q.Question)
 
 		label := "🔔"
 		if uq.IsEdu {
@@ -72,27 +73,27 @@ func NextTask(ctx context.Context, d domain.UseCases) telebot.HandlerFunc {
 }
 
 // Новая функция для отображения вопроса после выбора "легко" или "сложно"
-func showQuestionAfterChoice(domain domain.Apper) telebot.HandlerFunc {
-	return func(ctx telebot.Context) error {
-		questionID, err := strconv.Atoi(ctx.Data())
+func showQuestionAfterChoice(ctx context.Context, d domain.UseCases) telebot.HandlerFunc {
+	return func(ctxBot telebot.Context) error {
+		questionID, err := strconv.Atoi(ctxBot.Data())
 		if err != nil {
 			return err
 		}
 
-		q, err := domain.GetQuestionAnswers(GetContext(ctx), int64(questionID))
+		q, err := d.GetQuestionAnswers(ctx, int64(questionID))
 		if err != nil {
 			return err
 		}
 
-		tag := domain.escapeMarkdown(q.R.GetTag().TagService)
-		questionText := domain.escapeMarkdown(q.QuestionService)
+		tag := question.EscapeMarkdown(q.R.GetTag().Tag)
+		questionText := question.EscapeMarkdown(q.Question)
 
 		// Используем билдер для создания кнопок навигации
 		keyboard := NewTaskButtonsBuilder().
 			AddNavigation(int64(questionID)).
 			Build()
 
-		return ctx.Send(
+		return ctxBot.Send(
 			"Выбор сохранён!\n\n"+tag+": "+questionText,
 			telebot.ModeMarkdownV2,
 			keyboard,
@@ -100,22 +101,24 @@ func showQuestionAfterChoice(domain domain.Apper) telebot.HandlerFunc {
 	}
 }
 
-func skipTask(domain domain.Apper) telebot.HandlerFunc {
-	return func(ctx telebot.Context) error {
-		tagData := ctx.Data()
+func skipTask(ctx context.Context, domain domain.UseCases) telebot.HandlerFunc {
+	return func(ctxBot telebot.Context) error {
+		tagData := ctxBot.Data()
 
-		uq, err := domain.GetTask(GetContext(ctx), GetUserFromContext(ctx).TGUserID, tagData)
+		userID := middleware.GetUserFromContext(ctxBot).TGUserID
+
+		uq, err := domain.GetTask(ctx, userID, tagData)
 		if err != nil {
 			return err
 		}
 
 		if uq == nil {
-			return ctx.Send("🎉 Все вопросы завершены! Вы великолепны!")
+			return ctxBot.Send("🎉 Все вопросы завершены! Вы великолепны!")
 		}
 
 		q := uq.R.GetQuestion()
-		tag := domain.escapeMarkdown(q.R.GetTag().TagService)
-		questionText := domain.escapeMarkdown(q.QuestionService)
+		tag := question.EscapeMarkdown(q.R.GetTag().Tag)
+		questionText := question.EscapeMarkdown(q.Question)
 
 		label := "🔔"
 		if uq.IsEdu {
@@ -129,7 +132,7 @@ func skipTask(domain domain.Apper) telebot.HandlerFunc {
 			AddActions(q.ID, label).
 			Build()
 
-		return ctx.Send(
+		return ctxBot.Send(
 			"⏩ Вопрос пропущен!\n\n"+tag+": "+questionText,
 			telebot.ModeMarkdownV2,
 			keyboard,

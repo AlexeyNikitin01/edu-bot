@@ -40,12 +40,12 @@ func setupQuestionHandlers(b *telebot.Bot, ctx context.Context, d domain.UseCase
 
 	// Чтение вопросов
 	b.Handle(&telebot.InlineButton{Unique: question.INLINE_NEXT_QUESTION}, question.NextQuestion(ctx, d))
-	b.Handle(&telebot.InlineButton{Unique: question.INLINE_BTN_QUESTION_BY_TAG}, func(ctx telebot.Context) error {
-		return question.QuestionByTag(ctx.Data())(ctx)
+	b.Handle(&telebot.InlineButton{Unique: question.INLINE_BTN_QUESTION_BY_TAG}, func(ctxBot telebot.Context) error {
+		return question.QuestionByTag(ctx, ctxBot.Data(), d)(ctxBot)
 	})
 
 	// Обновление вопросов
-	b.Handle(&telebot.InlineButton{Unique: question.INLINE_BTN_REPEAT_QUESTION}, question.HandleToggleRepeat(ctx, d))
+	b.Handle(&telebot.InlineButton{Unique: question.INLINE_BTN_REPEAT_QUESTION}, question.IsRepeat(ctx, d))
 	b.Handle(&telebot.InlineButton{Unique: question.INLINE_REMEMBER_HIGH_QUESTION}, question.RememberQuestion(ctx, d))
 	b.Handle(&telebot.InlineButton{Unique: question.INLINE_BTN_REPEAT_QUESTION_AFTER_POLL}, question.RepeatQuestionAfterPoll(ctx, d))
 	b.Handle(&telebot.InlineButton{Unique: question.INLINE_BTN_REPEAT_QUESTION_AFTER_POLL_HIGH}, question.RepeatQuestionAfterPollHigh(ctx, d))
@@ -58,11 +58,11 @@ func setupQuestionHandlers(b *telebot.Bot, ctx context.Context, d domain.UseCase
 	b.Handle(&telebot.InlineButton{Unique: question.INLINE_FORGOT_HIGH_QUESTION}, question.ForgotQuestion(ctx, d))
 
 	// Пагинация вопросов
-	b.Handle(&telebot.InlineButton{Unique: question.INLINE_BTN_QUESTION_PAGE + "_prev"}, func(ctx telebot.Context) error {
-		return question.HandlePageNavigation(ctx, -1)
+	b.Handle(&telebot.InlineButton{Unique: question.INLINE_BTN_QUESTION_PAGE + "_prev"}, func(ctxBot telebot.Context) error {
+		return question.HandlePageNavigation(ctx, ctxBot, -1, d)
 	})
-	b.Handle(&telebot.InlineButton{Unique: question.INLINE_BTN_QUESTION_PAGE + "_next"}, func(ctx telebot.Context) error {
-		return question.HandlePageNavigation(ctx, 1)
+	b.Handle(&telebot.InlineButton{Unique: question.INLINE_BTN_QUESTION_PAGE + "_next"}, func(ctxBot telebot.Context) error {
+		return question.HandlePageNavigation(ctx, ctxBot, 1, d)
 	})
 }
 

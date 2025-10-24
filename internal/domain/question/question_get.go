@@ -23,7 +23,7 @@ func (q Question) GetQuestionAnswers(ctx context.Context, qID int64) (*edu.Quest
 	return question, nil
 }
 
-func (q Question) GetQuestion(ctx context.Context, userID int64, tag string) (edu.QuestionSlice, error) {
+func (q Question) GetAllQuestions(ctx context.Context, userID int64, tag string) (edu.QuestionSlice, error) {
 	qs, err := edu.Questions(
 		qm.InnerJoin(fmt.Sprintf("%s ON %s = %s", edu.TableNames.UsersQuestions,
 			edu.QuestionTableColumns.ID,

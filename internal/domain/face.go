@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"bot/internal/repo/dto"
 	"bot/internal/repo/edu"
 	"context"
 	"time"
@@ -42,6 +43,9 @@ type UserQuestionService interface {
 	GetNearestTimeRepeat(ctx context.Context, userID int64) (time.Time, error)
 	GetTask(ctx context.Context, userID int64, tag string) (*edu.UsersQuestion, error)
 	DeleteQuestionUser(ctx context.Context, userID int64, qID int64) error
+	SetDraftQuestion(ctx context.Context, userID int64, draftQuestion *dto.QuestionDraft) error
+	GetDraftQuestion(ctx context.Context, userID int64) (*dto.QuestionDraft, error)
+	DeleteDraftQuestion(ctx context.Context, userID int64) error
 }
 
 type TagService interface {

@@ -16,3 +16,7 @@ func (u UserQuestion) DeleteQuestionUser(ctx context.Context, userID int64, qID 
 
 	return nil
 }
+
+func (u UserQuestion) DeleteQuestion(ctx context.Context, userID int64, qID int64) error {
+	return nil
+}

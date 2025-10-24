@@ -30,12 +30,12 @@ func main() {
 
 	// инициализация сервисов
 	a := domain.NewDomain(
-		domain.WithDefaultUserService(),
-		domain.WithDefaultQuestionService(),
-		domain.WithDefaultUserQuestionService(),
 		domain.WithDefaultTagService(),
+		domain.WithDefaultUserService(),
 		domain.WithDefaultAnswerService(),
-		domain.WithDefaultDispatcher(distpatcher.NewDispatcher(user.NewUser(), userQuestion.NewUserQuestion(), c)),
+		domain.WithDefaultQuestionService(),
+		domain.WithUserQuestionService(userQuestion.NewUserQuestion(userQuestion.WithCacheUQ(c))),
+		domain.WithDispatcher(distpatcher.NewDispatcher(user.NewUser(), userQuestion.NewUserQuestion(), c)),
 	)
 
 	// запуск транспортного слоя

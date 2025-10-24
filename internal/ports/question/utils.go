@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-func escapeMarkdown(text string) string {
+func EscapeMarkdown(text string) string {
 	specialChars := []string{"_", "*", "[", "]", "(", ")", "~", "`", ">", "#", "+", "-", "=", "|", "{", "}", ".", "!"}
 	for _, char := range specialChars {
 		text = strings.ReplaceAll(text, char, "\\"+char)
