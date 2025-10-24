@@ -26,6 +26,7 @@ type Apper interface {
 	GetUniqueTagsByTask(ctx context.Context, userID int64) ([]*edu.Tag, error)
 	GetTagByID(ctx context.Context, tagID int64) (*edu.Tag, error)
 	GetAnswerByID(ctx context.Context, answerID int64) (*edu.Answer, error)
+	GetUsersForSend(ctx context.Context, activityUsers []int64) (edu.UserSlice, error)
 }
 
 type App struct {

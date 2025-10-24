@@ -4,6 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
+	"github.com/aarondl/sqlboiler/v4/queries/qm"
+	"time"
 
 	"github.com/aarondl/sqlboiler/v4/boil"
 
@@ -44,4 +47,28 @@ func (a *App) CreateUser(ctx context.Context, userID int64, chatID int64, name s
 	}
 
 	return u, nil
+}
+
+func (a *App) GetUsersForSend(ctx context.Context, activityUsers []int64) (edu.UserSlice, error) {
+	users, err := edu.Users(
+		qm.Select(edu.UserColumns.TGUserID),
+		edu.UserWhere.TGUserID.NIN(activityUsers),
+		edu.UserWhere.Block.EQ(false),
+		qm.InnerJoin(
+			fmt.Sprintf(
+				"%s on %s = %s",
+				edu.TableNames.UsersQuestions,
+				edu.UsersQuestionTableColumns.UserID,
+				edu.UserTableColumns.TGUserID),
+		),
+		edu.UsersQuestionWhere.IsEdu.EQ(true),
+		edu.UsersQuestionWhere.IsPause.EQ(false),
+		edu.UsersQuestionWhere.TimeRepeat.LTE(time.Now().UTC()),
+		qm.GroupBy(edu.UserTableColumns.TGUserID),
+	).All(ctx, boil.GetContextDB())
+	if err != nil {
+		return nil, err
+	}
+
+	return users, nil
 }

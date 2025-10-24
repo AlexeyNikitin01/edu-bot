@@ -14,10 +14,7 @@ import (
 type UserCacher interface {
 	SetUserWaiting(ctx context.Context, userID int64, waiting bool) error
 	GetUserWaiting(ctx context.Context, userID int64) (bool, error)
-
-	AddWorker(ctx context.Context, userID int64) error
-	RemoveWorker(ctx context.Context, userID int64) error
-	GetActiveWorkers(ctx context.Context) ([]int64, error)
+	GetAllWaitingUsers(ctx context.Context) ([]int64, error) // Новый метод
 
 	DraftCacher
 }
@@ -34,13 +31,37 @@ func NewRedisUserCache(client *redis.Client) *RedisUserCache {
 	}
 }
 
+// Ключ для множества всех ожидающих пользователей
+func (r *RedisUserCache) waitingUsersSetKey() string {
+	return "bot:waiting_users"
+}
+
+// Ключ для отдельного пользователя
+func (r *RedisUserCache) userWaitingKey(userID int64) string {
+	return fmt.Sprintf("user:%d:waiting", userID)
+}
+
 func (r *RedisUserCache) SetUserWaiting(ctx context.Context, userID int64, waiting bool) error {
-	key := fmt.Sprintf("user:%d:waiting", userID)
-	return r.client.Set(ctx, key, waiting, r.ttl).Err()
+	userKey := r.userWaitingKey(userID)
+	setKey := r.waitingUsersSetKey()
+
+	if waiting {
+		// Добавляем пользователя в множество ожидающих и устанавливаем флаг
+		if err := r.client.Set(ctx, userKey, true, r.ttl).Err(); err != nil {
+			return err
+		}
+		return r.client.SAdd(ctx, setKey, userID).Err()
+	} else {
+		// Удаляем пользователя из множества ожидающих и сбрасываем флаг
+		if err := r.client.Del(ctx, userKey).Err(); err != nil {
+			return err
+		}
+		return r.client.SRem(ctx, setKey, userID).Err()
+	}
 }
 
 func (r *RedisUserCache) GetUserWaiting(ctx context.Context, userID int64) (bool, error) {
-	key := fmt.Sprintf("user:%d:waiting", userID)
+	key := r.userWaitingKey(userID)
 	result, err := r.client.Get(ctx, key).Bool()
 	if errors.Is(err, redis.Nil) {
 		return false, nil
@@ -48,6 +69,65 @@ func (r *RedisUserCache) GetUserWaiting(ctx context.Context, userID int64) (bool
 	return result, err
 }
 
+// GetAllWaitingUsers возвращает ID всех пользователей, ожидающих ответ
+func (r *RedisUserCache) GetAllWaitingUsers(ctx context.Context) ([]int64, error) {
+	setKey := r.waitingUsersSetKey()
+
+	// Получаем все элементы множества как строки
+	members, err := r.client.SMembers(ctx, setKey).Result()
+	if err != nil {
+		return nil, err
+	}
+
+	// Конвертируем строки в int64
+	userIDs := make([]int64, 0, len(members))
+	for _, member := range members {
+		if userID, err := strconv.ParseInt(member, 10, 64); err == nil {
+			userIDs = append(userIDs, userID)
+		}
+		// Можно добавить логирование для ошибок конвертации, если нужно
+	}
+
+	return userIDs, nil
+}
+
+// Альтернативная реализация через сканирование ключей (если предпочтительнее)
+func (r *RedisUserCache) GetAllWaitingUsersScan(ctx context.Context) ([]int64, error) {
+	var waitingUsers []int64
+	var cursor uint64
+	var keys []string
+	var err error
+
+	// Ищем все ключи по шаблону user:*:waiting
+	pattern := r.userWaitingKey(0) // "user:*:waiting"
+
+	for {
+		keys, cursor, err = r.client.Scan(ctx, cursor, pattern, 100).Result()
+		if err != nil {
+			return nil, err
+		}
+
+		for _, key := range keys {
+			// Извлекаем userID из ключа "user:{id}:waiting"
+			var userID int64
+			_, err := fmt.Sscanf(key, "user:%d:waiting", &userID)
+			if err == nil {
+				// Проверяем, что пользователь действительно ожидает
+				if waiting, err := r.GetUserWaiting(ctx, userID); err == nil && waiting {
+					waitingUsers = append(waitingUsers, userID)
+				}
+			}
+		}
+
+		if cursor == 0 {
+			break
+		}
+	}
+
+	return waitingUsers, nil
+}
+
+// Остальные методы без изменений
 func (r *RedisUserCache) AddToSet(ctx context.Context, key string, value string) error {
 	return r.client.SAdd(ctx, key, value).Err()
 }
