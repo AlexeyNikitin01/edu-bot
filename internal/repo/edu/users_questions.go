@@ -240,14 +240,14 @@ var UsersQuestionRels = struct {
 	Question string
 	User     string
 }{
-	Question: "QuestionService",
-	User:     "UserService",
+	Question: "Question",
+	User:     "User",
 }
 
 // usersQuestionR is where relationships are stored.
 type usersQuestionR struct {
-	Question *Question `db:"QuestionService" pg:"QuestionService" boil:"QuestionService" json:"QuestionService" toml:"QuestionService" yaml:"QuestionService"`
-	User     *User     `db:"UserService" pg:"UserService" boil:"UserService" json:"UserService" toml:"UserService" yaml:"UserService"`
+	Question *Question `db:"Question" pg:"Question" boil:"Question" json:"Question" toml:"Question" yaml:"Question"`
+	User     *User     `db:"User" pg:"User" boil:"User" json:"User" toml:"User" yaml:"User"`
 }
 
 // NewStruct creates a new relationship struct
@@ -310,7 +310,7 @@ type (
 	}
 )
 
-// cache for insert, update and upsert
+// Cache for insert, update and upsert
 var (
 	usersQuestionType                 = reflect.TypeOf(&UsersQuestion{})
 	usersQuestionMapping              = queries.MakeStructMapping(usersQuestionType)
@@ -693,12 +693,12 @@ func (usersQuestionL) LoadQuestion(ctx context.Context, e boil.ContextExecutor, 
 
 	results, err := query.QueryContext(ctx, e)
 	if err != nil {
-		return errors.Wrap(err, "failed to eager load QuestionService")
+		return errors.Wrap(err, "failed to eager load Question")
 	}
 
 	var resultSlice []*Question
 	if err = queries.Bind(results, &resultSlice); err != nil {
-		return errors.Wrap(err, "failed to bind eager loaded slice QuestionService")
+		return errors.Wrap(err, "failed to bind eager loaded slice Question")
 	}
 
 	if err = results.Close(); err != nil {
@@ -814,12 +814,12 @@ func (usersQuestionL) LoadUser(ctx context.Context, e boil.ContextExecutor, sing
 
 	results, err := query.QueryContext(ctx, e)
 	if err != nil {
-		return errors.Wrap(err, "failed to eager load UserService")
+		return errors.Wrap(err, "failed to eager load User")
 	}
 
 	var resultSlice []*User
 	if err = queries.Bind(results, &resultSlice); err != nil {
-		return errors.Wrap(err, "failed to bind eager loaded slice UserService")
+		return errors.Wrap(err, "failed to bind eager loaded slice User")
 	}
 
 	if err = results.Close(); err != nil {
@@ -868,7 +868,7 @@ func (usersQuestionL) LoadUser(ctx context.Context, e boil.ContextExecutor, sing
 }
 
 // SetQuestion of the usersQuestion to the related item.
-// Sets o.R.QuestionService to related.
+// Sets o.R.Question to related.
 // Adds o to related.R.UsersQuestions.
 func (o *UsersQuestion) SetQuestion(ctx context.Context, exec boil.ContextExecutor, insert bool, related *Question) error {
 	var err error
@@ -915,7 +915,7 @@ func (o *UsersQuestion) SetQuestion(ctx context.Context, exec boil.ContextExecut
 }
 
 // SetUser of the usersQuestion to the related item.
-// Sets o.R.UserService to related.
+// Sets o.R.User to related.
 // Adds o to related.R.UsersQuestions.
 func (o *UsersQuestion) SetUser(ctx context.Context, exec boil.ContextExecutor, insert bool, related *User) error {
 	var err error

@@ -377,7 +377,7 @@ func CollapseValue(ctx context.Context, domain domain.UseCases) telebot.HandlerF
 	}
 }
 
-func viewAnswer(ctx context.Context, d domain.UseCases, showAnswer bool) telebot.HandlerFunc {
+func ViewAnswer(ctx context.Context, d domain.UseCases, showAnswer bool) telebot.HandlerFunc {
 	return func(ctxBot telebot.Context) error {
 		data := ctxBot.Data()
 		qID, err := strconv.Atoi(data)

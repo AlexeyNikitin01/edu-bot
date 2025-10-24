@@ -131,7 +131,7 @@ var (
 
 type (
 	// TagSlice is an alias for a slice of pointers to Tag.
-	// This should almost always be used instead of []TagService.
+	// This should almost always be used instead of []Tag.
 	TagSlice []*Tag
 	// TagHook is the signature for custom Tag hook methods
 	TagHook func(context.Context, boil.ContextExecutor, *Tag) error
@@ -141,7 +141,7 @@ type (
 	}
 )
 
-// cache for insert, update and upsert
+// Cache for insert, update and upsert
 var (
 	tagType                 = reflect.TypeOf(&Tag{})
 	tagMapping              = queries.MakeStructMapping(tagType)
@@ -389,7 +389,7 @@ func (q tagQuery) All(ctx context.Context, exec boil.ContextExecutor) (TagSlice,
 
 	err := q.Bind(ctx, exec, &o)
 	if err != nil {
-		return nil, errors.Wrap(err, "edu: failed to assign all query results to TagService slice")
+		return nil, errors.Wrap(err, "edu: failed to assign all query results to Tag slice")
 	}
 
 	if len(tagAfterSelectHooks) != 0 {
@@ -565,7 +565,7 @@ func (tagL) LoadQuestions(ctx context.Context, e boil.ContextExecutor, singular 
 // AddQuestions adds the given related objects to the existing relationships
 // of the tag, optionally inserting them as new records.
 // Appends related to o.R.Questions.
-// Sets related.R.TagService appropriately.
+// Sets related.R.Tag appropriately.
 func (o *Tag) AddQuestions(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*Question) error {
 	var err error
 	for _, rel := range related {
@@ -1013,7 +1013,7 @@ func (o *Tag) Upsert(ctx context.Context, exec boil.ContextExecutor, updateOnCon
 // Delete will match against the primary key column to find the record to delete.
 func (o *Tag) Delete(ctx context.Context, exec boil.ContextExecutor, hardDelete bool) (int64, error) {
 	if o == nil {
-		return 0, errors.New("edu: no TagService provided for delete")
+		return 0, errors.New("edu: no Tag provided for delete")
 	}
 
 	if err := o.doBeforeDeleteHooks(ctx, exec); err != nil {

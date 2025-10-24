@@ -34,7 +34,9 @@ func ForgotQuestion(ctx context.Context, d domain.UseCases) telebot.HandlerFunc 
 		}
 
 		if err = ctxBot.Edit(&telebot.ReplyMarkup{
-			InlineKeyboard: [][]telebot.InlineButton{{NewQuestionButtonBuilder().BuildForgotButton(uq)}},
+			InlineKeyboard: [][]telebot.InlineButton{{
+				WithPrefixEmoji("😵", NewQuestionButtonBuilder().BuildForgotButton(uq)),
+			}},
 		}); err != nil {
 			return ctxBot.Respond(&telebot.CallbackResponse{Text: err.Error()})
 		}
@@ -128,24 +130,30 @@ func RepeatQuestionAfterPoll(ctx context.Context, d domain.UseCases) telebot.Han
 	}
 }
 
-func RepeatQuestionAfterPollHigh(ctx context.Context, d domain.UseCases) telebot.HandlerFunc {
+func IsRepeatByPoll(ctx context.Context, d domain.UseCases) telebot.HandlerFunc {
 	return func(ctxBot telebot.Context) error {
 		qidStr := ctxBot.Data()
 		questionID, err := strconv.Atoi(qidStr)
 		if err != nil {
-			return ctxBot.Respond(&telebot.CallbackResponse{Text: err.Error()})
+			return err
 		}
 
 		userID := middleware.GetUserFromContext(ctxBot).TGUserID
 
 		if err = d.UpdateIsEduUserQuestion(ctx, userID, int64(questionID)); err != nil {
-			return ctxBot.Respond(&telebot.CallbackResponse{Text: err.Error()})
+			return err
 		}
 
-		if err = ctxBot.Edit(&telebot.ReplyMarkup{ // todo поправить кнопки
+		uq, err := d.GetUserQuestion(ctx, userID, int64(questionID))
+		if err != nil {
+			return err
+		}
+
+		if err = ctxBot.Edit(&telebot.ReplyMarkup{
+			InlineKeyboard: NewQuestionButtonBuilder().BuildFullKeyboard(uq, false),
 		},
 		); err != nil {
-			return ctxBot.Respond(&telebot.CallbackResponse{Text: err.Error()})
+			return err
 		}
 
 		return nil

@@ -145,7 +145,7 @@ var (
 
 type (
 	// UserSlice is an alias for a slice of pointers to User.
-	// This should almost always be used instead of []UserService.
+	// This should almost always be used instead of []User.
 	UserSlice []*User
 	// UserHook is the signature for custom User hook methods
 	UserHook func(context.Context, boil.ContextExecutor, *User) error
@@ -155,7 +155,7 @@ type (
 	}
 )
 
-// cache for insert, update and upsert
+// Cache for insert, update and upsert
 var (
 	userType                 = reflect.TypeOf(&User{})
 	userMapping              = queries.MakeStructMapping(userType)
@@ -403,7 +403,7 @@ func (q userQuery) All(ctx context.Context, exec boil.ContextExecutor) (UserSlic
 
 	err := q.Bind(ctx, exec, &o)
 	if err != nil {
-		return nil, errors.Wrap(err, "edu: failed to assign all query results to UserService slice")
+		return nil, errors.Wrap(err, "edu: failed to assign all query results to User slice")
 	}
 
 	if len(userAfterSelectHooks) != 0 {
@@ -579,7 +579,7 @@ func (userL) LoadUsersQuestions(ctx context.Context, e boil.ContextExecutor, sin
 // AddUsersQuestions adds the given related objects to the existing relationships
 // of the user, optionally inserting them as new records.
 // Appends related to o.R.UsersQuestions.
-// Sets related.R.UserService appropriately.
+// Sets related.R.User appropriately.
 func (o *User) AddUsersQuestions(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*UsersQuestion) error {
 	var err error
 	for _, rel := range related {
@@ -1027,7 +1027,7 @@ func (o *User) Upsert(ctx context.Context, exec boil.ContextExecutor, updateOnCo
 // Delete will match against the primary key column to find the record to delete.
 func (o *User) Delete(ctx context.Context, exec boil.ContextExecutor, hardDelete bool) (int64, error) {
 	if o == nil {
-		return 0, errors.New("edu: no UserService provided for delete")
+		return 0, errors.New("edu: no User provided for delete")
 	}
 
 	if err := o.doBeforeDeleteHooks(ctx, exec); err != nil {

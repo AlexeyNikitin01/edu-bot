@@ -25,7 +25,7 @@ func routers(ctx context.Context, b *telebot.Bot, d domain.UseCases) {
 
 	setupContentHandlers(ctx, b, d)
 
-	question.SendQuestion(ctx, b, d)
+	go question.SendQuestion(ctx, b, d)
 }
 
 func setupCommandHandlers(b *telebot.Bot) {
@@ -43,12 +43,13 @@ func setupQuestionHandlers(b *telebot.Bot, ctx context.Context, d domain.UseCase
 	b.Handle(&telebot.InlineButton{Unique: question.INLINE_BTN_QUESTION_BY_TAG}, func(ctxBot telebot.Context) error {
 		return question.QuestionByTag(ctx, ctxBot.Data(), d)(ctxBot)
 	})
+	b.Handle(&telebot.InlineButton{Unique: question.INLINE_SHOW_ANSWER}, question.ViewAnswer(ctx, d, true))
+	b.Handle(&telebot.InlineButton{Unique: question.INLINE_TURN_ANSWER}, question.ViewAnswer(ctx, d, false))
 
 	// Обновление вопросов
 	b.Handle(&telebot.InlineButton{Unique: question.INLINE_BTN_REPEAT_QUESTION}, question.IsRepeat(ctx, d))
 	b.Handle(&telebot.InlineButton{Unique: question.INLINE_REMEMBER_HIGH_QUESTION}, question.RememberQuestion(ctx, d))
-	b.Handle(&telebot.InlineButton{Unique: question.INLINE_BTN_REPEAT_QUESTION_AFTER_POLL}, question.RepeatQuestionAfterPoll(ctx, d))
-	b.Handle(&telebot.InlineButton{Unique: question.INLINE_BTN_REPEAT_QUESTION_AFTER_POLL_HIGH}, question.RepeatQuestionAfterPollHigh(ctx, d))
+	b.Handle(&telebot.InlineButton{Unique: question.INLINE_BTN_REPEAT_QUESTION_AFTER_POLL_HIGH}, question.IsRepeatByPoll(ctx, d))
 
 	// Удаление вопросов
 	b.Handle(&telebot.InlineButton{Unique: question.INLINE_BTN_DELETE_QUESTION}, question.DeleteQuestion(ctx, d))
@@ -109,16 +110,14 @@ func createQuestionTextHandler(ctx context.Context, d domain.UseCases) func(tele
 			return ctxBot.Send(question.MSG_WRONG_BTN, mainMenu())
 		}
 
-		// Проверяем, есть ли активный черновик у пользователя в Redis
-		//draft, err := cache.GetDraft(ctxBot, user.TGUserID)
-		//if err != nil {
-		//	return err
-		//}
+		draft, err := d.GetDraftQuestion(ctx, user.TGUserID)
+		if err != nil {
+			return err
+		}
 
-		// Если есть активный черновик, обрабатываем его
-		//if draft != nil && draft.Step > 0 {
-		//	return question.UpsertUserQuestion(d, cache)(ctxBot)
-		//}
+		if draft != nil && draft.Step > 0 {
+			return question.UpsertUserQuestion(ctx, d)(ctxBot)
+		}
 
 		text := ctxBot.Text()
 
@@ -136,6 +135,8 @@ func createQuestionTextHandler(ctx context.Context, d domain.UseCases) func(tele
 			return ctxBot.Send(question.MSG_CSV, telebot.ModeHTML)
 		case question.BTN_NEXT_TASK:
 			return task.GetTagsByTask(ctx, d)(ctxBot)
+		case question.BTN_NEXT_QUESTION:
+			return question.NextQuestion(ctx, d)(ctxBot)
 		default:
 			return ctxBot.Send(question.MSG_WRONG_BTN, mainMenu())
 		}

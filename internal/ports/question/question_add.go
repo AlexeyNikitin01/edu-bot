@@ -283,9 +283,7 @@ func processCorrectAnswerInputAndSaveQuestion(
 		return err
 	}
 
-	return nil
-	// todo
-	//return ctxBot.Send(MSG_SUCCESS, mainMenu())
+	return ctxBot.Send(MSG_SUCCESS)
 }
 
 func getTags(

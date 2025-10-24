@@ -90,6 +90,10 @@ func (d *QuestionDispatcher) StartPollingLoop(ctx context.Context, ch chan *edu.
 					continue
 				}
 
+				if len(users) == 0 {
+					continue
+				}
+
 				// Запускаем воркеры для каждого подходящего пользователя
 				for _, user := range users {
 					userID := user.TGUserID
@@ -161,21 +165,6 @@ func (d *QuestionDispatcher) SetUserWaiting(ctx context.Context, userID int64, w
 	return nil
 }
 
-// sendRandomQuestionForUser отправляет случайный вопрос пользователю
-//
-// Параметры:
-//   - userID: ID пользователя Telegram
-//
-// Возвращает:
-//   - error: ошибка при получении вопроса или отправке сообщения
-//
-// Функциональность:
-//   - Получает случайный ближайший вопрос с ответом для пользователя
-//   - Форматирует текст вопроса с экранированием Markdown
-//   - Создает интерактивную клавиатуру с кнопками
-//   - Отправляет сообщение через Telegram API
-//
-// Время выполнения: ~5-15 мс
 func (d *QuestionDispatcher) sendRandomQuestionForUser(
 	ctx context.Context, userID int64, ch chan *edu.UsersQuestion,
 ) error {

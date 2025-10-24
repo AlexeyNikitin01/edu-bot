@@ -9,7 +9,6 @@ const (
 	INLINE_BTN_DELETE_QUESTIONS_BY_TAG         = "delete_tag"
 	INLINE_BTN_DELETE_QUESTION_AFTER_POLL      = "delete_question_after_poll"
 	INLINE_BTN_DELETE_QUESTION_AFTER_POLL_HIGH = "delete_question_after_poll_high"
-	INLINE_BTN_REPEAT_QUESTION_AFTER_POLL      = "repeat_question_after_poll"
 	INLINE_BTN_REPEAT_QUESTION_AFTER_POLL_HIGH = "repeat_question_after_poll_high"
 	INLINE_BTN_QUESTION_BY_TAG                 = "question_by_tag"
 	INLINE_FORGOT_HIGH_QUESTION                = "forgot_high_question"
@@ -66,9 +65,9 @@ const (
 	CMD_START         = "/start"
 	CMD_CANCEL string = "/cancel"
 
-	MSG_FORGOT        = "СЛОХЖНО" // Текст кнопки "Забыл" - сложный вопрос
-	MSG_REMEMBER      = "ЛЕГКО"   // Текст кнопки "Помню" - легкий вопрос
-	MSG_NEXT_QUESTION = "😎"       // Сообщение при запросе следующего вопроса
+	MSG_FORGOT        = "СЛОЖНО" // Текст кнопки "Забыл" - сложный вопрос
+	MSG_REMEMBER      = "ЛЕГКО"  // Текст кнопки "Помню" - легкий вопрос
+	MSG_NEXT_QUESTION = "😎"      // Сообщение при запросе следующего вопроса
 
 	BtnShowAnswer = "📝 Показать ответ" // Кнопка показа ответа на вопрос
 	BtnRepeat     = "🔔"                // Кнопка повторения обычного вопроса

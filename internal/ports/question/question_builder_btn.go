@@ -58,7 +58,7 @@ func (b *QuestionButtonBuilder) BuildRepeatButton(uq *edu.UsersQuestion, page in
 	}
 
 	return telebot.InlineButton{
-		Unique: INLINE_BTN_REPEAT_QUESTION,
+		Unique: INLINE_BTN_REPEAT_QUESTION_AFTER_POLL_HIGH,
 		Text:   label,
 		Data:   b.makeData(uq.QuestionID, page, tag),
 	}
@@ -69,7 +69,7 @@ func (b *QuestionButtonBuilder) BuildDeleteButton(uq *edu.UsersQuestion, page in
 	return telebot.InlineButton{
 		Unique: INLINE_BTN_DELETE_QUESTION,
 		Text:   INLINE_NAME_DELETE,
-		Data:   b.makeData(uq.QuestionID, page, tag),
+		Data:   fmt.Sprintf("%d", uq.QuestionID),
 	}
 }
 
@@ -219,8 +219,6 @@ func (b *QuestionButtonBuilder) makeData(qID int64, page int, tag string) string
 }
 
 func (b *QuestionButtonBuilder) timeLeftMsg(duration time.Duration) string {
-	// Реализуйте логику форматирования времени
-	// Например: "2h30m", "1d5h", etc.
 	if duration < time.Hour {
 		return fmt.Sprintf("%.0fm", duration.Minutes())
 	}
@@ -228,4 +226,9 @@ func (b *QuestionButtonBuilder) timeLeftMsg(duration time.Duration) string {
 		return fmt.Sprintf("%.0fh", duration.Hours())
 	}
 	return fmt.Sprintf("%.0fd", duration.Hours()/24)
+}
+
+func WithPrefixEmoji(text string, t telebot.InlineButton) telebot.InlineButton {
+	t.Text = text + " " + t.Text
+	return t
 }

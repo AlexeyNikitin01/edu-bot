@@ -98,14 +98,14 @@ var QuestionRels = struct {
 	Answers        string
 	UsersQuestions string
 }{
-	Tag:            "TagService",
+	Tag:            "Tag",
 	Answers:        "Answers",
 	UsersQuestions: "UsersQuestions",
 }
 
 // questionR is where relationships are stored.
 type questionR struct {
-	Tag            *Tag               `db:"TagService" pg:"TagService" boil:"TagService" json:"TagService" toml:"TagService" yaml:"TagService"`
+	Tag            *Tag               `db:"Tag" pg:"Tag" boil:"Tag" json:"Tag" toml:"Tag" yaml:"Tag"`
 	Answers        AnswerSlice        `db:"Answers" pg:"Answers" boil:"Answers" json:"Answers" toml:"Answers" yaml:"Answers"`
 	UsersQuestions UsersQuestionSlice `db:"UsersQuestions" pg:"UsersQuestions" boil:"UsersQuestions" json:"UsersQuestions" toml:"UsersQuestions" yaml:"UsersQuestions"`
 }
@@ -176,7 +176,7 @@ var (
 
 type (
 	// QuestionSlice is an alias for a slice of pointers to Question.
-	// This should almost always be used instead of []QuestionService.
+	// This should almost always be used instead of []Question.
 	QuestionSlice []*Question
 	// QuestionHook is the signature for custom Question hook methods
 	QuestionHook func(context.Context, boil.ContextExecutor, *Question) error
@@ -186,7 +186,7 @@ type (
 	}
 )
 
-// cache for insert, update and upsert
+// Cache for insert, update and upsert
 var (
 	questionType                 = reflect.TypeOf(&Question{})
 	questionMapping              = queries.MakeStructMapping(questionType)
@@ -434,7 +434,7 @@ func (q questionQuery) All(ctx context.Context, exec boil.ContextExecutor) (Ques
 
 	err := q.Bind(ctx, exec, &o)
 	if err != nil {
-		return nil, errors.Wrap(err, "edu: failed to assign all query results to QuestionService slice")
+		return nil, errors.Wrap(err, "edu: failed to assign all query results to Question slice")
 	}
 
 	if len(questionAfterSelectHooks) != 0 {
@@ -586,12 +586,12 @@ func (questionL) LoadTag(ctx context.Context, e boil.ContextExecutor, singular b
 
 	results, err := query.QueryContext(ctx, e)
 	if err != nil {
-		return errors.Wrap(err, "failed to eager load TagService")
+		return errors.Wrap(err, "failed to eager load Tag")
 	}
 
 	var resultSlice []*Tag
 	if err = queries.Bind(results, &resultSlice); err != nil {
-		return errors.Wrap(err, "failed to bind eager loaded slice TagService")
+		return errors.Wrap(err, "failed to bind eager loaded slice Tag")
 	}
 
 	if err = results.Close(); err != nil {
@@ -868,7 +868,7 @@ func (questionL) LoadUsersQuestions(ctx context.Context, e boil.ContextExecutor,
 }
 
 // SetTag of the question to the related item.
-// Sets o.R.TagService to related.
+// Sets o.R.Tag to related.
 // Adds o to related.R.Questions.
 func (o *Question) SetTag(ctx context.Context, exec boil.ContextExecutor, insert bool, related *Tag) error {
 	var err error
@@ -917,7 +917,7 @@ func (o *Question) SetTag(ctx context.Context, exec boil.ContextExecutor, insert
 // AddAnswers adds the given related objects to the existing relationships
 // of the question, optionally inserting them as new records.
 // Appends related to o.R.Answers.
-// Sets related.R.QuestionService appropriately.
+// Sets related.R.Question appropriately.
 func (o *Question) AddAnswers(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*Answer) error {
 	var err error
 	for _, rel := range related {
@@ -970,7 +970,7 @@ func (o *Question) AddAnswers(ctx context.Context, exec boil.ContextExecutor, in
 // AddUsersQuestions adds the given related objects to the existing relationships
 // of the question, optionally inserting them as new records.
 // Appends related to o.R.UsersQuestions.
-// Sets related.R.QuestionService appropriately.
+// Sets related.R.Question appropriately.
 func (o *Question) AddUsersQuestions(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*UsersQuestion) error {
 	var err error
 	for _, rel := range related {
@@ -1418,7 +1418,7 @@ func (o *Question) Upsert(ctx context.Context, exec boil.ContextExecutor, update
 // Delete will match against the primary key column to find the record to delete.
 func (o *Question) Delete(ctx context.Context, exec boil.ContextExecutor, hardDelete bool) (int64, error) {
 	if o == nil {
-		return 0, errors.New("edu: no QuestionService provided for delete")
+		return 0, errors.New("edu: no Question provided for delete")
 	}
 
 	if err := o.doBeforeDeleteHooks(ctx, exec); err != nil {

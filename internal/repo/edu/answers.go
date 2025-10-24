@@ -204,12 +204,12 @@ var AnswerWhere = struct {
 var AnswerRels = struct {
 	Question string
 }{
-	Question: "QuestionService",
+	Question: "Question",
 }
 
 // answerR is where relationships are stored.
 type answerR struct {
-	Question *Question `db:"QuestionService" pg:"QuestionService" boil:"QuestionService" json:"QuestionService" toml:"QuestionService" yaml:"QuestionService"`
+	Question *Question `db:"Question" pg:"Question" boil:"Question" json:"Question" toml:"Question" yaml:"Question"`
 }
 
 // NewStruct creates a new relationship struct
@@ -246,7 +246,7 @@ var (
 
 type (
 	// AnswerSlice is an alias for a slice of pointers to Answer.
-	// This should almost always be used instead of []AnswerService.
+	// This should almost always be used instead of []Answer.
 	AnswerSlice []*Answer
 	// AnswerHook is the signature for custom Answer hook methods
 	AnswerHook func(context.Context, boil.ContextExecutor, *Answer) error
@@ -256,7 +256,7 @@ type (
 	}
 )
 
-// cache for insert, update and upsert
+// Cache for insert, update and upsert
 var (
 	answerType                 = reflect.TypeOf(&Answer{})
 	answerMapping              = queries.MakeStructMapping(answerType)
@@ -504,7 +504,7 @@ func (q answerQuery) All(ctx context.Context, exec boil.ContextExecutor) (Answer
 
 	err := q.Bind(ctx, exec, &o)
 	if err != nil {
-		return nil, errors.Wrap(err, "edu: failed to assign all query results to AnswerService slice")
+		return nil, errors.Wrap(err, "edu: failed to assign all query results to Answer slice")
 	}
 
 	if len(answerAfterSelectHooks) != 0 {
@@ -628,12 +628,12 @@ func (answerL) LoadQuestion(ctx context.Context, e boil.ContextExecutor, singula
 
 	results, err := query.QueryContext(ctx, e)
 	if err != nil {
-		return errors.Wrap(err, "failed to eager load QuestionService")
+		return errors.Wrap(err, "failed to eager load Question")
 	}
 
 	var resultSlice []*Question
 	if err = queries.Bind(results, &resultSlice); err != nil {
-		return errors.Wrap(err, "failed to bind eager loaded slice QuestionService")
+		return errors.Wrap(err, "failed to bind eager loaded slice Question")
 	}
 
 	if err = results.Close(); err != nil {
@@ -682,7 +682,7 @@ func (answerL) LoadQuestion(ctx context.Context, e boil.ContextExecutor, singula
 }
 
 // SetQuestion of the answer to the related item.
-// Sets o.R.QuestionService to related.
+// Sets o.R.Question to related.
 // Adds o to related.R.Answers.
 func (o *Answer) SetQuestion(ctx context.Context, exec boil.ContextExecutor, insert bool, related *Question) error {
 	var err error
@@ -1126,7 +1126,7 @@ func (o *Answer) Upsert(ctx context.Context, exec boil.ContextExecutor, updateOn
 // Delete will match against the primary key column to find the record to delete.
 func (o *Answer) Delete(ctx context.Context, exec boil.ContextExecutor, hardDelete bool) (int64, error) {
 	if o == nil {
-		return 0, errors.New("edu: no AnswerService provided for delete")
+		return 0, errors.New("edu: no Answer provided for delete")
 	}
 
 	if err := o.doBeforeDeleteHooks(ctx, exec); err != nil {
