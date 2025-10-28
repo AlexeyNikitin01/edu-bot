@@ -200,7 +200,7 @@ func updateTagByQuestion(
 
 	if ctxBot.Callback() != nil {
 		tag = ctxBot.Callback().Data
-	} else if ctxBot.Message().Text != BTN_ADD_QUESTION && ctxBot.Message().Text != MSG_ADD_TAG {
+	} else if ctxBot.Message().Text != menu.BTN_ADD_QUESTION && ctxBot.Message().Text != MSG_ADD_TAG {
 		tag = ctxBot.Message().Text
 	}
 

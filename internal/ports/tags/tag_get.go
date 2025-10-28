@@ -57,16 +57,15 @@ func ShowRepeatTagList(ctx context.Context, d domain.UseCases) telebot.HandlerFu
 	}
 }
 
-// HandleTagPagination обрабатывает пагинацию для тегов
+// HandleTagPagination обрабатывает пагинацию списка тегов
 func HandleTagPagination(ctx context.Context, d domain.UseCases) telebot.HandlerFunc {
 	return func(ctxBot telebot.Context) error {
+		data := ctxBot.Data()
 		userID := middleware.GetUserFromContext(ctxBot).TGUserID
 
-		// Получаем номер страницы из callback data
-		pageStr := ctxBot.Data()
-		page, err := strconv.Atoi(pageStr)
-		if err != nil || page < 1 {
-			page = 1
+		page := 1
+		if data != "" {
+			page, _ = strconv.Atoi(data)
 		}
 
 		// Получаем теги для запрошенной страницы
@@ -75,34 +74,22 @@ func HandleTagPagination(ctx context.Context, d domain.UseCases) telebot.Handler
 			return err
 		}
 
-		// Создаем билдер
 		builder := NewTagButtonsBuilder(tags, totalCount).
 			WithCurrentPage(page)
 
-		// Если запрошенная страница больше общей, корректируем
-		if page > builder.totalPages {
-			builder.WithCurrentPage(builder.totalPages)
+		message := fmt.Sprintf("%s\n\n%s", MSG_LIST_TAGS, builder.GetPaginationInfo())
+
+		// Обновляем сообщение
+		err = ctxBot.Edit(
+			message,
+			&telebot.ReplyMarkup{
+				InlineKeyboard: builder.BuildPageRows(),
+			},
+		)
+		if err != nil {
+			return err
 		}
 
-		// Определяем контекст: если это создание вопроса, используем текстовый режим
-		draft, err := d.GetDraftQuestion(ctx, userID)
-		isEditMode := err == nil && draft != nil && (draft.Step == 1 || draft.QuestionIDByTag != 0)
-
-		var message string
-		var keyboard [][]telebot.InlineButton
-
-		if isEditMode {
-			// Текстовый режим для выбора тегов
-			message = fmt.Sprintf("%s\n\n%s", MSG_EDIT_TAG_BY_QUESTION, builder.BuildTextTags())
-			keyboard = builder.BuildTextRows()
-		} else {
-			// Полный режим с кнопками управления
-			message = fmt.Sprintf("%s\n\n%s", MSG_LIST_TAGS, builder.GetPaginationInfo())
-			keyboard = builder.BuildPageRows()
-		}
-
-		return ctxBot.Edit(message, &telebot.ReplyMarkup{
-			InlineKeyboard: keyboard,
-		})
+		return ctxBot.Respond()
 	}
 }

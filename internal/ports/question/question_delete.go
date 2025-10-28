@@ -3,16 +3,43 @@ package question
 import (
 	"bot/internal/middleware"
 	"context"
+	"errors"
 	"gopkg.in/telebot.v3"
 	"log"
 	"strconv"
+	"strings"
 
 	"bot/internal/domain"
 )
 
-func DeleteQuestion(ctx context.Context, domain domain.UseCases) telebot.HandlerFunc {
+func DeleteQuestion(ctx context.Context, d domain.UseCases) telebot.HandlerFunc {
 	return func(ctxBot telebot.Context) error {
-		return nil
+		// Разбираем данные callback: "questionID_page_tag"
+		parts := strings.Split(ctxBot.Data(), "_")
+		if len(parts) < 3 {
+			return errors.New("invalid question")
+		}
+
+		questionID, err := strconv.Atoi(parts[0])
+		if err != nil {
+			return err
+		}
+
+		page, err := strconv.Atoi(parts[1])
+		if err != nil {
+			return err
+		}
+
+		tag := strings.Join(parts[2:], "_")
+		userID := middleware.GetUserFromContext(ctxBot).TGUserID
+
+		// Удаляем вопрос
+		if err = d.DeleteQuestion(ctx, int64(questionID)); err != nil {
+			return err
+		}
+
+		// Показываем обновленный список вопросов
+		return showQuestionsPage(ctx, ctxBot, tag, page, userID, d, 0)
 	}
 }
 

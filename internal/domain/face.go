@@ -32,7 +32,10 @@ type QuestionService interface {
 	GetQuestionAnswers(ctx context.Context, qID int64) (*edu.Question, error)
 	UpdateQuestionName(context.Context, int64, string) error
 	SaveQuestions(context.Context, string, string, []string, int64) error
-	GetAllQuestions(context.Context, int64, string) (edu.QuestionSlice, error)
+	DeleteQuestion(context.Context, int64) error
+	GetAllQuestionsWithPagination(
+		ctx context.Context, userID int64, tag string, limit, offset int,
+	) (edu.UsersQuestionSlice, int, error)
 }
 
 type UserQuestionService interface {

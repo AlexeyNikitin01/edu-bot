@@ -8,11 +8,204 @@ import (
 )
 
 // QuestionButtonBuilder отвечает за создание интерактивных кнопок для вопросов
-type QuestionButtonBuilder struct{}
+type QuestionButtonBuilder struct {
+	questions  edu.UsersQuestionSlice
+	totalCount int
+	page       int
+	tag        string
+	tagPage    int
+}
 
-// NewQuestionButtonBuilder создает новый экземпляр билдера кнопок
-func NewQuestionButtonBuilder() *QuestionButtonBuilder {
-	return &QuestionButtonBuilder{}
+// BuilderOptions опции для создания билдера
+type BuilderOptions struct {
+	Questions  edu.UsersQuestionSlice
+	TotalCount int
+	Page       int
+	Tag        string
+	TagPage    int
+}
+
+// BuilderOption функция для настройки опций
+type BuilderOption func(*BuilderOptions)
+
+// NewQuestionButtonBuilder создает новый экземпляр билдера кнопок с опциями
+func NewQuestionButtonBuilder(opts ...BuilderOption) *QuestionButtonBuilder {
+	// Устанавливаем значения по умолчанию
+	options := &BuilderOptions{
+		Questions:  edu.UsersQuestionSlice{},
+		TotalCount: 0,
+		Page:       0,
+		Tag:        "",
+		TagPage:    0,
+	}
+
+	// Применяем переданные опции
+	for _, opt := range opts {
+		opt(options)
+	}
+
+	return &QuestionButtonBuilder{
+		questions:  options.Questions,
+		totalCount: options.TotalCount,
+		page:       options.Page,
+		tag:        options.Tag,
+		tagPage:    options.TagPage,
+	}
+}
+
+// WithQuestions устанавливает вопросы
+func WithQuestions(questions edu.UsersQuestionSlice) BuilderOption {
+	return func(o *BuilderOptions) {
+		o.Questions = questions
+	}
+}
+
+// WithTotalCount устанавливает общее количество вопросов
+func WithTotalCount(totalCount int) BuilderOption {
+	return func(o *BuilderOptions) {
+		o.TotalCount = totalCount
+	}
+}
+
+// WithTagPage устанавливает номер страницы тэга
+func WithTagPage(totalCount int) BuilderOption {
+	return func(o *BuilderOptions) {
+		o.TagPage = totalCount
+	}
+}
+
+// WithPage устанавливает текущую страницу
+func WithPage(page int) BuilderOption {
+	return func(o *BuilderOptions) {
+		o.Page = page
+	}
+}
+
+// WithTag устанавливает тег
+func WithTag(tag string) BuilderOption {
+	return func(o *BuilderOptions) {
+		o.Tag = tag
+	}
+}
+
+// BuildQuestionsPage создает полную страницу с вопросами и пагинацией
+func (b *QuestionButtonBuilder) BuildQuestionsPage() (string, [][]telebot.InlineButton) {
+	// Проверяем есть ли вопросы
+	if b.totalCount == 0 {
+		message := fmt.Sprintf("📭 По тегу '%s' нет вопросов", b.tag)
+		keyboard := b.BuildEmptyStateKeyboard()
+		return message, keyboard
+	}
+
+	totalPages := b.totalPages()
+	message := fmt.Sprintf("%s %s (Стр. %d/%d)", b.tag, MSG_LIST_QUESTION, b.page+1, totalPages)
+
+	keyboard := b.BuildQuestionsKeyboard()
+
+	return message, keyboard
+}
+
+// BuildQuestionsKeyboard создает только клавиатуру с вопросами и пагинацией
+func (b *QuestionButtonBuilder) BuildQuestionsKeyboard() [][]telebot.InlineButton {
+	var btns [][]telebot.InlineButton
+
+	// Если нет вопросов, возвращаем клавиатуру с кнопкой возврата
+	if b.totalCount == 0 {
+		return b.BuildEmptyStateKeyboard()
+	}
+
+	// Добавляем кнопки вопросов
+	for _, q := range b.questions {
+		questionRows := b.BuildQuestionRow(q)
+		btns = append(btns, questionRows...)
+	}
+
+	// Добавляем пагинацию
+	if b.totalPages() > 1 {
+		paginationRow := b.BuildPaginationButtons()
+		btns = append(btns, paginationRow)
+	} else {
+		// Если всего одна страница, добавляем только кнопку возврата к тегам
+		backRow := b.BuildBackToTagsButton()
+		btns = append(btns, backRow)
+	}
+
+	return btns
+}
+
+// BuildEmptyStateKeyboard создает клавиатуру для пустого состояния
+func (b *QuestionButtonBuilder) BuildEmptyStateKeyboard() [][]telebot.InlineButton {
+	return [][]telebot.InlineButton{
+		b.BuildBackToTagsButton(),
+	}
+}
+
+// BuildBackToTagsButton создает кнопку возврата к тегам
+func (b *QuestionButtonBuilder) BuildBackToTagsButton() []telebot.InlineButton {
+	return []telebot.InlineButton{
+		{
+			Unique: "back_to_tags",
+			Text:   MSG_BACK_TAGS,
+			Data:   fmt.Sprintf("%d", b.tagPage),
+		},
+	}
+}
+
+// BuildQuestionRow создает ряд кнопок для одного вопроса
+func (b *QuestionButtonBuilder) BuildQuestionRow(uq *edu.UsersQuestion) [][]telebot.InlineButton {
+	return [][]telebot.InlineButton{
+		{b.BuildQuestionTextButton(uq)},
+		{
+			b.BuildRepeatButton(uq),
+			b.BuildDeleteButton(uq),
+			b.BuildEditButton(uq),
+			b.BuildTimeButton(uq),
+		},
+	}
+}
+
+// BuildFullKeyboard создает полную клавиатуру для вопроса (для ViewAnswer)
+func (b *QuestionButtonBuilder) BuildFullKeyboard(uq *edu.UsersQuestion, showAnswer bool) [][]telebot.InlineButton {
+	return [][]telebot.InlineButton{
+		b.BuildAnswerRow(uq, showAnswer),
+		b.BuildDifficultyRow(uq),
+		b.BuildActionsRow(uq),
+		b.BuildBackToTagsButton(),
+	}
+}
+
+func (b *QuestionButtonBuilder) BuildKeyboardWithoutBackTag(
+	uq *edu.UsersQuestion, showAnswer bool,
+) [][]telebot.InlineButton {
+	return [][]telebot.InlineButton{
+		b.BuildAnswerRow(uq, showAnswer),
+		b.BuildDifficultyRow(uq),
+		b.BuildActionsRow(uq),
+	}
+}
+
+// BuildAnswerRow создает ряд с кнопкой ответа
+func (b *QuestionButtonBuilder) BuildAnswerRow(uq *edu.UsersQuestion, showAnswer bool) []telebot.InlineButton {
+	return []telebot.InlineButton{
+		b.BuildAnswerButton(uq, showAnswer),
+	}
+}
+
+// BuildDifficultyRow создает ряд с кнопками оценки сложности
+func (b *QuestionButtonBuilder) BuildDifficultyRow(uq *edu.UsersQuestion) []telebot.InlineButton {
+	return []telebot.InlineButton{
+		b.WithPrefixEmoji("😎", b.BuildEasyButton(uq)),
+		b.WithPrefixEmoji("😵", b.BuildForgotButton(uq)),
+	}
+}
+
+// BuildActionsRow создает ряд с кнопками действий (повторение, удаление, редактирование)
+func (b *QuestionButtonBuilder) BuildActionsRow(uq *edu.UsersQuestion) []telebot.InlineButton {
+	return []telebot.InlineButton{
+		b.BuildRepeatButton(uq),
+		b.BuildDeleteButton(uq),
+		b.BuildEditButton(uq),
+	}
 }
 
 // BuildAnswerButton создает кнопку показа/скрытия ответа
@@ -21,14 +214,14 @@ func (b *QuestionButtonBuilder) BuildAnswerButton(uq *edu.UsersQuestion, showAns
 		return telebot.InlineButton{
 			Unique: INLINE_TURN_ANSWER,
 			Text:   "📝 Свернуть ответ",
-			Data:   fmt.Sprintf("%d", uq.QuestionID),
+			Data:   b.makeData(uq.QuestionID),
 		}
 	}
 
 	return telebot.InlineButton{
 		Unique: INLINE_SHOW_ANSWER,
 		Text:   BtnShowAnswer,
-		Data:   fmt.Sprintf("%d", uq.QuestionID),
+		Data:   b.makeData(uq.QuestionID),
 	}
 }
 
@@ -37,7 +230,7 @@ func (b *QuestionButtonBuilder) BuildEasyButton(uq *edu.UsersQuestion) telebot.I
 	return telebot.InlineButton{
 		Unique: INLINE_REMEMBER_HIGH_QUESTION,
 		Text:   MSG_REMEMBER,
-		Data:   fmt.Sprintf("%d", uq.QuestionID),
+		Data:   b.makeData(uq.QuestionID),
 	}
 }
 
@@ -46,12 +239,12 @@ func (b *QuestionButtonBuilder) BuildForgotButton(uq *edu.UsersQuestion) telebot
 	return telebot.InlineButton{
 		Unique: INLINE_FORGOT_HIGH_QUESTION,
 		Text:   MSG_FORGOT,
-		Data:   fmt.Sprintf("%d", uq.QuestionID),
+		Data:   b.makeData(uq.QuestionID),
 	}
 }
 
 // BuildRepeatButton создает кнопку повторения вопроса
-func (b *QuestionButtonBuilder) BuildRepeatButton(uq *edu.UsersQuestion, page int, tag string) telebot.InlineButton {
+func (b *QuestionButtonBuilder) BuildRepeatButton(uq *edu.UsersQuestion) telebot.InlineButton {
 	label := "🔔"
 	if uq.IsEdu {
 		label = "💤"
@@ -60,16 +253,16 @@ func (b *QuestionButtonBuilder) BuildRepeatButton(uq *edu.UsersQuestion, page in
 	return telebot.InlineButton{
 		Unique: INLINE_BTN_REPEAT_QUESTION_AFTER_POLL_HIGH,
 		Text:   label,
-		Data:   b.makeData(uq.QuestionID, page, tag),
+		Data:   b.makeData(uq.QuestionID),
 	}
 }
 
 // BuildDeleteButton создает кнопку удаления вопроса
-func (b *QuestionButtonBuilder) BuildDeleteButton(uq *edu.UsersQuestion, page int, tag string) telebot.InlineButton {
+func (b *QuestionButtonBuilder) BuildDeleteButton(uq *edu.UsersQuestion) telebot.InlineButton {
 	return telebot.InlineButton{
 		Unique: INLINE_BTN_DELETE_QUESTION,
 		Text:   INLINE_NAME_DELETE,
-		Data:   fmt.Sprintf("%d", uq.QuestionID),
+		Data:   b.makeData(uq.QuestionID),
 	}
 }
 
@@ -78,7 +271,7 @@ func (b *QuestionButtonBuilder) BuildEditButton(uq *edu.UsersQuestion) telebot.I
 	return telebot.InlineButton{
 		Unique: INLINE_EDIT_QUESTION,
 		Text:   "✏️",
-		Data:   fmt.Sprintf("%d", uq.QuestionID),
+		Data:   b.makeData(uq.QuestionID),
 	}
 }
 
@@ -93,22 +286,30 @@ func (b *QuestionButtonBuilder) BuildTimeButton(uq *edu.UsersQuestion) telebot.I
 }
 
 // BuildQuestionTextButton создает кнопку с текстом вопроса
-func (b *QuestionButtonBuilder) BuildQuestionTextButton(q *edu.Question, page int, tag string) telebot.InlineButton {
+func (b *QuestionButtonBuilder) BuildQuestionTextButton(uq *edu.UsersQuestion) telebot.InlineButton {
+	// Получаем текст вопроса
+	questionText := uq.R.Question.Question
+	if len(questionText) > 50 {
+		questionText = questionText[:47] + "..."
+	}
+
 	return telebot.InlineButton{
-		Text: q.Question,
-		Data: b.makeData(q.ID, page, tag),
+		Unique: INLINE_SHOW_ANSWER,
+		Text:   questionText,
+		Data:   b.makeData(uq.QuestionID),
 	}
 }
 
 // BuildPaginationButtons создает кнопки пагинации
-func (b *QuestionButtonBuilder) BuildPaginationButtons(page int, totalPages int, tag string) []telebot.InlineButton {
+func (b *QuestionButtonBuilder) BuildPaginationButtons() []telebot.InlineButton {
 	var paginationRow []telebot.InlineButton
+	totalPages := b.totalPages()
 
-	if page > 0 {
+	if b.page > 0 {
 		paginationRow = append(paginationRow, telebot.InlineButton{
 			Unique: INLINE_BTN_QUESTION_PAGE + "_prev",
 			Text:   "⬅️ Назад",
-			Data:   fmt.Sprintf("%d_%s", page-1, tag),
+			Data:   fmt.Sprintf("%d_%s_%d", b.page-1, b.tag, b.tagPage),
 		})
 	}
 
@@ -116,106 +317,35 @@ func (b *QuestionButtonBuilder) BuildPaginationButtons(page int, totalPages int,
 	paginationRow = append(paginationRow, telebot.InlineButton{
 		Unique: "back_to_tags",
 		Text:   MSG_BACK_TAGS,
+		Data:   fmt.Sprintf("%d", b.tagPage), // Сохраняем номер страницы тегов
 	})
 
-	if page < totalPages-1 {
+	if b.page < totalPages-1 {
 		paginationRow = append(paginationRow, telebot.InlineButton{
 			Unique: INLINE_BTN_QUESTION_PAGE + "_next",
 			Text:   "Вперед ➡️",
-			Data:   fmt.Sprintf("%d_%s", page+1, tag),
+			Data:   fmt.Sprintf("%d_%s_%d", b.page+1, b.tag, b.tagPage),
 		})
 	}
 
 	return paginationRow
 }
 
-// BuildQuestionRow создает ряд кнопок для одного вопроса
-func (b *QuestionButtonBuilder) BuildQuestionRow(q *edu.Question, uq *edu.UsersQuestion, page int, tag string) [][]telebot.InlineButton {
-	return [][]telebot.InlineButton{
-		{b.BuildQuestionTextButton(q, page, tag)},
-		{
-			b.BuildRepeatButton(uq, page, tag),
-			b.BuildDeleteButton(uq, page, tag),
-			b.BuildEditButton(uq),
-			b.BuildTimeButton(uq),
-		},
-	}
+// WithPrefixEmoji добавляет эмодзи к тексту кнопки
+func (b *QuestionButtonBuilder) WithPrefixEmoji(emoji string, button telebot.InlineButton) telebot.InlineButton {
+	button.Text = emoji + " " + button.Text
+	return button
 }
 
-// BuildQuestionsKeyboard создает полную клавиатуру со списком вопросов и пагинацией
-func (b *QuestionButtonBuilder) BuildQuestionsKeyboard(questions []*edu.Question, userQuestions map[int64]*edu.UsersQuestion, page int, tag string) [][]telebot.InlineButton {
-	var btns [][]telebot.InlineButton
-
-	for _, q := range questions {
-		if uq, exists := userQuestions[q.ID]; exists {
-			questionRows := b.BuildQuestionRow(q, uq, page, tag)
-			btns = append(btns, questionRows...)
-		}
-	}
-
-	return btns
-}
-
-// BuildFullKeyboard создает полную клавиатуру для вопроса (альтернативный вариант)
-func (b *QuestionButtonBuilder) BuildFullKeyboard(uq *edu.UsersQuestion, showAnswer bool) [][]telebot.InlineButton {
-	return [][]telebot.InlineButton{
-		b.BuildAnswerRow(uq, showAnswer),
-		b.BuildDifficultyRow(uq),
-		b.BuildActionsRow(uq, -1, ""),
-	}
-}
-
-// BuildAnswerRow создает ряд с кнопкой ответа
-func (b *QuestionButtonBuilder) BuildAnswerRow(uq *edu.UsersQuestion, showAnswer bool) []telebot.InlineButton {
-	return []telebot.InlineButton{
-		b.BuildAnswerButton(uq, showAnswer),
-	}
-}
-
-// BuildDifficultyRow создает ряд с кнопками оценки сложности
-func (b *QuestionButtonBuilder) BuildDifficultyRow(uq *edu.UsersQuestion) []telebot.InlineButton {
-	return []telebot.InlineButton{
-		b.BuildEasyButton(uq),
-		b.BuildForgotButton(uq),
-	}
-}
-
-// BuildActionsRow создает ряд с кнопками действий (повторение, удаление, редактирование)
-func (b *QuestionButtonBuilder) BuildActionsRow(uq *edu.UsersQuestion, page int, tag string) []telebot.InlineButton {
-	return []telebot.InlineButton{
-		b.BuildRepeatButton(uq, page, tag),
-		b.BuildDeleteButton(uq, page, tag),
-		b.BuildEditButton(uq),
-	}
-}
-
-// BuildMinimalKeyboard создает минимальную клавиатуру (только ответ и сложность)
-func (b *QuestionButtonBuilder) BuildMinimalKeyboard(uq *edu.UsersQuestion, showAnswer bool) [][]telebot.InlineButton {
-	return [][]telebot.InlineButton{
-		b.BuildAnswerRow(uq, showAnswer),
-		b.BuildDifficultyRow(uq),
-	}
-}
-
-// BuildActionsOnlyKeyboard создает клавиатуру только с кнопками действий
-func (b *QuestionButtonBuilder) BuildActionsOnlyKeyboard(uq *edu.UsersQuestion, page int, tag string) [][]telebot.InlineButton {
-	return [][]telebot.InlineButton{
-		b.BuildActionsRow(uq, page, tag),
-	}
+// WithSuffixEmoji добавляет эмодзи после текста кнопки
+func (b *QuestionButtonBuilder) WithSuffixEmoji(button telebot.InlineButton, emoji string) telebot.InlineButton {
+	button.Text = button.Text + " " + emoji
+	return button
 }
 
 // Вспомогательные методы
-func (b *QuestionButtonBuilder) makeData(qID int64, page int, tag string) string {
-	if page == -1 && tag == "" {
-		return fmt.Sprintf("%d", qID)
-	}
-	if page == -1 {
-		return fmt.Sprintf("%d_%s", qID, tag)
-	}
-	if tag == "" {
-		return fmt.Sprintf("%d_%d", qID, page)
-	}
-	return fmt.Sprintf("%d_%d_%s", qID, page, tag)
+func (b *QuestionButtonBuilder) makeData(qID int64) string {
+	return fmt.Sprintf("%d_%d_%s", qID, b.page, b.tag)
 }
 
 func (b *QuestionButtonBuilder) timeLeftMsg(duration time.Duration) string {
@@ -228,7 +358,15 @@ func (b *QuestionButtonBuilder) timeLeftMsg(duration time.Duration) string {
 	return fmt.Sprintf("%.0fd", duration.Hours()/24)
 }
 
-func WithPrefixEmoji(text string, t telebot.InlineButton) telebot.InlineButton {
-	t.Text = text + " " + t.Text
-	return t
+func (b *QuestionButtonBuilder) totalPages() int {
+	if b.totalCount == 0 {
+		return 0
+	}
+	return (b.totalCount + QuestionsPerPage - 1) / QuestionsPerPage
+}
+
+// WithPrefixEmoji добавляет эмодзи к тексту кнопки (статическая функция)
+func WithPrefixEmoji(emoji string, button telebot.InlineButton) telebot.InlineButton {
+	button.Text = emoji + " " + button.Text
+	return button
 }

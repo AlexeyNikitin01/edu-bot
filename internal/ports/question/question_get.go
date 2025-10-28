@@ -3,7 +3,6 @@ package question
 import (
 	"bot/internal/domain"
 	"bot/internal/middleware"
-	"bot/internal/repo/edu"
 	"context"
 	"fmt"
 	"github.com/pkg/errors"
@@ -15,18 +14,46 @@ import (
 	"time"
 )
 
-func QuestionByTag(ctx context.Context, tag string, d domain.UseCases) telebot.HandlerFunc {
+func QuestionByTag(ctx context.Context, data string, d domain.UseCases) telebot.HandlerFunc {
 	return func(ctxBot telebot.Context) error {
+		tag, tagPage, err := parsePageString(data)
+		if err != nil {
+			return err
+		}
 		userID := middleware.GetUserFromContext(ctxBot).TGUserID
-		return showQuestionsPage(ctx, ctxBot, tag, 0, userID, d)
+		return showQuestionsPage(ctx, ctxBot, tag, 0, userID, d, tagPage)
 	}
 }
 
 func showQuestionsPage(
-	ctx context.Context, ctxBot telebot.Context, tag string, page int, userID int64, d domain.UseCases,
+	ctx context.Context, ctxBot telebot.Context, tag string, page int, userID int64, d domain.UseCases, tagPage int,
 ) error {
-	return ctxBot.Edit(fmt.Sprintf("%s %s (Стр. %d)", tag, MSG_LIST_QUESTION, page+1), &telebot.ReplyMarkup{
-		InlineKeyboard: getQuestionBtns(ctx, ctxBot, d, tag, page, userID),
+	// Получаем вопросы с пагинацией
+	questions, totalCount, err := d.GetAllQuestionsWithPagination(ctx, userID, tag, QuestionsPerPage, page)
+	if err != nil {
+		return err
+	}
+
+	// Создаем билдер с опциями
+	builder := NewQuestionButtonBuilder(
+		WithQuestions(questions),
+		WithTotalCount(totalCount),
+		WithPage(page),
+		WithTag(tag),
+		WithTagPage(tagPage),
+	)
+
+	// Получаем сообщение и клавиатуру из билдера
+	message, keyboard := builder.BuildQuestionsPage()
+
+	if ctxBot.Callback() != nil {
+		return ctxBot.Edit(message, &telebot.ReplyMarkup{
+			InlineKeyboard: keyboard,
+		})
+	}
+
+	return ctxBot.Send(message, &telebot.ReplyMarkup{
+		InlineKeyboard: keyboard,
 	})
 }
 
@@ -59,58 +86,48 @@ func IsRepeat(ctx context.Context, d domain.UseCases) telebot.HandlerFunc {
 		}
 
 		// Получаем обновленный список вопросов с сохранением текущей страницы
-		return ctxBot.Edit(&telebot.ReplyMarkup{
-			InlineKeyboard: getQuestionBtns(ctx, ctxBot, d, tag, page, userID),
-		})
+		return showQuestionsPage(ctx, ctxBot, tag, page, userID, d, 0)
 	}
 }
 
-func getQuestionBtns(
-	ctx context.Context, ctxBot telebot.Context, d domain.UseCases, tag string, page int, userID int64,
-) [][]telebot.InlineButton {
-	qs, err := d.GetAllQuestions(ctx, userID, tag)
-	if err != nil || len(qs) == 0 {
-		return nil
-	}
-
-	totalPages := (len(qs) + QuestionsPerPage - 1) / QuestionsPerPage
-	if page >= totalPages {
-		page = totalPages - 1
-	}
-	if page < 0 {
-		page = 0
-	}
-
-	start := page * QuestionsPerPage
-	end := start + QuestionsPerPage
-	if end > len(qs) {
-		end = len(qs)
-	}
-	pageQuestions := qs[start:end]
-
-	// Получаем UsersQuestion для каждого вопроса
-	userQuestions := make(map[int64]*edu.UsersQuestion)
-	for _, q := range pageQuestions {
-		uq, err := d.GetUserQuestion(ctx, userID, q.ID)
-		if err == nil {
-			userQuestions[q.ID] = uq
+// HandlePageNavigation обрабатывает навигацию по страницам
+func HandlePageNavigation(ctx context.Context, d domain.UseCases) telebot.HandlerFunc {
+	return func(ctxBot telebot.Context) error {
+		userID := middleware.GetUserFromContext(ctxBot).TGUserID
+		page, tag, tagPage, err := parsePageAndTag(ctxBot.Data())
+		if err != nil {
+			return err
 		}
+		return showQuestionsPage(ctx, ctxBot, tag, page, userID, d, tagPage)
+	}
+}
+
+// parsePageAndTag парсит данные callback'а в формате "номер_тег_страницаТега" и возвращает номер страницы, тег и страницу тега
+func parsePageAndTag(data string) (int, string, int, error) {
+	dataParts := strings.Split(data, "_")
+	if len(dataParts) != 3 {
+		return 0, "", 0, fmt.Errorf("неверный формат данных: ожидается формат 'номер_тег_страницаТега'")
 	}
 
-	builder := NewQuestionButtonBuilder()
-
-	// Создаем клавиатуру с вопросами
-	btns := builder.BuildQuestionsKeyboard(pageQuestions, userQuestions, page, tag)
-
-	// Добавляем кнопки пагинации, если нужно
-	if totalPages > 1 {
-		paginationRow := builder.BuildPaginationButtons(page, totalPages, tag)
-		if len(paginationRow) > 0 {
-			btns = append(btns, paginationRow)
-		}
+	// Парсим основной номер страницы
+	page, err := strconv.Atoi(dataParts[0])
+	if err != nil {
+		return 0, "", 0, fmt.Errorf("неверный номер страницы: %v", err)
 	}
 
-	return btns
+	// Получаем тег
+	tag := dataParts[1]
+	if tag == "" {
+		return 0, "", 0, fmt.Errorf("не указан тег")
+	}
+
+	// Парсим номер страницы тега
+	tagPage, err := strconv.Atoi(dataParts[2])
+	if err != nil {
+		return 0, "", 0, fmt.Errorf("неверный номер страницы тега: %v", err)
+	}
+
+	return page, tag, tagPage, nil
 }
 
 func GetForUpdate(ctx context.Context, domain domain.UseCases) telebot.HandlerFunc {
@@ -155,36 +172,6 @@ func GetForUpdate(ctx context.Context, domain domain.UseCases) telebot.HandlerFu
 			InlineKeyboard: btns,
 		})
 	}
-}
-
-// HandlePageNavigation обрабатывает навигацию по страницам
-func HandlePageNavigation(ctx context.Context, ctxBot telebot.Context, pageOffset int, d domain.UseCases) error {
-	userID := middleware.GetUserFromContext(ctxBot).TGUserID
-	page, tag, err := parsePageAndTag(ctxBot.Data())
-	if err != nil {
-		return err
-	}
-	return showQuestionsPage(ctx, ctxBot, tag, page+pageOffset, userID, d)
-}
-
-// parsePageAndTag парсит данные callback'а и возвращает номер страницы и тег
-func parsePageAndTag(data string) (int, string, error) {
-	dataParts := strings.Split(data, "_")
-	if len(dataParts) != 2 {
-		return 0, "", fmt.Errorf("Ошибка: неверный формат данных")
-	}
-
-	page, err := strconv.Atoi(dataParts[0])
-	if err != nil {
-		return 0, "", fmt.Errorf("Ошибка: неверный номер страницы")
-	}
-
-	tag := dataParts[1]
-	if tag == "" {
-		return 0, "", fmt.Errorf("Ошибка: не указан тег")
-	}
-
-	return page, tag, nil
 }
 
 // ShowCurrentValue отображает текущее значение редактируемой сущности
@@ -292,33 +279,51 @@ func CollapseValue(ctx context.Context, domain domain.UseCases) telebot.HandlerF
 
 func ViewAnswer(ctx context.Context, d domain.UseCases, showAnswer bool) telebot.HandlerFunc {
 	return func(ctxBot telebot.Context) error {
-		data := ctxBot.Data()
-		qID, err := strconv.Atoi(data)
+		// Разбираем данные callback: "questionID_page_tag"
+		parts := strings.Split(ctxBot.Data(), "_")
+		if len(parts) < 3 {
+			return errors.New("invalid command")
+		}
+
+		questionID, err := strconv.Atoi(parts[0])
 		if err != nil {
 			return err
 		}
 
+		page, err := strconv.Atoi(parts[1])
+		if err != nil {
+			return err
+		}
+
+		tag := strings.Join(parts[2:], "_")
+
 		userID := middleware.GetUserFromContext(ctxBot).TGUserID
 
-		uq, err := d.GetUserQuestion(ctx, userID, int64(qID))
+		uq, err := d.GetUserQuestion(ctx, userID, int64(questionID))
 		if err != nil {
 			return err
 		}
 
 		question := uq.GetQuestion().Question
-		tag := uq.R.GetQuestion().R.GetTag().Tag
+		tagName := uq.R.GetQuestion().R.GetTag().Tag
 		answer := uq.R.GetQuestion().R.GetAnswers()[0]
 
-		result := EscapeMarkdown(tag) + ": " + EscapeMarkdown(question)
+		result := EscapeMarkdown(tagName) + ": " + EscapeMarkdown(question)
 		if showAnswer {
 			result += "\n\n" + EscapeMarkdown(answer.Answer)
 		}
+
+		// Создаем билдер для кнопок ответа с опциями
+		builder := NewQuestionButtonBuilder(
+			WithPage(page),
+			WithTag(tag),
+		)
 
 		return ctxBot.Edit(
 			result,
 			telebot.ModeMarkdownV2,
 			&telebot.ReplyMarkup{
-				InlineKeyboard: NewQuestionButtonBuilder().BuildFullKeyboard(uq, showAnswer),
+				InlineKeyboard: builder.BuildFullKeyboard(uq, showAnswer),
 			},
 		)
 	}

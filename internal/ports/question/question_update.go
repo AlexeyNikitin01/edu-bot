@@ -104,32 +104,6 @@ func RememberQuestion(ctx context.Context, d domain.UseCases) telebot.HandlerFun
 	}
 }
 
-func RepeatQuestionAfterPoll(ctx context.Context, d domain.UseCases) telebot.HandlerFunc {
-	return func(ctxBot telebot.Context) error {
-		qidStr := ctxBot.Data() // получаем questionID из callback data
-		questionID, err := strconv.Atoi(qidStr)
-		if err != nil {
-			return ctxBot.Respond(&telebot.CallbackResponse{Text: err.Error()})
-		}
-
-		userID := middleware.GetUserFromContext(ctxBot).TGUserID
-
-		if err = d.UpdateIsEduUserQuestion(ctx, userID, int64(questionID)); err != nil {
-			return ctxBot.Respond(&telebot.CallbackResponse{Text: err.Error()})
-		}
-
-		if err = ctxBot.Edit(&telebot.ReplyMarkup{
-			InlineKeyboard: [][]telebot.InlineButton{
-				// todo кнопки
-			},
-		}); err != nil {
-			return ctxBot.Respond(&telebot.CallbackResponse{Text: err.Error()})
-		}
-
-		return nil
-	}
-}
-
 func IsRepeatByPoll(ctx context.Context, d domain.UseCases) telebot.HandlerFunc {
 	return func(ctxBot telebot.Context) error {
 		qidStr := ctxBot.Data()

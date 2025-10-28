@@ -17,9 +17,10 @@ type TagButtonsBuilder struct {
 
 func NewTagButtonsBuilder(tags []*edu.Tag, totalTags int) *TagButtonsBuilder {
 	builder := &TagButtonsBuilder{
-		tags:      tags,
-		totalTags: totalTags,
-		pageSize:  DEFAULT_PAGE_SIZE,
+		tags:        tags,
+		totalTags:   totalTags,
+		pageSize:    DEFAULT_PAGE_SIZE,
+		currentPage: 1,
 	}
 
 	builder.calculatePagination()
@@ -28,22 +29,21 @@ func NewTagButtonsBuilder(tags []*edu.Tag, totalTags int) *TagButtonsBuilder {
 }
 
 func (b *TagButtonsBuilder) calculatePagination() {
-	if b.pageSize <= 0 || len(b.tags) == 0 {
-		b.currentPage = 1
-		b.totalPages = 1
-		return
-	}
-
-	if len(b.tags) <= b.pageSize {
-		b.currentPage = 1
-	} else {
-		b.currentPage = 1
-		b.pageSize = len(b.tags)
+	if b.pageSize <= 0 {
+		b.pageSize = DEFAULT_PAGE_SIZE
 	}
 
 	b.totalPages = (b.totalTags + b.pageSize - 1) / b.pageSize
 	if b.totalPages == 0 {
 		b.totalPages = 1
+	}
+
+	// Корректируем текущую страницу
+	if b.currentPage < 1 {
+		b.currentPage = 1
+	}
+	if b.currentPage > b.totalPages {
+		b.currentPage = b.totalPages
 	}
 }
 
@@ -58,6 +58,7 @@ func (b *TagButtonsBuilder) WithPageSize(pageSize int) *TagButtonsBuilder {
 func (b *TagButtonsBuilder) WithCurrentPage(page int) *TagButtonsBuilder {
 	if page > 0 {
 		b.currentPage = page
+		b.calculatePagination()
 	}
 	return b
 }
@@ -144,7 +145,7 @@ func (b *TagButtonsBuilder) BuildTextTags() string {
 }
 
 func (b *TagButtonsBuilder) getTagsForCurrentPage() []*edu.Tag {
-	if b.pageSize <= 0 || b.currentPage <= 1 {
+	if b.pageSize <= 0 || b.currentPage <= 0 {
 		return b.tags
 	}
 
@@ -164,7 +165,7 @@ func (b *TagButtonsBuilder) BuildTagButton(tag *edu.Tag) telebot.InlineButton {
 	return telebot.InlineButton{
 		Unique: INLINE_BTN_QUESTION_BY_TAG,
 		Text:   tag.Tag,
-		Data:   tag.Tag,
+		Data:   fmt.Sprintf("%s_page_%d", tag.Tag, b.currentPage),
 	}
 }
 
@@ -204,6 +205,7 @@ func (b *TagButtonsBuilder) buildPaginationRow() []telebot.InlineButton {
 
 	var paginationButtons []telebot.InlineButton
 
+	// Кнопка "Назад"
 	if b.currentPage > 1 {
 		paginationButtons = append(paginationButtons, telebot.InlineButton{
 			Unique: INLINE_PAGINATION_PREV,
@@ -212,6 +214,7 @@ func (b *TagButtonsBuilder) buildPaginationRow() []telebot.InlineButton {
 		})
 	}
 
+	// Информация о странице
 	infoBtn := telebot.InlineButton{
 		Unique: INLINE_PAGINATION_INFO,
 		Text:   fmt.Sprintf(PAGINATION_INFO_FORMAT, b.currentPage, b.totalPages),
@@ -219,6 +222,7 @@ func (b *TagButtonsBuilder) buildPaginationRow() []telebot.InlineButton {
 	}
 	paginationButtons = append(paginationButtons, infoBtn)
 
+	// Кнопка "Вперед"
 	if b.currentPage < b.totalPages {
 		paginationButtons = append(paginationButtons, telebot.InlineButton{
 			Unique: INLINE_PAGINATION_NEXT,
@@ -242,7 +246,11 @@ func (b *TagButtonsBuilder) GetPaginationInfo() string {
 	if b.totalPages <= 1 {
 		return fmt.Sprintf(PAGINATION_INFO_SIMPLE_FORMAT, b.totalTags)
 	}
-	return fmt.Sprintf(PAGINATION_INFO_FULL_FORMAT, b.currentPage, b.totalPages, b.totalTags)
+
+	start := (b.currentPage-1)*b.pageSize + 1
+	end := start + len(b.getTagsForCurrentPage()) - 1
+
+	return fmt.Sprintf(PAGINATION_INFO_FULL_FORMAT, start, end, b.totalTags, b.currentPage, b.totalPages)
 }
 
 func (b *TagButtonsBuilder) BuildSingleTagButton(tag *edu.Tag) telebot.InlineButton {

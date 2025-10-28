@@ -63,12 +63,8 @@ func questionHandlerCRUD(b *telebot.Bot, ctx context.Context, d domain.UseCases)
 	b.Handle(&telebot.InlineButton{Unique: question.INLINE_FORGOT_HIGH_QUESTION}, question.ForgotQuestion(ctx, d))
 
 	// Пагинация вопросов
-	b.Handle(&telebot.InlineButton{Unique: question.INLINE_BTN_QUESTION_PAGE + "_prev"}, func(ctxBot telebot.Context) error {
-		return question.HandlePageNavigation(ctx, ctxBot, -1, d)
-	})
-	b.Handle(&telebot.InlineButton{Unique: question.INLINE_BTN_QUESTION_PAGE + "_next"}, func(ctxBot telebot.Context) error {
-		return question.HandlePageNavigation(ctx, ctxBot, 1, d)
-	})
+	b.Handle(&telebot.InlineButton{Unique: question.INLINE_BTN_QUESTION_PAGE + "_prev"}, question.HandlePageNavigation(ctx, d))
+	b.Handle(&telebot.InlineButton{Unique: question.INLINE_BTN_QUESTION_PAGE + "_next"}, question.HandlePageNavigation(ctx, d))
 }
 
 // Блок тегов
@@ -78,7 +74,7 @@ func tagHandlersCRUD(b *telebot.Bot, ctx context.Context, d domain.UseCases) {
 		return question.UpsertUserQuestion(ctx, d)(c)
 	})
 	b.Handle(&telebot.InlineButton{Unique: tags.INLINE_BACK_TAGS}, func(botCtx telebot.Context) error {
-		return tags.ShowRepeatTagList(ctx, d)(botCtx)
+		return tags.HandleTagPagination(ctx, d)(botCtx)
 	})
 	b.Handle(&telebot.InlineButton{Unique: tags.INLINE_PAUSE_TAG}, func(botCtx telebot.Context) error {
 		return tags.PauseTag(ctx, d)(botCtx)
@@ -132,7 +128,7 @@ func processBtnsMenu(ctx context.Context, d domain.UseCases) func(telebot.Contex
 	return func(ctxBot telebot.Context) error {
 		user := middleware.GetUserFromContext(ctxBot)
 		if user == nil {
-			return ctxBot.Send(question.MSG_WRONG_BTN, menu.BtnsMenu())
+			return ctxBot.Send(menu.MSG_WRONG_BTN, menu.BtnsMenu())
 		}
 
 		draft, err := d.GetDraftQuestion(ctx, user.TGUserID)
@@ -152,18 +148,18 @@ func processBtnsMenu(ctx context.Context, d domain.UseCases) func(telebot.Contex
 		}
 
 		switch ctxBot.Text() {
-		case question.BTN_ADD_QUESTION:
+		case menu.BTN_ADD_QUESTION:
 			return question.UpsertUserQuestion(ctx, d)(ctxBot)
-		case question.BTN_MANAGMENT_QUESTION:
+		case menu.BTN_MANAGMENT_QUESTION:
 			return tags.ShowRepeatTagList(ctx, d)(ctxBot)
-		case question.BTN_ADD_CSV:
+		case menu.BTN_ADD_CSV:
 			return ctxBot.Send(question.MSG_CSV, telebot.ModeHTML)
-		case question.BTN_NEXT_TASK:
+		case menu.BTN_NEXT_TASK:
 			return task.GetTagsByTask(ctx, d)(ctxBot)
-		case question.BTN_NEXT_QUESTION:
+		case menu.BTN_NEXT_QUESTION:
 			return question.NextQuestion(ctx, d)(ctxBot)
 		default:
-			return ctxBot.Send(question.MSG_WRONG_BTN, menu.BtnsMenu())
+			return ctxBot.Send(menu.MSG_WRONG_BTN, menu.BtnsMenu())
 		}
 	}
 }

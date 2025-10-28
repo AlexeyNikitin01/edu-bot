@@ -1,6 +1,7 @@
 package task
 
 import (
+	"bot/internal/ports/menu"
 	"bot/internal/ports/question"
 	"fmt"
 	"gopkg.in/telebot.v3"
@@ -62,8 +63,8 @@ func (b *TaskButtonsBuilder) AddNavigation(qID int64) *TaskButtonsBuilder {
 		Data:   fmt.Sprintf("%d", qID),
 	}
 	continueQuestionsBtn := telebot.InlineButton{
-		Unique: question.BTN_NEXT_QUESTION,
-		Text:   question.BTN_NEXT_QUESTION,
+		Unique: menu.BTN_NEXT_QUESTION,
+		Text:   menu.BTN_NEXT_QUESTION,
 		Data:   fmt.Sprintf("%d", qID),
 	}
 	b.buttons = append(b.buttons, []telebot.InlineButton{nextTaskBtn})

@@ -2,6 +2,7 @@ package question
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -60,4 +61,19 @@ func timeLeftMsg(duration time.Duration) string {
 	}
 
 	return t
+}
+
+func parsePageString(s string) (tag string, page int, err error) {
+	parts := strings.Split(s, "_page_")
+	if len(parts) != 2 {
+		return "", 0, fmt.Errorf("неверный формат строки")
+	}
+
+	tag = parts[0]
+	page, err = strconv.Atoi(parts[1])
+	if err != nil {
+		return "", 0, fmt.Errorf("ошибка парсинга номера страницы: %v", err)
+	}
+
+	return tag, page, nil
 }
