@@ -3,24 +3,18 @@ package question
 const (
 	MSG_SUCESS_DELETE_QUESTION = "🤫Вопрос удален👁"
 
-	INLINE_BTN_TAGS                            = "tags"
 	INLINE_BTN_REPEAT_QUESTION                 = "toggle_repeat"
 	INLINE_BTN_DELETE_QUESTION                 = "delete_question"
-	INLINE_BTN_DELETE_QUESTIONS_BY_TAG         = "delete_tag"
 	INLINE_BTN_DELETE_QUESTION_AFTER_POLL      = "delete_question_after_poll"
 	INLINE_BTN_DELETE_QUESTION_AFTER_POLL_HIGH = "delete_question_after_poll_high"
 	INLINE_BTN_REPEAT_QUESTION_AFTER_POLL_HIGH = "repeat_question_after_poll_high"
-	INLINE_BTN_QUESTION_BY_TAG                 = "question_by_tag"
 	INLINE_FORGOT_HIGH_QUESTION                = "forgot_high_question"
 	INLINE_REMEMBER_HIGH_QUESTION              = "remember_high_question"
 	INLINE_NEXT_QUESTION                       = "next_question"
-	INLINE_EDIT_TAG                            = "edit_tag"
 	INLINE_EDIT_QUESTION                       = "edit_question"
 	INLINE_EDIT_NAME_QUESTION                  = "inline_edit_name_question"
 	INLINE_EDIT_ANSWER_QUESTION                = "inline_edit_answer_question"
 	INLINE_EDIT_NAME_TAG_QUESTION              = "inline_edit_name_tag_question"
-	INLINE_BACK_TAGS                           = "back_to_tags"
-	INLINE_PAUSE_TAG                           = "pause_tag"
 	INLINE_BTN_QUESTION_PAGE                   = "inline_btn_page"
 	INLINE_SHOW_ANSWER                         = "show_answer"
 	INLINE_TURN_ANSWER                         = "turn_answer"
@@ -75,37 +69,38 @@ const (
 	BtnDelete     = "🗑️"               // Кнопка удаления вопроса
 	BtnEdit       = "✏️"               // Кнопка редактирования вопроса
 
-	// Пагинация
-	INLINE_PAGINATION_PREV = "pagination_prev"
-	INLINE_PAGINATION_NEXT = "pagination_next"
-	INLINE_PAGINATION_INFO = "pagination_info"
-	INLINE_NO_TAGS         = "no_tags"
+	// Сообщения для добавления вопросов
+	MSG_ADD_QUESTION                   = "✍️ Напишите вопрос или нажмите /cancel для отмены"
+	MSG_ADD_CORRECT_ANSWER             = "✍✅ Введите правильный ответ или нажмите /cancel для отмены: "
+	MSG_CANCEL                         = "Вы отменили действие👊!"
+	MSG_SUCCESS                        = "✅ Успех!"
+	MSG_EDIT                           = "<b>Введите новое значение для или нажмите /cancel для отмены:</b>\n\n "
+	MSG_SUCCESS_UPDATE_NAME_QUESTION   = "Вопрос обновлен"
+	MSG_SUCCESS_UPDATE_ANSWER          = "Ответ обновлен"
+	MSG_SUCCESS_UPDATE_TAG_BY_QUESTION = "Тэг для вопроса обновлен"
+	MSG_ADD_TAG                        = "🏷 Введите свой тэг или выберите из списка, или нажмите /cancel для отмены: "
+	MSG_SUCCESS_UPDATE_TAG             = "Тэг обновлен"
+	MSG_EDIT_TAG_BY_QUESTION           = "Выберите или введите свой тэг или нажмите /cancel для отмены: "
 
-	// Константы пагинации
-	DEFAULT_PAGE_SIZE = 10
-	MAX_PAGE_SIZE     = 50
+	// Сообщения для CSV
+	MSG_CSV_INVALID_FILE       = "📛 Пожалуйста, отправьте файл с расширением .csv"
+	MSG_CSV_FILE_LOAD_ERROR    = "❌ Не удалось загрузить файл: "
+	MSG_CSV_INVALID_FORMAT     = "ℹ️ Пожалуйста, отправьте CSV файл или текст в формате CSV"
+	MSG_CSV_PARSE_ERROR        = "❌ Ошибка разбора CSV: %v"
+	MSG_CSV_SUCCESS_TEMPLATE   = "✅ Успешно добавлено: %d"
+	MSG_CSV_ERRORS_TEMPLATE    = "\n❌ Ошибок: %d"
+	MSG_CSV_ERRORS_LIST_HEADER = "\n\nСписок ошибок:\n"
+	MSG_CSV_ERRORS_TRUNCATED   = "\n\nПервые 5 ошибок из %d:\n%s"
+	MSG_CSV_ADVICE_TEXT        = "\n\nℹ️ Совет: Для текста с ; используйте кавычки: \"Текст с ; внутри\""
+	MSG_CSV_ALL_FAILED         = "❌ Не удалось добавить ни одного вопроса. Проверьте формат данных"
+	MSG_CSV_MIN_FIELDS_ERROR   = "• Строка %d: требуется минимум 3 поля (вопрос;тег;правильный ответ)"
+	MSG_CSV_EMPTY_FIELDS_ERROR = "• Строка %d: вопрос, тег и правильный ответ не могут быть пустыми"
+	MSG_CSV_FORMAT_EXAMPLE     = "Пример правильного формата:\n\"Вопрос с ; внутри\";Тег;\"Ответ с ;\"\nОбычный вопрос;Тег;Ответ"
 
-	// Тексты для кнопок и сообщений пагинации
-	PAGINATION_PREV_TEXT   = "⬅️ Назад"
-	PAGINATION_NEXT_TEXT   = "Вперед ➡️"
-	PAGINATION_INFO_TEXT   = "info"
-	NO_TAGS_TEXT           = "📭 Нет тегов"
-	PAGINATION_INFO_FORMAT = "%d/%d"
+	// Сообщения для списка вопросов
+	MSG_LIST_QUESTION = "ВОПРОСЫ: "
+	MSG_BACK_TAGS     = "НАЗАД К ТЭГАМ"
 
-	// Эмодзи и символы
-	EMOJI_BELL      = "🔔"
-	EMOJI_SLEEP     = "💤"
-	EMOJI_EDIT      = "✏️"
-	EMOJI_TRASH     = "🗑️"
-	EMOJI_ENVELOPE  = "📭"
-	EMOJI_PAGE      = "📄"
-	EMOJI_BAR_CHART = "📊"
-
-	// Форматы сообщений
-	PAGINATION_MESSAGE_FORMAT     = "%s\n\n%s"
-	PAGINATION_INFO_FULL_FORMAT   = "📄 Страница %d из %d | Всего тегов: %d"
-	PAGINATION_INFO_SIMPLE_FORMAT = "📊 Всего тегов: %d"
-
-	// Сообщения по умолчанию
-	MSG_LIST_TAGS = "📚 Список тегов:"
+	// Константы пагинации вопросов
+	QuestionsPerPage = 10
 )

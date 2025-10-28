@@ -2,6 +2,7 @@ package question
 
 import (
 	"bot/internal/middleware"
+	"bot/internal/ports/tags"
 	"bot/internal/repo/dto"
 	"context"
 	"strconv"
@@ -11,21 +12,6 @@ import (
 
 	"bot/internal/domain"
 	"bot/internal/repo/edu"
-)
-
-// Константы сообщений
-const (
-	MSG_ADD_TAG                        = "🏷 Введите свой тэг или выберите из списка, или нажмите /cancel для отмены: "
-	MSG_ADD_QUESTION                   = "✍️ Напишите вопрос или нажмите /cancel для отмены"
-	MSG_ADD_CORRECT_ANSWER             = "✍✅ Введите правильный ответ или нажмите /cancel для отмены: "
-	MSG_CANCEL                         = "Вы отменили действие👊!"
-	MSG_SUCCESS                        = "✅ Успех!"
-	MSG_EDIT                           = "<b>Введите новое значение для или нажмите /cancel для отмены:</b>\n\n "
-	MSG_SUCCESS_UPDATE_TAG             = "Тэг обновлен"
-	MSG_SUCCESS_UPDATE_NAME_QUESTION   = "Вопрос обновлен"
-	MSG_SUCCESS_UPDATE_ANSWER          = "Ответ обновлен"
-	MSG_EDIT_TAG_BY_QUESTION           = "Выберите или введите свой тэг или нажмите /cancel для отмены: "
-	MSG_SUCCESS_UPDATE_TAG_BY_QUESTION = "Тэг для вопроса обновлен"
 )
 
 func SetEdit(ctx context.Context, field string, d domain.UseCases) telebot.HandlerFunc {
@@ -55,7 +41,7 @@ func SetEdit(ctx context.Context, field string, d domain.UseCases) telebot.Handl
 		case edu.QuestionTableColumns.TagID:
 			draft.QuestionIDByTag = int64(id)
 			// Используем существующую функцию для показа тегов с дополнительным сообщением
-			return ShowEditTagList(ctx, d)(ctxBot)
+			return tags.ShowEditTagList(ctx, d)(ctxBot)
 		case edu.AnswerTableColumns.Answer:
 			draft.AnswerID = int64(id)
 		}
@@ -111,7 +97,7 @@ func initNewDraft(ctx context.Context, ctxBot telebot.Context, userID int64, d d
 	}
 
 	// Используем существующую функцию для показа списка тегов
-	return ShowRepeatTagList(ctx, d)(ctxBot)
+	return tags.ShowRepeatTagList(ctx, d)(ctxBot)
 }
 
 func cancelDraft(ctx context.Context, ctxBot telebot.Context, userID int64, d domain.UseCases) error {

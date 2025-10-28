@@ -4,6 +4,7 @@ import (
 	"bot/internal/domain"
 	"bot/internal/middleware"
 	"bot/internal/ports/question"
+	"bot/internal/ports/tags"
 	"context"
 	"gopkg.in/telebot.v3"
 	"strconv"
@@ -13,18 +14,18 @@ func GetTagsByTask(ctx context.Context, d domain.UseCases) telebot.HandlerFunc {
 	return func(ctxBot telebot.Context) error {
 		userID := middleware.GetUserFromContext(ctxBot).TGUserID
 
-		tags, err := d.GetUniqueTagsByTask(ctx, userID)
+		ts, err := d.GetUniqueTagsByTask(ctx, userID)
 		if err != nil {
 			return err
 		}
 
-		if len(tags) == 0 {
+		if len(ts) == 0 {
 			return err
 		}
 
 		var tagButtons [][]telebot.InlineButton
 
-		for _, tag := range tags {
+		for _, tag := range ts {
 			tagBtn := telebot.InlineButton{
 				Unique: question.INLINE_BTN_TASK_BY_TAG,
 				Text:   tag.Tag,
@@ -34,7 +35,7 @@ func GetTagsByTask(ctx context.Context, d domain.UseCases) telebot.HandlerFunc {
 			tagButtons = append(tagButtons, []telebot.InlineButton{tagBtn})
 		}
 
-		return ctxBot.Send(question.MSG_LIST_TAGS, &telebot.ReplyMarkup{
+		return ctxBot.Send(tags.MSG_LIST_TAGS, &telebot.ReplyMarkup{
 			InlineKeyboard: tagButtons,
 		})
 	}

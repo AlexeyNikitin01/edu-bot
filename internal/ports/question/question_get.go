@@ -15,14 +15,6 @@ import (
 	"time"
 )
 
-const (
-	MSG_LIST_QUESTION = "ВОПРОСЫ: "
-	MSG_BACK_TAGS     = "НАЗАД К ТЭГАМ"
-
-	QuestionsPerPage = 10 // Оставляем место для кнопок пагинации и возврата
-
-)
-
 func QuestionByTag(ctx context.Context, tag string, d domain.UseCases) telebot.HandlerFunc {
 	return func(ctxBot telebot.Context) error {
 		userID := middleware.GetUserFromContext(ctxBot).TGUserID

@@ -114,7 +114,7 @@ func (b *QuestionButtonBuilder) BuildPaginationButtons(page int, totalPages int,
 
 	// Кнопка возврата к тегам всегда в центре
 	paginationRow = append(paginationRow, telebot.InlineButton{
-		Unique: INLINE_BACK_TAGS,
+		Unique: "back_to_tags",
 		Text:   MSG_BACK_TAGS,
 	})
 

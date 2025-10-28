@@ -1,4 +1,4 @@
-package question
+package tags
 
 import (
 	"bot/internal/domain"
@@ -40,7 +40,7 @@ func PauseTag(ctx context.Context, d domain.UseCases) telebot.HandlerFunc {
 		}
 
 		// Парсим номер страницы из текста сообщения
-		currentPage := extractCurrentPage(message.Text)
+		currentPage := ExtractCurrentPage(message.Text)
 		if currentPage == 0 {
 			currentPage = 1
 		}

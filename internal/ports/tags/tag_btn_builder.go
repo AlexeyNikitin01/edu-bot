@@ -1,4 +1,4 @@
-package question
+package tags
 
 import (
 	"bot/internal/repo/edu"

@@ -3,6 +3,7 @@ package ports
 import (
 	"bot/internal/middleware"
 	"bot/internal/ports/question"
+	"bot/internal/ports/tags"
 	"bot/internal/ports/task"
 	"context"
 	"gopkg.in/telebot.v3"
@@ -40,7 +41,7 @@ func questionHandlerCRUD(b *telebot.Bot, ctx context.Context, d domain.UseCases)
 
 	// Чтение вопросов
 	b.Handle(&telebot.InlineButton{Unique: question.INLINE_NEXT_QUESTION}, question.NextQuestion(ctx, d))
-	b.Handle(&telebot.InlineButton{Unique: question.INLINE_BTN_QUESTION_BY_TAG}, func(ctxBot telebot.Context) error {
+	b.Handle(&telebot.InlineButton{Unique: tags.INLINE_BTN_QUESTION_BY_TAG}, func(ctxBot telebot.Context) error {
 		return question.QuestionByTag(ctx, ctxBot.Data(), d)(ctxBot)
 	})
 	b.Handle(&telebot.InlineButton{Unique: question.INLINE_SHOW_ANSWER}, question.ViewAnswer(ctx, d, true))
@@ -69,28 +70,30 @@ func questionHandlerCRUD(b *telebot.Bot, ctx context.Context, d domain.UseCases)
 // Блок тегов
 func tagHandlersCRUD(b *telebot.Bot, ctx context.Context, d domain.UseCases) {
 	// Основные кнопки тегов
-	b.Handle(&telebot.InlineButton{Unique: question.INLINE_BTN_TAGS}, func(c telebot.Context) error {
+	b.Handle(&telebot.InlineButton{Unique: tags.INLINE_BTN_TAGS}, func(c telebot.Context) error {
 		return question.UpsertUserQuestion(ctx, d)(c)
 	})
-	b.Handle(&telebot.InlineButton{Unique: question.INLINE_BACK_TAGS}, func(botCtx telebot.Context) error {
-		return question.ShowRepeatTagList(ctx, d)(botCtx)
+	b.Handle(&telebot.InlineButton{Unique: tags.INLINE_BACK_TAGS}, func(botCtx telebot.Context) error {
+		return tags.ShowRepeatTagList(ctx, d)(botCtx)
 	})
-	b.Handle(&telebot.InlineButton{Unique: question.INLINE_PAUSE_TAG}, func(botCtx telebot.Context) error {
-		return question.PauseTag(ctx, d)(botCtx)
+	b.Handle(&telebot.InlineButton{Unique: tags.INLINE_PAUSE_TAG}, func(botCtx telebot.Context) error {
+		return tags.PauseTag(ctx, d)(botCtx)
 	})
-	b.Handle(&telebot.InlineButton{Unique: question.INLINE_BTN_DELETE_QUESTIONS_BY_TAG},
-		question.DeleteQuestionByTag(ctx, d))
+	b.Handle(&telebot.InlineButton{Unique: tags.INLINE_BTN_DELETE_QUESTIONS_BY_TAG},
+		tags.DeleteQuestionByTag(ctx, d))
 
 	// Пагинация тегов
-	b.Handle(&telebot.InlineButton{Unique: question.INLINE_PAGINATION_PREV}, func(botCtx telebot.Context) error {
-		return question.HandleTagPagination(ctx, d)(botCtx)
+	b.Handle(&telebot.InlineButton{Unique: tags.INLINE_PAGINATION_PREV}, func(botCtx telebot.Context) error {
+		return tags.HandleTagPagination(ctx, d)(botCtx)
 	})
-	b.Handle(&telebot.InlineButton{Unique: question.INLINE_PAGINATION_NEXT}, func(botCtx telebot.Context) error {
-		return question.HandleTagPagination(ctx, d)(botCtx)
+	b.Handle(&telebot.InlineButton{Unique: tags.INLINE_PAGINATION_NEXT}, func(botCtx telebot.Context) error {
+		return tags.HandleTagPagination(ctx, d)(botCtx)
 	})
 
+	b.Handle(&telebot.InlineButton{Unique: tags.INLINE_EDIT_TAG}, question.SetEdit(ctx, edu.TableNames.Tags, d))
+
 	// Обработка отсутствия тегов
-	b.Handle(&telebot.InlineButton{Unique: question.INLINE_NO_TAGS}, func(botCtx telebot.Context) error {
+	b.Handle(&telebot.InlineButton{Unique: tags.INLINE_NO_TAGS}, func(botCtx telebot.Context) error {
 		// Можно показать сообщение с подсказкой или ничего не делать
 		return botCtx.Respond(&telebot.CallbackResponse{
 			Text:      "📝 У вас пока нет тегов. Создайте первый вопрос!",
@@ -101,7 +104,6 @@ func tagHandlersCRUD(b *telebot.Bot, ctx context.Context, d domain.UseCases) {
 
 // Блок редактирования
 func setupEditHandlers(b *telebot.Bot, ctx context.Context, d domain.UseCases) {
-	b.Handle(&telebot.InlineButton{Unique: question.INLINE_EDIT_TAG}, question.SetEdit(ctx, edu.TableNames.Tags, d))
 	b.Handle(&telebot.InlineButton{Unique: question.INLINE_EDIT_QUESTION}, question.GetForUpdate(ctx, d))
 	b.Handle(&telebot.InlineButton{Unique: question.INLINE_EDIT_NAME_QUESTION}, question.SetEdit(ctx, edu.QuestionTableColumns.Question, d))
 	b.Handle(&telebot.InlineButton{Unique: question.INLINE_EDIT_NAME_TAG_QUESTION}, question.SetEdit(ctx, edu.QuestionTableColumns.TagID, d))
@@ -149,7 +151,7 @@ func processBtnsMenu(ctx context.Context, d domain.UseCases) func(telebot.Contex
 		case question.BTN_ADD_QUESTION:
 			return question.UpsertUserQuestion(ctx, d)(ctxBot)
 		case question.BTN_MANAGMENT_QUESTION:
-			return question.ShowRepeatTagList(ctx, d)(ctxBot)
+			return tags.ShowRepeatTagList(ctx, d)(ctxBot)
 		case question.BTN_ADD_CSV:
 			return ctxBot.Send(question.MSG_CSV, telebot.ModeHTML)
 		case question.BTN_NEXT_TASK:

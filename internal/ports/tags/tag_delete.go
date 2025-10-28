@@ -1,4 +1,4 @@
-package question
+package tags
 
 import (
 	"bot/internal/domain"
@@ -20,7 +20,7 @@ func DeleteQuestionByTag(ctx context.Context, d domain.UseCases) telebot.Handler
 		}
 
 		// Парсим номер страницы из текста сообщения
-		currentPage := extractCurrentPage(message.Text)
+		currentPage := ExtractCurrentPage(message.Text)
 		if currentPage == 0 {
 			currentPage = 1
 		}
