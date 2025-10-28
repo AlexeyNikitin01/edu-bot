@@ -9,6 +9,34 @@ import (
 	"strconv"
 )
 
+// ShowEditTagList показывает список тегов для выбора при создании/редактировании вопроса
+func ShowEditTagList(ctx context.Context, d domain.UseCases) telebot.HandlerFunc {
+	return func(ctxBot telebot.Context) error {
+		userID := middleware.GetUserFromContext(ctxBot).TGUserID
+
+		// Получаем теги с пагинацией
+		page := 1
+		pageSize := DEFAULT_PAGE_SIZE
+		tags, totalCount, err := d.GetUniqueTags(ctx, userID, page, pageSize)
+		if err != nil {
+			return err
+		}
+
+		// Создаем билдер
+		builder := NewTagButtonsBuilder(tags, totalCount).
+			WithCurrentPage(page)
+
+		// Создаем сообщение с текстовым списком тегов
+		message := fmt.Sprintf("%s\n\n%s", MSG_EDIT_TAG_BY_QUESTION, builder.BuildTextTags())
+
+		// Отправляем сообщение с кнопками пагинации
+		return ctxBot.Send(message, &telebot.ReplyMarkup{
+			InlineKeyboard: builder.BuildTextRows(),
+		})
+	}
+}
+
+// ShowRepeatTagList показывает список тегов с кнопками управления
 func ShowRepeatTagList(ctx context.Context, d domain.UseCases) telebot.HandlerFunc {
 	return func(ctxBot telebot.Context) error {
 		userID := middleware.GetUserFromContext(ctxBot).TGUserID
@@ -24,10 +52,12 @@ func ShowRepeatTagList(ctx context.Context, d domain.UseCases) telebot.HandlerFu
 		message := fmt.Sprintf("%s\n\n%s", MSG_LIST_TAGS, builder.GetPaginationInfo())
 
 		return ctxBot.Send(message, &telebot.ReplyMarkup{
-			InlineKeyboard: builder.BuildPageRows(),
+			InlineKeyboard: builder.BuildPageRows(), // Используем полные кнопки управления
 		})
 	}
 }
+
+// HandleTagPagination обрабатывает пагинацию для тегов
 func HandleTagPagination(ctx context.Context, d domain.UseCases) telebot.HandlerFunc {
 	return func(ctxBot telebot.Context) error {
 		userID := middleware.GetUserFromContext(ctxBot).TGUserID
@@ -39,13 +69,13 @@ func HandleTagPagination(ctx context.Context, d domain.UseCases) telebot.Handler
 			page = 1
 		}
 
-		fmt.Println(page)
-
+		// Получаем теги для запрошенной страницы
 		tags, totalCount, err := d.GetUniqueTags(ctx, userID, page, DEFAULT_PAGE_SIZE)
 		if err != nil {
 			return err
 		}
 
+		// Создаем билдер
 		builder := NewTagButtonsBuilder(tags, totalCount).
 			WithCurrentPage(page)
 
@@ -54,36 +84,25 @@ func HandleTagPagination(ctx context.Context, d domain.UseCases) telebot.Handler
 			builder.WithCurrentPage(builder.totalPages)
 		}
 
-		message := fmt.Sprintf("%s\n\n%s", MSG_LIST_TAGS, builder.GetPaginationInfo())
+		// Определяем контекст: если это создание вопроса, используем текстовый режим
+		draft, err := d.GetDraftQuestion(ctx, userID)
+		isEditMode := err == nil && draft != nil && (draft.Step == 1 || draft.QuestionIDByTag != 0)
 
-		return ctxBot.Edit(message, &telebot.ReplyMarkup{
-			InlineKeyboard: builder.BuildPageRows(),
-		})
-	}
-}
+		var message string
+		var keyboard [][]telebot.InlineButton
 
-// ShowEditTagList показывает список тегов для редактирования специальным сообщением
-func ShowEditTagList(ctx context.Context, d domain.UseCases) telebot.HandlerFunc {
-	return func(ctxBot telebot.Context) error {
-		userID := middleware.GetUserFromContext(ctxBot).TGUserID
-
-		// Получаем теги с пагинацией
-		page := 1
-		pageSize := DEFAULT_PAGE_SIZE
-		tags, totalCount, err := d.GetUniqueTags(ctx, userID, page, pageSize)
-		if err != nil {
-			return err
+		if isEditMode {
+			// Текстовый режим для выбора тегов
+			message = fmt.Sprintf("%s\n\n%s", MSG_EDIT_TAG_BY_QUESTION, builder.BuildTextTags())
+			keyboard = builder.BuildTextRows()
+		} else {
+			// Полный режим с кнопками управления
+			message = fmt.Sprintf("%s\n\n%s", MSG_LIST_TAGS, builder.GetPaginationInfo())
+			keyboard = builder.BuildPageRows()
 		}
 
-		// Создаем билдер только с тегами и общим количеством
-		builder := NewTagButtonsBuilder(tags, totalCount).
-			WithCurrentPage(page)
-
-		// Создаем сообщение с информацией о пагинации из билдера + специальное сообщение для редактирования
-		message := fmt.Sprintf("%s\n\n%s", MSG_EDIT_TAG_BY_QUESTION, builder.GetPaginationInfo())
-
-		return ctxBot.Send(message, &telebot.ReplyMarkup{
-			InlineKeyboard: builder.BuildPageRows(),
+		return ctxBot.Edit(message, &telebot.ReplyMarkup{
+			InlineKeyboard: keyboard,
 		})
 	}
 }

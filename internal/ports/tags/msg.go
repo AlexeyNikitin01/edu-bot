@@ -7,6 +7,7 @@ const (
 	INLINE_EDIT_TAG                    = "edit_tag"
 	INLINE_BACK_TAGS                   = "back_to_tags"
 	INLINE_PAUSE_TAG                   = "pause_tag"
+	INLINE_SELECT_TAG                  = "select_tag" // Для выбора тега при создании вопроса
 
 	// Пагинация
 	INLINE_PAGINATION_PREV = "pagination_prev"

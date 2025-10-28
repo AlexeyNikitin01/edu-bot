@@ -1,3 +1,4 @@
+// tags/tag_btn_builder.go
 package tags
 
 import (
@@ -61,6 +62,7 @@ func (b *TagButtonsBuilder) WithCurrentPage(page int) *TagButtonsBuilder {
 	return b
 }
 
+// BuildPageRows создает строки кнопок для управления тегами (с кнопками удаления/редактирования/паузы)
 func (b *TagButtonsBuilder) BuildPageRows() [][]telebot.InlineButton {
 	if len(b.tags) == 0 {
 		return [][]telebot.InlineButton{
@@ -82,6 +84,63 @@ func (b *TagButtonsBuilder) BuildPageRows() [][]telebot.InlineButton {
 	}
 
 	return rows
+}
+
+// BuildTextRows создает строки кнопок только для выбора тегов (без кнопок управления)
+func (b *TagButtonsBuilder) BuildTextRows() [][]telebot.InlineButton {
+	if len(b.tags) == 0 {
+		return nil
+	}
+
+	var rows [][]telebot.InlineButton
+
+	pageTags := b.getTagsForCurrentPage()
+	for _, tag := range pageTags {
+		// Только кнопка выбора тега с другим Unique для создания вопроса
+		row := []telebot.InlineButton{
+			b.BuildSelectTagButton(tag),
+		}
+		rows = append(rows, row)
+	}
+
+	paginationRow := b.buildPaginationRow()
+	if len(paginationRow) > 0 {
+		rows = append(rows, paginationRow)
+	}
+
+	return rows
+}
+
+// BuildSelectTagButton создает кнопку для выбора тега при создании вопроса
+func (b *TagButtonsBuilder) BuildSelectTagButton(tag *edu.Tag) telebot.InlineButton {
+	return telebot.InlineButton{
+		Unique: "select_tag", // Уникальный идентификатор для выбора тега
+		Text:   tag.Tag,
+		Data:   tag.Tag,
+	}
+}
+
+// BuildTextTags создает текстовое представление тегов для выбора
+func (b *TagButtonsBuilder) BuildTextTags() string {
+	if len(b.tags) == 0 {
+		return "📭 У вас пока нет тегов. Введите название нового тега:"
+	}
+
+	pageTags := b.getTagsForCurrentPage()
+
+	var tagList []string
+	for i, tag := range pageTags {
+		tagList = append(tagList, fmt.Sprintf("%d. %s", i+1, tag.Tag))
+	}
+
+	var message string
+
+	// Добавляем пагинацию если нужно
+	if b.totalPages > 1 {
+		message += fmt.Sprintf("\n\n📄 Страница %d из %d", b.currentPage, b.totalPages)
+	}
+
+	return message
 }
 
 func (b *TagButtonsBuilder) getTagsForCurrentPage() []*edu.Tag {

@@ -97,7 +97,7 @@ func initNewDraft(ctx context.Context, ctxBot telebot.Context, userID int64, d d
 	}
 
 	// Используем существующую функцию для показа списка тегов
-	return tags.ShowRepeatTagList(ctx, d)(ctxBot)
+	return tags.ShowEditTagList(ctx, d)(ctxBot)
 }
 
 func cancelDraft(ctx context.Context, ctxBot telebot.Context, userID int64, d domain.UseCases) error {
@@ -207,16 +207,14 @@ func processTagSelection(
 ) error {
 	tag := ""
 
-	// Получаем тег из сообщения или callback
-	if ctxBot.Callback() != nil {
-		tag = ctxBot.Callback().Data
-	} else if ctxBot.Message().Text != BTN_ADD_QUESTION && ctxBot.Message().Text != MSG_ADD_TAG {
-		tag = ctxBot.Message().Text
+	// Получаем тег из сообщения (текстовый ввод)
+	if ctxBot.Message() != nil && ctxBot.Message().Text != "" {
+		tag = strings.TrimSpace(ctxBot.Message().Text)
 	}
 
-	// Если тег не выбран, выходим без ошибки
+	// Если тег не выбран, показываем список тегов снова
 	if tag == "" {
-		return nil
+		return tags.ShowEditTagList(ctx, d)(ctxBot)
 	}
 
 	draft.Tag = tag
@@ -258,4 +256,39 @@ func processCorrectAnswerInputAndSaveQuestion(
 	}
 
 	return ctxBot.Send(MSG_SUCCESS)
+}
+
+// HandleTagSelection обрабатывает выбор тега при создании вопроса
+func HandleTagSelection(ctx context.Context, d domain.UseCases) telebot.HandlerFunc {
+	return func(ctxBot telebot.Context) error {
+		tagName := ctxBot.Data()
+		userID := middleware.GetUserFromContext(ctxBot).TGUserID
+
+		// Получаем черновик
+		draft, err := d.GetDraftQuestion(ctx, userID)
+		if err != nil {
+			return ctxBot.Send("❌ Ошибка при получении черновика: " + err.Error())
+		}
+
+		if draft == nil {
+			return ctxBot.Send("❌ Черновик не найден. Начните создание вопроса заново.")
+		}
+
+		// Сохраняем выбранный тег в черновик
+		draft.Tag = tagName
+		draft.Step++
+
+		// Сохраняем обновленный черновик
+		if err = d.SetDraftQuestion(ctx, userID, draft); err != nil {
+			return ctxBot.Send("❌ Ошибка при сохранении тега: " + err.Error())
+		}
+
+		// Удаляем сообщение со списком тегов
+		if err = ctxBot.Delete(); err != nil {
+			// Если не удалось удалить, продолжаем
+		}
+
+		// Переходим к следующему шагу - вводу вопроса
+		return ctxBot.Send("Вы выбрали: " + tagName + "\n" + MSG_ADD_QUESTION)
+	}
 }

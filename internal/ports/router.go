@@ -38,6 +38,9 @@ func setupCommandHandlers(b *telebot.Bot) {
 func questionHandlerCRUD(b *telebot.Bot, ctx context.Context, d domain.UseCases) {
 	// Создание вопросов
 	b.Handle(telebot.OnText, processBtnsMenu(ctx, d))
+	b.Handle(&telebot.InlineButton{Unique: tags.INLINE_SELECT_TAG}, func(botCtx telebot.Context) error {
+		return question.HandleTagSelection(ctx, d)(botCtx)
+	})
 
 	// Чтение вопросов
 	b.Handle(&telebot.InlineButton{Unique: question.INLINE_NEXT_QUESTION}, question.NextQuestion(ctx, d))
