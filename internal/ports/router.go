@@ -2,6 +2,7 @@ package ports
 
 import (
 	"bot/internal/middleware"
+	"bot/internal/ports/menu"
 	"bot/internal/ports/question"
 	"bot/internal/ports/tags"
 	"bot/internal/ports/task"
@@ -31,7 +32,7 @@ func routers(ctx context.Context, b *telebot.Bot, d domain.UseCases) {
 
 func setupCommandHandlers(b *telebot.Bot) {
 	b.Handle(question.CMD_START, func(ctx telebot.Context) error {
-		return ctx.Send(question.MSG_GRETING, btnsMenu())
+		return ctx.Send(question.MSG_GRETING, menu.BtnsMenu())
 	})
 }
 
@@ -131,7 +132,7 @@ func processBtnsMenu(ctx context.Context, d domain.UseCases) func(telebot.Contex
 	return func(ctxBot telebot.Context) error {
 		user := middleware.GetUserFromContext(ctxBot)
 		if user == nil {
-			return ctxBot.Send(question.MSG_WRONG_BTN, btnsMenu())
+			return ctxBot.Send(question.MSG_WRONG_BTN, menu.BtnsMenu())
 		}
 
 		draft, err := d.GetDraftQuestion(ctx, user.TGUserID)
@@ -162,25 +163,7 @@ func processBtnsMenu(ctx context.Context, d domain.UseCases) func(telebot.Contex
 		case question.BTN_NEXT_QUESTION:
 			return question.NextQuestion(ctx, d)(ctxBot)
 		default:
-			return ctxBot.Send(question.MSG_WRONG_BTN, btnsMenu())
+			return ctxBot.Send(question.MSG_WRONG_BTN, menu.BtnsMenu())
 		}
 	}
-}
-
-func btnsMenu() *telebot.ReplyMarkup {
-	m := &telebot.ReplyMarkup{ResizeKeyboard: true}
-
-	btnAdd := m.Text(question.BTN_ADD_QUESTION)
-	btnMark := m.Text(question.BTN_MANAGMENT_QUESTION)
-	btnCSV := m.Text(question.BTN_ADD_CSV)
-	btnNext := m.Text(question.BTN_NEXT_QUESTION)
-	btnNextTask := m.Text(question.BTN_NEXT_TASK)
-
-	m.Reply(
-		m.Row(btnAdd, btnCSV),
-		m.Row(btnMark, btnNext),
-		m.Row(btnNextTask),
-	)
-
-	return m
 }

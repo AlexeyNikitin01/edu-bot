@@ -2,6 +2,7 @@ package question
 
 import (
 	"bot/internal/middleware"
+	"bot/internal/ports/menu"
 	"bot/internal/ports/tags"
 	"bot/internal/repo/dto"
 	"context"
@@ -13,6 +14,22 @@ import (
 	"bot/internal/domain"
 	"bot/internal/repo/edu"
 )
+
+// Функция для отправки сообщения без клавиатуры
+func sendWithoutKeyboard(ctxBot telebot.Context, message string, rows ...telebot.Row) error {
+	m := &telebot.ReplyMarkup{RemoveKeyboard: true}
+	if len(rows) != 0 {
+		for _, i := range rows {
+			m.Inline(i)
+		}
+	}
+	return ctxBot.Send(message, m)
+}
+
+// Функция для отправки сообщения с основной клавиатурой
+func sendWithMainKeyboard(ctxBot telebot.Context, message string) error {
+	return ctxBot.Send(message, menu.BtnsMenu())
+}
 
 func SetEdit(ctx context.Context, field string, d domain.UseCases) telebot.HandlerFunc {
 	return func(ctxBot telebot.Context) (err error) {
@@ -51,16 +68,14 @@ func SetEdit(ctx context.Context, field string, d domain.UseCases) telebot.Handl
 			return err
 		}
 
-		menu := &telebot.ReplyMarkup{}
-		btnShowCurrent := menu.Data("👀 Посмотреть текущее значение", INLINE_SHOW_CURRENT_VALUE, strID)
-		menu.Inline(menu.Row(btnShowCurrent))
+		m := &telebot.ReplyMarkup{}
+		btnShowCurrent := m.Data("👀 Посмотреть текущее значение", INLINE_SHOW_CURRENT_VALUE, strID)
 
-		return ctxBot.Send(MSG_EDIT, menu, telebot.ModeHTML)
+		return sendWithoutKeyboard(ctxBot, "Введите новое значение или нажмите /cancel для отмены:", m.Row(btnShowCurrent))
 	}
 }
 
 // UpsertUserQuestion обрабатывает создание или редактирование вопроса пользователя
-// Объединяет логику создания нового вопроса и редактирования существующих сущностей
 func UpsertUserQuestion(ctx context.Context, d domain.UseCases) telebot.HandlerFunc {
 	return func(ctxBot telebot.Context) (err error) {
 		msg := strings.TrimSpace(ctxBot.Message().Text)
@@ -96,6 +111,11 @@ func initNewDraft(ctx context.Context, ctxBot telebot.Context, userID int64, d d
 		return err
 	}
 
+	// Убираем клавиатуру при начале создания вопроса
+	if err := sendWithoutKeyboard(ctxBot, "Создание вопроса: "); err != nil {
+		return err
+	}
+
 	// Используем существующую функцию для показа списка тегов
 	return tags.ShowEditTagList(ctx, d)(ctxBot)
 }
@@ -104,7 +124,8 @@ func cancelDraft(ctx context.Context, ctxBot telebot.Context, userID int64, d do
 	if err := d.DeleteDraftQuestion(ctx, userID); err != nil {
 		return err
 	}
-	return ctxBot.Send(MSG_CANCEL)
+	// Возвращаем основную клавиатуру при отмене
+	return sendWithMainKeyboard(ctxBot, MSG_CANCEL)
 }
 
 func updateUserQuestion(
@@ -133,7 +154,8 @@ func updateTag(
 	if err := d.DeleteDraftQuestion(ctx, userID); err != nil {
 		return err
 	}
-	return ctxBot.Send(MSG_SUCCESS_UPDATE_TAG)
+	// Возвращаем основную клавиатуру после обновления
+	return sendWithMainKeyboard(ctxBot, MSG_SUCCESS_UPDATE_TAG)
 }
 
 // updateQuestionName обновляет текст существующего вопроса
@@ -146,7 +168,8 @@ func updateQuestionName(
 	if err := d.DeleteDraftQuestion(ctx, userID); err != nil {
 		return err
 	}
-	return ctxBot.Send(MSG_SUCCESS_UPDATE_NAME_QUESTION)
+	// Возвращаем основную клавиатуру после обновления
+	return sendWithMainKeyboard(ctxBot, MSG_SUCCESS_UPDATE_NAME_QUESTION)
 }
 
 // updateAnswer обновляет текст существующего ответа
@@ -159,11 +182,11 @@ func updateAnswer(
 	if err := d.DeleteDraftQuestion(ctx, userID); err != nil {
 		return err
 	}
-	return ctxBot.Send(MSG_SUCCESS_UPDATE_ANSWER)
+	// Возвращаем основную клавиатуру после обновления
+	return sendWithMainKeyboard(ctxBot, MSG_SUCCESS_UPDATE_ANSWER)
 }
 
 // updateTagByQuestion обновляет тег для существующего вопроса
-// Поддерживает выбор тега из списка или ввод нового
 func updateTagByQuestion(
 	ctx context.Context, ctxBot telebot.Context, draft *dto.QuestionDraft, msg string, userID int64, d domain.UseCases,
 ) error {
@@ -185,7 +208,8 @@ func updateTagByQuestion(
 	if err := d.DeleteDraftQuestion(ctx, userID); err != nil {
 		return err
 	}
-	return ctxBot.Send(MSG_SUCCESS_UPDATE_TAG_BY_QUESTION)
+	// Возвращаем основную клавиатуру после обновления
+	return sendWithMainKeyboard(ctxBot, MSG_SUCCESS_UPDATE_TAG_BY_QUESTION)
 }
 
 func createUserQuestion(
@@ -225,7 +249,7 @@ func processTagSelection(
 		return err
 	}
 
-	return ctxBot.Send(MSG_ADD_QUESTION)
+	return sendWithoutKeyboard(ctxBot, MSG_ADD_QUESTION)
 }
 
 // processQuestionInput обрабатывает ввод текста вопроса
@@ -240,7 +264,7 @@ func processQuestionInput(
 		return err
 	}
 
-	return ctxBot.Send(MSG_ADD_CORRECT_ANSWER)
+	return sendWithoutKeyboard(ctxBot, MSG_ADD_CORRECT_ANSWER)
 }
 
 func processCorrectAnswerInputAndSaveQuestion(
@@ -255,7 +279,8 @@ func processCorrectAnswerInputAndSaveQuestion(
 		return err
 	}
 
-	return ctxBot.Send(MSG_SUCCESS)
+	// Возвращаем основную клавиатуру после успешного создания вопроса
+	return sendWithMainKeyboard(ctxBot, MSG_SUCCESS)
 }
 
 // HandleTagSelection обрабатывает выбор тега при создании вопроса
@@ -288,7 +313,7 @@ func HandleTagSelection(ctx context.Context, d domain.UseCases) telebot.HandlerF
 			// Если не удалось удалить, продолжаем
 		}
 
-		// Переходим к следующему шагу - вводу вопроса
-		return ctxBot.Send("Вы выбрали: " + tagName + "\n" + MSG_ADD_QUESTION)
+		// Переходим к следующему шагу - вводу вопроса (без клавиатуры)
+		return sendWithoutKeyboard(ctxBot, "Вы выбрали: "+tagName+"\n"+MSG_ADD_QUESTION)
 	}
 }
