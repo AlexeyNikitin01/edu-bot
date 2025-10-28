@@ -286,7 +286,7 @@ func CollapseValue(ctx context.Context, domain domain.UseCases) telebot.HandlerF
 		menu.Inline(menu.Row(btnShowCurrent))
 
 		// Редактируем сообщение, возвращая исходное состояние
-		return ctx.Edit(MSG_EDIT, menu, telebot.ModeHTML)
+		return ctx.Edit("Действие", menu, telebot.ModeHTML)
 	}
 }
 

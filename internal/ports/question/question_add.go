@@ -22,6 +22,7 @@ func sendWithoutKeyboard(ctxBot telebot.Context, message string, rows ...telebot
 		for _, i := range rows {
 			m.Inline(i)
 		}
+		ctxBot.Delete()
 		if err := ctxBot.Send("Действие: ", m); err != nil {
 			return err
 		}
