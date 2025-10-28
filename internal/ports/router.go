@@ -58,7 +58,6 @@ func questionHandlerCRUD(b *telebot.Bot, ctx context.Context, d domain.UseCases)
 
 	// Удаление вопросов
 	b.Handle(&telebot.InlineButton{Unique: question.INLINE_BTN_DELETE_QUESTION}, question.DeleteQuestion(ctx, d))
-	b.Handle(&telebot.InlineButton{Unique: question.INLINE_BTN_DELETE_QUESTION_AFTER_POLL}, question.DeleteQuestionAfterPoll(ctx, d))
 	b.Handle(&telebot.InlineButton{Unique: question.INLINE_BTN_DELETE_QUESTION_AFTER_POLL_HIGH}, question.DeleteQuestionAfterPollHigh(ctx, d))
 	b.Handle(&telebot.InlineButton{Unique: question.INLINE_FORGOT_HIGH_QUESTION}, question.ForgotQuestion(ctx, d))
 

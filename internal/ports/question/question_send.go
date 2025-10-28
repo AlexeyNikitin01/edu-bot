@@ -26,8 +26,8 @@ func SendQuestion(ctx context.Context, b *telebot.Bot, dis domain.Dispatcher) {
 				rec,
 				tag+": "+questionText,
 				telebot.ModeMarkdownV2,
-				&telebot.ReplyMarkup{InlineKeyboard: NewQuestionButtonBuilder().
-					BuildKeyboardWithoutBackTag(uq, false),
+				&telebot.ReplyMarkup{InlineKeyboard: NewQuestionButtonBuilder(WithTag(uq.GetQuestion().R.GetTag().Tag)).
+					BuildAfterSend(uq, false),
 				},
 			)
 			log.Println(err)

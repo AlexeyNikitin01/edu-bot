@@ -164,17 +164,17 @@ func (b *QuestionButtonBuilder) BuildQuestionRow(uq *edu.UsersQuestion) [][]tele
 	}
 }
 
-// BuildFullKeyboard создает полную клавиатуру для вопроса (для ViewAnswer)
-func (b *QuestionButtonBuilder) BuildFullKeyboard(uq *edu.UsersQuestion, showAnswer bool) [][]telebot.InlineButton {
+// BuildInList создает полную клавиатуру для вопроса (для ViewAnswer)
+func (b *QuestionButtonBuilder) BuildInList(uq *edu.UsersQuestion, showAnswer bool) [][]telebot.InlineButton {
 	return [][]telebot.InlineButton{
 		b.BuildAnswerRow(uq, showAnswer),
 		b.BuildDifficultyRow(uq),
-		b.BuildActionsRow(uq),
+		b.BuildActionsRowList(uq),
 		b.BuildBackToTagsButton(),
 	}
 }
 
-func (b *QuestionButtonBuilder) BuildKeyboardWithoutBackTag(
+func (b *QuestionButtonBuilder) BuildAfterSend(
 	uq *edu.UsersQuestion, showAnswer bool,
 ) [][]telebot.InlineButton {
 	return [][]telebot.InlineButton{
@@ -196,6 +196,47 @@ func (b *QuestionButtonBuilder) BuildDifficultyRow(uq *edu.UsersQuestion) []tele
 	return []telebot.InlineButton{
 		b.WithPrefixEmoji("😎", b.BuildEasyButton(uq)),
 		b.WithPrefixEmoji("😵", b.BuildForgotButton(uq)),
+	}
+}
+
+// BuildActionsRowList создает ряд с кнопками действий (повторение, удаление, редактирование) в списке
+func (b *QuestionButtonBuilder) BuildActionsRowList(uq *edu.UsersQuestion) []telebot.InlineButton {
+	return []telebot.InlineButton{
+		b.BuildRepeatButton(uq),
+		b.BuildDeleteButton(uq),
+		b.BuildEditButton(uq),
+	}
+}
+
+// BuildRepeatButtonList создает кнопку повторения вопроса в списке
+func (b *QuestionButtonBuilder) BuildRepeatButtonList(uq *edu.UsersQuestion) telebot.InlineButton {
+	label := "🔔"
+	if uq.IsEdu {
+		label = "💤"
+	}
+
+	return telebot.InlineButton{
+		Unique: INLINE_BTN_REPEAT_QUESTION_AFTER_POLL_HIGH,
+		Text:   label,
+		Data:   b.makeData(uq.QuestionID),
+	}
+}
+
+// BuildDeleteButtonList создает кнопку удаления вопроса
+func (b *QuestionButtonBuilder) BuildDeleteButtonList(uq *edu.UsersQuestion) telebot.InlineButton {
+	return telebot.InlineButton{
+		Unique: INLINE_BTN_DELETE_QUESTION,
+		Text:   INLINE_NAME_DELETE,
+		Data:   b.makeData(uq.QuestionID),
+	}
+}
+
+// BuildEditButtonList создает кнопку редактирования в списке
+func (b *QuestionButtonBuilder) BuildEditButtonList(uq *edu.UsersQuestion) telebot.InlineButton {
+	return telebot.InlineButton{
+		Unique: INLINE_EDIT_QUESTION,
+		Text:   "✏️",
+		Data:   b.makeData(uq.QuestionID),
 	}
 }
 
@@ -230,7 +271,7 @@ func (b *QuestionButtonBuilder) BuildEasyButton(uq *edu.UsersQuestion) telebot.I
 	return telebot.InlineButton{
 		Unique: INLINE_REMEMBER_HIGH_QUESTION,
 		Text:   MSG_REMEMBER,
-		Data:   b.makeData(uq.QuestionID),
+		Data:   fmt.Sprintf("%d", uq.QuestionID),
 	}
 }
 
@@ -239,7 +280,7 @@ func (b *QuestionButtonBuilder) BuildForgotButton(uq *edu.UsersQuestion) telebot
 	return telebot.InlineButton{
 		Unique: INLINE_FORGOT_HIGH_QUESTION,
 		Text:   MSG_FORGOT,
-		Data:   b.makeData(uq.QuestionID),
+		Data:   fmt.Sprintf("%d", uq.QuestionID),
 	}
 }
 
@@ -253,16 +294,16 @@ func (b *QuestionButtonBuilder) BuildRepeatButton(uq *edu.UsersQuestion) telebot
 	return telebot.InlineButton{
 		Unique: INLINE_BTN_REPEAT_QUESTION_AFTER_POLL_HIGH,
 		Text:   label,
-		Data:   b.makeData(uq.QuestionID),
+		Data:   fmt.Sprintf("%d", uq.QuestionID),
 	}
 }
 
 // BuildDeleteButton создает кнопку удаления вопроса
 func (b *QuestionButtonBuilder) BuildDeleteButton(uq *edu.UsersQuestion) telebot.InlineButton {
 	return telebot.InlineButton{
-		Unique: INLINE_BTN_DELETE_QUESTION,
+		Unique: INLINE_BTN_DELETE_QUESTION_AFTER_POLL_HIGH,
 		Text:   INLINE_NAME_DELETE,
-		Data:   b.makeData(uq.QuestionID),
+		Data:   fmt.Sprintf("%d", uq.QuestionID),
 	}
 }
 
@@ -271,7 +312,7 @@ func (b *QuestionButtonBuilder) BuildEditButton(uq *edu.UsersQuestion) telebot.I
 	return telebot.InlineButton{
 		Unique: INLINE_EDIT_QUESTION,
 		Text:   "✏️",
-		Data:   b.makeData(uq.QuestionID),
+		Data:   fmt.Sprintf("%d", uq.QuestionID),
 	}
 }
 

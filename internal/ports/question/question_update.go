@@ -124,7 +124,7 @@ func IsRepeatByPoll(ctx context.Context, d domain.UseCases) telebot.HandlerFunc 
 		}
 
 		if err = ctxBot.Edit(&telebot.ReplyMarkup{
-			InlineKeyboard: NewQuestionButtonBuilder().BuildFullKeyboard(uq, false),
+			InlineKeyboard: NewQuestionButtonBuilder().BuildAfterSend(uq, false),
 		},
 		); err != nil {
 			return err

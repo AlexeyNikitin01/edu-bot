@@ -323,7 +323,7 @@ func ViewAnswer(ctx context.Context, d domain.UseCases, showAnswer bool) telebot
 			result,
 			telebot.ModeMarkdownV2,
 			&telebot.ReplyMarkup{
-				InlineKeyboard: builder.BuildFullKeyboard(uq, showAnswer),
+				InlineKeyboard: builder.BuildAfterSend(uq, showAnswer),
 			},
 		)
 	}
