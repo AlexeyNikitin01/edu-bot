@@ -16,19 +16,6 @@ func DeleteQuestion(ctx context.Context, domain domain.UseCases) telebot.Handler
 	}
 }
 
-func DeleteQuestionByTag(ctx context.Context, d domain.UseCases) telebot.HandlerFunc {
-	return func(ctxBot telebot.Context) error {
-		tag := ctxBot.Data()
-		userID := middleware.GetUserFromContext(ctxBot).TGUserID
-
-		if err := d.DeleteQuestionsByTag(ctx, userID, tag); err != nil {
-			return err
-		}
-
-		return nil
-	}
-}
-
 func DeleteQuestionAfterPoll(
 	ctx context.Context, d domain.UseCases,
 ) telebot.HandlerFunc {

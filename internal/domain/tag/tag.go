@@ -16,7 +16,61 @@ func NewTag() *Tag {
 	return &Tag{}
 }
 
-func (t Tag) GetUniqueTags(ctx context.Context, userID int64) ([]*edu.Tag, error) {
+func (t Tag) GetUniqueTags(ctx context.Context, userID int64, page, pageSize int) ([]*edu.Tag, int, error) {
+	// Если pageSize = 0, получаем все теги (без пагинации)
+	if pageSize <= 0 {
+		// Получаем все теги без ограничений
+		ts, err := edu.Tags(
+			qm.InnerJoin(
+				fmt.Sprintf("%s ON %s = %s",
+					edu.TableNames.Questions,
+					edu.TagTableColumns.ID,
+					edu.QuestionTableColumns.TagID),
+			),
+			qm.InnerJoin(
+				fmt.Sprintf("%s ON %s = %s",
+					edu.TableNames.UsersQuestions,
+					edu.UsersQuestionTableColumns.QuestionID,
+					edu.QuestionTableColumns.ID),
+			),
+			edu.UsersQuestionWhere.UserID.EQ(userID),
+			edu.UsersQuestionWhere.DeletedAt.IsNull(),
+			qm.GroupBy(edu.TagTableColumns.ID),
+			qm.OrderBy(edu.TagTableColumns.ID),
+		).All(ctx, boil.GetContextDB())
+		if err != nil {
+			return nil, 0, err
+		}
+
+		// Получаем общее количество
+		totalCount, err := edu.Tags(
+			qm.InnerJoin(
+				fmt.Sprintf("%s ON %s = %s",
+					edu.TableNames.Questions,
+					edu.TagTableColumns.ID,
+					edu.QuestionTableColumns.TagID),
+			),
+			qm.InnerJoin(
+				fmt.Sprintf("%s ON %s = %s",
+					edu.TableNames.UsersQuestions,
+					edu.UsersQuestionTableColumns.QuestionID,
+					edu.QuestionTableColumns.ID),
+			),
+			edu.UsersQuestionWhere.UserID.EQ(userID),
+			edu.UsersQuestionWhere.DeletedAt.IsNull(),
+			qm.GroupBy(edu.TagTableColumns.ID),
+		).Count(ctx, boil.GetContextDB())
+		if err != nil {
+			return nil, 0, err
+		}
+
+		return ts, int(totalCount), nil
+	}
+
+	// Вычисляем offset для пагинации
+	offset := (page - 1) * pageSize
+
+	// Получаем теги для текущей страницы
 	ts, err := edu.Tags(
 		qm.InnerJoin(
 			fmt.Sprintf("%s ON %s = %s",
@@ -33,12 +87,37 @@ func (t Tag) GetUniqueTags(ctx context.Context, userID int64) ([]*edu.Tag, error
 		edu.UsersQuestionWhere.UserID.EQ(userID),
 		edu.UsersQuestionWhere.DeletedAt.IsNull(),
 		qm.GroupBy(edu.TagTableColumns.ID),
+		qm.OrderBy(edu.TagTableColumns.ID),
+		qm.Limit(pageSize),
+		qm.Offset(offset),
 	).All(ctx, boil.GetContextDB())
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
-	return ts, nil
+	// Получаем общее количество тегов для пагинации
+	totalCount, err := edu.Tags(
+		qm.InnerJoin(
+			fmt.Sprintf("%s ON %s = %s",
+				edu.TableNames.Questions,
+				edu.TagTableColumns.ID,
+				edu.QuestionTableColumns.TagID),
+		),
+		qm.InnerJoin(
+			fmt.Sprintf("%s ON %s = %s",
+				edu.TableNames.UsersQuestions,
+				edu.UsersQuestionTableColumns.QuestionID,
+				edu.QuestionTableColumns.ID),
+		),
+		edu.UsersQuestionWhere.UserID.EQ(userID),
+		edu.UsersQuestionWhere.DeletedAt.IsNull(),
+		qm.GroupBy(edu.TagTableColumns.ID),
+	).Count(ctx, boil.GetContextDB())
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return ts, int(totalCount), nil
 }
 
 func (t Tag) UpdateTag(ctx context.Context, tagID int64, s string) error {

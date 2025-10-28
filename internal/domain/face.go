@@ -49,7 +49,7 @@ type UserQuestionService interface {
 }
 
 type TagService interface {
-	GetUniqueTags(context.Context, int64) ([]*edu.Tag, error)
+	GetUniqueTags(ctx context.Context, userID int64, page, pageSize int) ([]*edu.Tag, int, error)
 	UpdateTag(context.Context, int64, string) error
 	UpdateTagByQuestion(ctx context.Context, qID int64, newTag string) error
 	GetUniqueTagsByTask(ctx context.Context, userID int64) ([]*edu.Tag, error)

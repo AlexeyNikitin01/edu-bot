@@ -15,9 +15,9 @@ import (
 func routers(ctx context.Context, b *telebot.Bot, d domain.UseCases) {
 	setupCommandHandlers(b)
 
-	setupQuestionHandlers(b, ctx, d)
+	questionHandlerCRUD(b, ctx, d)
 
-	setupTagHandlers(b, ctx, d)
+	tagHandlersCRUD(b, ctx, d)
 
 	setupEditHandlers(b, ctx, d)
 
@@ -30,13 +30,13 @@ func routers(ctx context.Context, b *telebot.Bot, d domain.UseCases) {
 
 func setupCommandHandlers(b *telebot.Bot) {
 	b.Handle(question.CMD_START, func(ctx telebot.Context) error {
-		return ctx.Send(question.MSG_GRETING, mainMenu())
+		return ctx.Send(question.MSG_GRETING, btnsMenu())
 	})
 }
 
-func setupQuestionHandlers(b *telebot.Bot, ctx context.Context, d domain.UseCases) {
+func questionHandlerCRUD(b *telebot.Bot, ctx context.Context, d domain.UseCases) {
 	// Создание вопросов
-	b.Handle(telebot.OnText, createQuestionTextHandler(ctx, d))
+	b.Handle(telebot.OnText, processBtnsMenu(ctx, d))
 
 	// Чтение вопросов
 	b.Handle(&telebot.InlineButton{Unique: question.INLINE_NEXT_QUESTION}, question.NextQuestion(ctx, d))
@@ -53,7 +53,6 @@ func setupQuestionHandlers(b *telebot.Bot, ctx context.Context, d domain.UseCase
 
 	// Удаление вопросов
 	b.Handle(&telebot.InlineButton{Unique: question.INLINE_BTN_DELETE_QUESTION}, question.DeleteQuestion(ctx, d))
-	b.Handle(&telebot.InlineButton{Unique: question.INLINE_BTN_DELETE_QUESTIONS_BY_TAG}, question.DeleteQuestionByTag(ctx, d))
 	b.Handle(&telebot.InlineButton{Unique: question.INLINE_BTN_DELETE_QUESTION_AFTER_POLL}, question.DeleteQuestionAfterPoll(ctx, d))
 	b.Handle(&telebot.InlineButton{Unique: question.INLINE_BTN_DELETE_QUESTION_AFTER_POLL_HIGH}, question.DeleteQuestionAfterPollHigh(ctx, d))
 	b.Handle(&telebot.InlineButton{Unique: question.INLINE_FORGOT_HIGH_QUESTION}, question.ForgotQuestion(ctx, d))
@@ -68,15 +67,35 @@ func setupQuestionHandlers(b *telebot.Bot, ctx context.Context, d domain.UseCase
 }
 
 // Блок тегов
-func setupTagHandlers(b *telebot.Bot, ctx context.Context, d domain.UseCases) {
+func tagHandlersCRUD(b *telebot.Bot, ctx context.Context, d domain.UseCases) {
+	// Основные кнопки тегов
 	b.Handle(&telebot.InlineButton{Unique: question.INLINE_BTN_TAGS}, func(c telebot.Context) error {
 		return question.UpsertUserQuestion(ctx, d)(c)
 	})
 	b.Handle(&telebot.InlineButton{Unique: question.INLINE_BACK_TAGS}, func(botCtx telebot.Context) error {
-		return question.BackTags(ctx, d)(botCtx)
+		return question.ShowRepeatTagList(ctx, d)(botCtx)
 	})
 	b.Handle(&telebot.InlineButton{Unique: question.INLINE_PAUSE_TAG}, func(botCtx telebot.Context) error {
 		return question.PauseTag(ctx, d)(botCtx)
+	})
+	b.Handle(&telebot.InlineButton{Unique: question.INLINE_BTN_DELETE_QUESTIONS_BY_TAG},
+		question.DeleteQuestionByTag(ctx, d))
+
+	// Пагинация тегов
+	b.Handle(&telebot.InlineButton{Unique: question.INLINE_PAGINATION_PREV}, func(botCtx telebot.Context) error {
+		return question.HandleTagPagination(ctx, d)(botCtx)
+	})
+	b.Handle(&telebot.InlineButton{Unique: question.INLINE_PAGINATION_NEXT}, func(botCtx telebot.Context) error {
+		return question.HandleTagPagination(ctx, d)(botCtx)
+	})
+
+	// Обработка отсутствия тегов
+	b.Handle(&telebot.InlineButton{Unique: question.INLINE_NO_TAGS}, func(botCtx telebot.Context) error {
+		// Можно показать сообщение с подсказкой или ничего не делать
+		return botCtx.Respond(&telebot.CallbackResponse{
+			Text:      "📝 У вас пока нет тегов. Создайте первый вопрос!",
+			ShowAlert: true,
+		})
 	})
 }
 
@@ -103,11 +122,11 @@ func setupContentHandlers(ctx context.Context, b *telebot.Bot, d domain.UseCases
 }
 
 // Обработчик текстовых команд для создания вопросов
-func createQuestionTextHandler(ctx context.Context, d domain.UseCases) func(telebot.Context) error {
+func processBtnsMenu(ctx context.Context, d domain.UseCases) func(telebot.Context) error {
 	return func(ctxBot telebot.Context) error {
 		user := middleware.GetUserFromContext(ctxBot)
 		if user == nil {
-			return ctxBot.Send(question.MSG_WRONG_BTN, mainMenu())
+			return ctxBot.Send(question.MSG_WRONG_BTN, btnsMenu())
 		}
 
 		draft, err := d.GetDraftQuestion(ctx, user.TGUserID)
@@ -138,25 +157,25 @@ func createQuestionTextHandler(ctx context.Context, d domain.UseCases) func(tele
 		case question.BTN_NEXT_QUESTION:
 			return question.NextQuestion(ctx, d)(ctxBot)
 		default:
-			return ctxBot.Send(question.MSG_WRONG_BTN, mainMenu())
+			return ctxBot.Send(question.MSG_WRONG_BTN, btnsMenu())
 		}
 	}
 }
 
-func mainMenu() *telebot.ReplyMarkup {
-	menu := &telebot.ReplyMarkup{ResizeKeyboard: true}
+func btnsMenu() *telebot.ReplyMarkup {
+	m := &telebot.ReplyMarkup{ResizeKeyboard: true}
 
-	btnAdd := menu.Text(question.BTN_ADD_QUESTION)
-	btnMark := menu.Text(question.BTN_MANAGMENT_QUESTION)
-	btnCSV := menu.Text(question.BTN_ADD_CSV)
-	btnNext := menu.Text(question.BTN_NEXT_QUESTION)
-	btnNextTask := menu.Text(question.BTN_NEXT_TASK)
+	btnAdd := m.Text(question.BTN_ADD_QUESTION)
+	btnMark := m.Text(question.BTN_MANAGMENT_QUESTION)
+	btnCSV := m.Text(question.BTN_ADD_CSV)
+	btnNext := m.Text(question.BTN_NEXT_QUESTION)
+	btnNextTask := m.Text(question.BTN_NEXT_TASK)
 
-	menu.Reply(
-		menu.Row(btnAdd, btnCSV),
-		menu.Row(btnMark, btnNext),
-		menu.Row(btnNextTask),
+	m.Reply(
+		m.Row(btnAdd, btnCSV),
+		m.Row(btnMark, btnNext),
+		m.Row(btnNextTask),
 	)
 
-	return menu
+	return m
 }

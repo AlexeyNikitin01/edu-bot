@@ -187,36 +187,3 @@ func CheckPollAnswer(ctx context.Context, d domain.UseCases) telebot.HandlerFunc
 		return nil
 	}
 }
-
-func PauseTag(ctx context.Context, d domain.UseCases) telebot.HandlerFunc {
-	return func(ctxBot telebot.Context) error {
-		tagIDStr := ctxBot.Data()
-		tagID, err := strconv.Atoi(tagIDStr)
-		if err != nil {
-			return ctxBot.Respond(&telebot.CallbackResponse{Text: err.Error()})
-		}
-
-		tag, err := edu.Tags(
-			edu.TagWhere.ID.EQ(int64(tagID)),
-		).One(ctx, boil.GetContextDB())
-		if err != nil {
-			return ctxBot.Respond(&telebot.CallbackResponse{Text: err.Error()})
-		}
-
-		tag.IsPause = !tag.IsPause
-		if _, err = tag.Update(ctx, boil.GetContextDB(), boil.Whitelist(
-			edu.TagColumns.IsPause,
-		)); err != nil {
-			return ctxBot.Respond(&telebot.CallbackResponse{Text: err.Error()})
-		}
-
-		tagButtons, err := getButtonsTags(ctx, ctxBot, d)
-		if err != nil {
-			return err
-		}
-
-		return ctxBot.Edit(MSG_LIST_TAGS, &telebot.ReplyMarkup{
-			InlineKeyboard: tagButtons,
-		})
-	}
-}

@@ -74,4 +74,38 @@ const (
 	BtnRepeatEdu  = "💤"                // Кнопка повторения обучающего вопроса
 	BtnDelete     = "🗑️"               // Кнопка удаления вопроса
 	BtnEdit       = "✏️"               // Кнопка редактирования вопроса
+
+	// Пагинация
+	INLINE_PAGINATION_PREV = "pagination_prev"
+	INLINE_PAGINATION_NEXT = "pagination_next"
+	INLINE_PAGINATION_INFO = "pagination_info"
+	INLINE_NO_TAGS         = "no_tags"
+
+	// Константы пагинации
+	DEFAULT_PAGE_SIZE = 10
+	MAX_PAGE_SIZE     = 50
+
+	// Тексты для кнопок и сообщений пагинации
+	PAGINATION_PREV_TEXT   = "⬅️ Назад"
+	PAGINATION_NEXT_TEXT   = "Вперед ➡️"
+	PAGINATION_INFO_TEXT   = "info"
+	NO_TAGS_TEXT           = "📭 Нет тегов"
+	PAGINATION_INFO_FORMAT = "%d/%d"
+
+	// Эмодзи и символы
+	EMOJI_BELL      = "🔔"
+	EMOJI_SLEEP     = "💤"
+	EMOJI_EDIT      = "✏️"
+	EMOJI_TRASH     = "🗑️"
+	EMOJI_ENVELOPE  = "📭"
+	EMOJI_PAGE      = "📄"
+	EMOJI_BAR_CHART = "📊"
+
+	// Форматы сообщений
+	PAGINATION_MESSAGE_FORMAT     = "%s\n\n%s"
+	PAGINATION_INFO_FULL_FORMAT   = "📄 Страница %d из %d | Всего тегов: %d"
+	PAGINATION_INFO_SIMPLE_FORMAT = "📊 Всего тегов: %d"
+
+	// Сообщения по умолчанию
+	MSG_LIST_TAGS = "📚 Список тегов:"
 )

@@ -4,7 +4,6 @@ import (
 	"bot/internal/middleware"
 	"bot/internal/repo/dto"
 	"context"
-	"errors"
 	"strconv"
 	"strings"
 
@@ -12,14 +11,6 @@ import (
 
 	"bot/internal/domain"
 	"bot/internal/repo/edu"
-)
-
-// Ошибки приложения
-var (
-	ErrGetTag    = errors.New("ошибка получения тэгов")
-	ErrSave      = errors.New("невозможно сохранить")
-	ErrSaveDraft = errors.New("ошибка сохранения черновика")
-	ErrGetDraft  = errors.New("ошибка получения черновика")
 )
 
 // Константы сообщений
@@ -63,10 +54,8 @@ func SetEdit(ctx context.Context, field string, d domain.UseCases) telebot.Handl
 			draft.QuestionIDByName = int64(id)
 		case edu.QuestionTableColumns.TagID:
 			draft.QuestionIDByTag = int64(id)
-			if err = getTags(ctx, ctxBot, userID, d); err != nil {
-				return err
-			}
-			return ctxBot.Send(MSG_EDIT_TAG_BY_QUESTION)
+			// Используем существующую функцию для показа тегов с дополнительным сообщением
+			return ShowEditTagList(ctx, d)(ctxBot)
 		case edu.AnswerTableColumns.Answer:
 			draft.AnswerID = int64(id)
 		}
@@ -120,10 +109,9 @@ func initNewDraft(ctx context.Context, ctxBot telebot.Context, userID int64, d d
 	if err := d.SetDraftQuestion(ctx, userID, draft); err != nil {
 		return err
 	}
-	if err := ctxBot.Send(MSG_LIST_TAGS); err != nil {
-		return err
-	}
-	return getTags(ctx, ctxBot, userID, d)
+
+	// Используем существующую функцию для показа списка тегов
+	return ShowRepeatTagList(ctx, d)(ctxBot)
 }
 
 func cancelDraft(ctx context.Context, ctxBot telebot.Context, userID int64, d domain.UseCases) error {
@@ -250,7 +238,7 @@ func processTagSelection(
 
 	// Сохраняем обновленный черновик в кэш
 	if err := d.SetDraftQuestion(ctx, userID, draft); err != nil {
-		return errors.Join(ErrSaveDraft, err)
+		return err
 	}
 
 	return ctxBot.Send(MSG_ADD_QUESTION)
@@ -265,7 +253,7 @@ func processQuestionInput(
 
 	// Сохраняем обновленный черновик в кэш
 	if err := d.SetDraftQuestion(ctx, userID, draft); err != nil {
-		return errors.Join(ErrSaveDraft, err)
+		return err
 	}
 
 	return ctxBot.Send(MSG_ADD_CORRECT_ANSWER)
@@ -284,37 +272,4 @@ func processCorrectAnswerInputAndSaveQuestion(
 	}
 
 	return ctxBot.Send(MSG_SUCCESS)
-}
-
-func getTags(
-	ctx context.Context, ctxBot telebot.Context, userID int64, d domain.UseCases) error {
-	ts, err := d.GetUniqueTags(ctx, userID)
-	if err != nil {
-		return err
-	}
-
-	var btns [][]telebot.InlineButton
-
-	// Создаем кнопки для каждого тега
-	for _, t := range ts {
-		btn := telebot.InlineButton{
-			Unique: INLINE_BTN_TAGS,
-			Text:   t.Tag,
-			Data:   t.Tag,
-		}
-		btns = append(btns, []telebot.InlineButton{btn})
-	}
-
-	// Если есть теги, показываем их списком
-	if len(btns) != 0 {
-		if err = ctxBot.Send(MSG_ADD_TAG, &telebot.ReplyMarkup{
-			InlineKeyboard: btns,
-		}); err != nil {
-			return ctxBot.Send(errors.Join(ErrGetTag, err).Error())
-		}
-		return nil
-	}
-
-	// Если тегов нет, просим добавить новый
-	return ctxBot.Send(MSG_ADD_TAG)
 }

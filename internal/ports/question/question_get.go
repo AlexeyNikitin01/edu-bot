@@ -17,90 +17,11 @@ import (
 
 const (
 	MSG_LIST_QUESTION = "ВОПРОСЫ: "
-	MSG_LIST_TAGS     = "ТЭГИ: "
-	MSG_EMPTY         = "У вас нет тэгов"
 	MSG_BACK_TAGS     = "НАЗАД К ТЭГАМ"
 
 	QuestionsPerPage = 10 // Оставляем место для кнопок пагинации и возврата
 
 )
-
-func ShowRepeatTagList(ctx context.Context, domain domain.UseCases) telebot.HandlerFunc {
-	return func(ctxBot telebot.Context) error {
-
-		tagButtons, err := getButtonsTags(ctx, ctxBot, domain)
-		if err != nil {
-			return err
-		}
-
-		return ctxBot.Send(MSG_LIST_TAGS, &telebot.ReplyMarkup{
-			InlineKeyboard: tagButtons,
-		})
-	}
-}
-
-func BackTags(ctx context.Context, d domain.UseCases) telebot.HandlerFunc {
-	return func(ctxBot telebot.Context) error {
-
-		tagButtons, err := getButtonsTags(ctx, ctxBot, d)
-		if err != nil {
-			return err
-		}
-
-		return ctxBot.Edit(MSG_LIST_TAGS, &telebot.ReplyMarkup{
-			InlineKeyboard: tagButtons,
-		})
-	}
-}
-
-func getButtonsTags(ctx context.Context, ctxBot telebot.Context, d domain.UseCases) ([][]telebot.InlineButton, error) {
-	userID := middleware.GetUserFromContext(ctxBot).TGUserID
-
-	tags, err := d.GetUniqueTags(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(tags) == 0 {
-		return nil, nil
-	}
-
-	var tagButtons [][]telebot.InlineButton
-
-	// todo кнопки
-	for _, tag := range tags {
-		tagBtn := telebot.InlineButton{
-			Unique: INLINE_BTN_QUESTION_BY_TAG,
-			Text:   tag.Tag,
-			Data:   tag.Tag,
-		}
-		deleteBtn := telebot.InlineButton{
-			Unique: INLINE_BTN_DELETE_QUESTIONS_BY_TAG,
-			Text:   INLINE_NAME_DELETE,
-			Data:   tag.Tag,
-		}
-		editBtn := telebot.InlineButton{
-			Unique: INLINE_EDIT_TAG,
-			Text:   "✏️",
-			Data:   fmt.Sprintf("%d", tag.ID),
-		}
-
-		label := "🔔"
-		if !tag.IsPause {
-			label = "💤"
-		}
-
-		pauseTag := telebot.InlineButton{
-			Unique: INLINE_PAUSE_TAG,
-			Text:   label,
-			Data:   fmt.Sprintf("%d", tag.ID),
-		}
-
-		tagButtons = append(tagButtons, []telebot.InlineButton{tagBtn, deleteBtn, editBtn, pauseTag})
-	}
-
-	return tagButtons, nil
-}
 
 func QuestionByTag(ctx context.Context, tag string, d domain.UseCases) telebot.HandlerFunc {
 	return func(ctxBot telebot.Context) error {
