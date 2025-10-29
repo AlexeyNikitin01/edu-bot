@@ -44,7 +44,7 @@ type UserQuestionService interface {
 	UpdateRepeatTime(context.Context, *edu.UsersQuestion, bool) error
 	UpdateIsEduUserQuestion(context.Context, int64, int64) error
 	GetNearestTimeRepeat(ctx context.Context, userID int64) (time.Time, error)
-	GetTask(ctx context.Context, userID int64, tag string) (*edu.UsersQuestion, error)
+	GetTask(ctx context.Context, userID int64, tag string, notIDs ...int64) (*edu.UsersQuestion, error)
 	DeleteQuestionUser(ctx context.Context, userID int64, qID int64) error
 	SetDraftQuestion(ctx context.Context, userID int64, draftQuestion *dto.QuestionDraft) error
 	GetDraftQuestion(ctx context.Context, userID int64) (*dto.QuestionDraft, error)

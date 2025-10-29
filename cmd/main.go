@@ -6,6 +6,7 @@ import (
 	"bot/internal/domain/user"
 	"bot/internal/domain/userQuestion"
 	"context"
+	"github.com/aarondl/sqlboiler/v4/boil"
 	"gopkg.in/telebot.v3"
 	"log"
 	"os"
@@ -27,7 +28,7 @@ func main() {
 	ConnectDB(cfg.GetConfig().PSQL)
 	c := initRedis.NewCache(ConnectRedis(ctx, cfg.GetConfig().CACHE))
 	bot := ConnectBot(cfg.GetConfig().Token)
-
+	boil.DebugMode = true
 	// инициализация сервисов
 	a := domain.NewDomain(
 		domain.WithDefaultTagService(),

@@ -1,30 +1,24 @@
 package ports
 
 import (
+	"bot/internal/domain"
 	"bot/internal/middleware"
 	"bot/internal/ports/menu"
 	"bot/internal/ports/question"
 	"bot/internal/ports/tags"
 	"bot/internal/ports/task"
+	"bot/internal/repo/edu"
 	"context"
 	"gopkg.in/telebot.v3"
 	"strings"
-
-	"bot/internal/domain"
-	"bot/internal/repo/edu"
 )
 
 func routers(ctx context.Context, b *telebot.Bot, d domain.UseCases) {
 	setupCommandHandlers(b)
-
 	questionHandlerCRUD(b, ctx, d)
-
 	tagHandlersCRUD(b, ctx, d)
-
 	setupEditHandlers(b, ctx, d)
-
 	setupTaskHandlers(ctx, b, d)
-
 	setupContentHandlers(ctx, b, d)
 
 	go question.SendQuestion(ctx, b, d)
@@ -39,9 +33,7 @@ func setupCommandHandlers(b *telebot.Bot) {
 func questionHandlerCRUD(b *telebot.Bot, ctx context.Context, d domain.UseCases) {
 	// Создание вопросов
 	b.Handle(telebot.OnText, processBtnsMenu(ctx, d))
-	b.Handle(&telebot.InlineButton{Unique: tags.INLINE_SELECT_TAG}, func(botCtx telebot.Context) error {
-		return question.HandleTagSelection(ctx, d)(botCtx)
-	})
+	b.Handle(&telebot.InlineButton{Unique: tags.INLINE_SELECT_TAG}, question.HandleTagSelection(ctx, d))
 
 	// Чтение вопросов
 	b.Handle(&telebot.InlineButton{Unique: question.INLINE_NEXT_QUESTION}, question.NextQuestion(ctx, d))
@@ -66,42 +58,28 @@ func questionHandlerCRUD(b *telebot.Bot, ctx context.Context, d domain.UseCases)
 	b.Handle(&telebot.InlineButton{Unique: question.INLINE_BTN_QUESTION_PAGE + "_next"}, question.HandlePageNavigation(ctx, d))
 }
 
-// Блок тегов
 func tagHandlersCRUD(b *telebot.Bot, ctx context.Context, d domain.UseCases) {
 	// Основные кнопки тегов
-	b.Handle(&telebot.InlineButton{Unique: tags.INLINE_BTN_TAGS}, func(c telebot.Context) error {
-		return question.UpsertUserQuestion(ctx, d)(c)
-	})
-	b.Handle(&telebot.InlineButton{Unique: tags.INLINE_BACK_TAGS}, func(botCtx telebot.Context) error {
-		return tags.HandleTagPagination(ctx, d)(botCtx)
-	})
-	b.Handle(&telebot.InlineButton{Unique: tags.INLINE_PAUSE_TAG}, func(botCtx telebot.Context) error {
-		return tags.PauseTag(ctx, d)(botCtx)
-	})
-	b.Handle(&telebot.InlineButton{Unique: tags.INLINE_BTN_DELETE_QUESTIONS_BY_TAG},
-		tags.DeleteQuestionByTag(ctx, d))
+	b.Handle(&telebot.InlineButton{Unique: tags.INLINE_BTN_TAGS}, question.UpsertUserQuestion(ctx, d))
+	b.Handle(&telebot.InlineButton{Unique: tags.INLINE_BACK_TAGS}, tags.HandleTagPagination(ctx, d))
+	b.Handle(&telebot.InlineButton{Unique: tags.INLINE_PAUSE_TAG}, tags.PauseTag(ctx, d))
+	b.Handle(&telebot.InlineButton{Unique: tags.INLINE_BTN_DELETE_QUESTIONS_BY_TAG}, tags.DeleteQuestionByTag(ctx, d))
 
 	// Пагинация тегов
-	b.Handle(&telebot.InlineButton{Unique: tags.INLINE_PAGINATION_PREV}, func(botCtx telebot.Context) error {
-		return tags.HandleTagPagination(ctx, d)(botCtx)
-	})
-	b.Handle(&telebot.InlineButton{Unique: tags.INLINE_PAGINATION_NEXT}, func(botCtx telebot.Context) error {
-		return tags.HandleTagPagination(ctx, d)(botCtx)
-	})
+	b.Handle(&telebot.InlineButton{Unique: tags.INLINE_PAGINATION_PREV}, tags.HandleTagPagination(ctx, d))
+	b.Handle(&telebot.InlineButton{Unique: tags.INLINE_PAGINATION_NEXT}, tags.HandleTagPagination(ctx, d))
 
 	b.Handle(&telebot.InlineButton{Unique: tags.INLINE_EDIT_TAG}, question.SetEdit(ctx, edu.TableNames.Tags, d))
 
 	// Обработка отсутствия тегов
 	b.Handle(&telebot.InlineButton{Unique: tags.INLINE_NO_TAGS}, func(botCtx telebot.Context) error {
-		// Можно показать сообщение с подсказкой или ничего не делать
 		return botCtx.Respond(&telebot.CallbackResponse{
-			Text:      "📝 У вас пока нет тегов. Создайте первый вопрос!",
+			Text:      task.MsgNoTagsAvailable,
 			ShowAlert: true,
 		})
 	})
 }
 
-// Блок редактирования
 func setupEditHandlers(b *telebot.Bot, ctx context.Context, d domain.UseCases) {
 	b.Handle(&telebot.InlineButton{Unique: question.INLINE_EDIT_QUESTION}, question.GetForUpdate(ctx, d))
 	b.Handle(&telebot.InlineButton{Unique: question.INLINE_EDIT_NAME_QUESTION}, question.SetEdit(ctx, edu.QuestionTableColumns.Question, d))
@@ -111,18 +89,23 @@ func setupEditHandlers(b *telebot.Bot, ctx context.Context, d domain.UseCases) {
 	b.Handle(&telebot.InlineButton{Unique: question.INLINE_COLLAPSE_VALUE}, question.CollapseValue(ctx, d))
 }
 
-// Блок задач
 func setupTaskHandlers(ctx context.Context, b *telebot.Bot, d domain.UseCases) {
 	b.Handle(&telebot.InlineButton{Unique: question.INLINE_BTN_TASK_BY_TAG}, task.NextTask(ctx, d))
+	b.Handle(&telebot.InlineButton{Unique: task.INLINE_REMEMBER_HIGH_TASK}, task.UpdateTaskTotal(ctx, d))
+	b.Handle(&telebot.InlineButton{Unique: task.INLINE_FORGOT_HIGH_TASK}, task.UpdateTaskTotal(ctx, d))
+	b.Handle(&telebot.InlineButton{Unique: task.INLINE_NEXT_TASK}, task.NextTask(ctx, d))
+	b.Handle(&telebot.InlineButton{Unique: task.INLINE_SKIP_TASK}, task.SkipTask(ctx, d))
+	b.Handle(&telebot.InlineButton{Unique: task.INLINE_SHOW_ANSWER_TASK}, task.ViewAnswerTask(ctx, d, true))
+	b.Handle(&telebot.InlineButton{Unique: task.INLINE_TURN_ANSWER_TASK}, task.ViewAnswerTask(ctx, d, false))
+	b.Handle(&telebot.InlineButton{Unique: task.INLINE_BTN_REPEAT_TASK_AFTER_POLL}, task.IsRepeatTask(ctx, d))
+	b.Handle(&telebot.InlineButton{Unique: task.INLINE_BTN_DELETE_TASK_AFTER_POLL}, task.DeleteTask(ctx, d))
 }
 
-// Блок обработки контента
 func setupContentHandlers(ctx context.Context, b *telebot.Bot, d domain.UseCases) {
 	b.Handle(telebot.OnDocument, question.SetQuestionsByCSV(ctx, d))
 	b.Handle(telebot.OnPollAnswer, question.CheckPollAnswer(ctx, d))
 }
 
-// Обработчик текстовых команд для создания вопросов
 func processBtnsMenu(ctx context.Context, d domain.UseCases) func(telebot.Context) error {
 	return func(ctxBot telebot.Context) error {
 		user := middleware.GetUserFromContext(ctxBot)
@@ -141,7 +124,6 @@ func processBtnsMenu(ctx context.Context, d domain.UseCases) func(telebot.Contex
 
 		text := ctxBot.Text()
 
-		// Проверяем, может ли текст быть CSV (содержит хотя бы один разделитель)
 		if strings.Contains(text, ";") && len(strings.Split(text, ";")) >= 3 {
 			return question.SetQuestionsByCSV(ctx, d)(ctxBot)
 		}

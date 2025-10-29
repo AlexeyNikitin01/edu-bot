@@ -6,9 +6,47 @@ import (
 	"bot/internal/ports/question"
 	"bot/internal/ports/tags"
 	"context"
+	"database/sql"
+	"errors"
+	"fmt"
 	"gopkg.in/telebot.v3"
 	"strconv"
 )
+
+func ViewAnswerTask(ctx context.Context, d domain.UseCases, showAnswer bool) telebot.HandlerFunc {
+	return func(ctxBot telebot.Context) error {
+		data := ctxBot.Data()
+
+		questionID, err := strconv.Atoi(data)
+		if err != nil {
+			return err
+		}
+
+		userID := middleware.GetUserFromContext(ctxBot).TGUserID
+
+		uq, err := d.GetUserQuestion(ctx, userID, int64(questionID))
+		if err != nil {
+			return err
+		}
+
+		q := uq.GetQuestion()
+		tagName := uq.R.GetQuestion().R.GetTag().Tag
+		answer := uq.R.GetQuestion().R.GetAnswers()[0]
+
+		message := EscapeMarkdown(tagName) + ": " + EscapeMarkdown(q.Question)
+		if showAnswer {
+			message += "\n\n" + EscapeMarkdown(answer.Answer)
+		}
+
+		keyboard := NewTaskButtonsBuilder().
+			AddShowAnswer(uq.QuestionID, !showAnswer).
+			AddDifficulty(q.ID).
+			AddActions(q.ID, uq.IsEdu).
+			Build()
+
+		return ctxBot.Edit(message, telebot.ModeMarkdownV2, keyboard)
+	}
+}
 
 func GetTagsByTask(ctx context.Context, d domain.UseCases) telebot.HandlerFunc {
 	return func(ctxBot telebot.Context) error {
@@ -20,7 +58,7 @@ func GetTagsByTask(ctx context.Context, d domain.UseCases) telebot.HandlerFunc {
 		}
 
 		if len(ts) == 0 {
-			return err
+			return ctxBot.Send(MsgNoTagsAvailable)
 		}
 
 		var tagButtons [][]telebot.InlineButton
@@ -46,97 +84,59 @@ func NextTask(ctx context.Context, d domain.UseCases) telebot.HandlerFunc {
 		tag := ctxBot.Data()
 		userID := middleware.GetUserFromContext(ctxBot).TGUserID
 		uq, err := d.GetTask(ctx, userID, tag)
-		if err != nil {
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return err
+		} else if errors.Is(err, sql.ErrNoRows) {
+			return ctxBot.Send(MsgAllTasksCompleted)
 		}
 
 		q := uq.R.GetQuestion()
 		tag = question.EscapeMarkdown(q.R.GetTag().Tag)
 		questionText := question.EscapeMarkdown(q.Question)
 
-		label := "🔔"
-		if uq.IsEdu {
-			label = "💤"
-		}
-
 		keyboard := NewTaskButtonsBuilder().
-			AddShowAnswer(uq.QuestionID).
+			AddShowAnswer(uq.QuestionID, true).
 			AddDifficulty(q.ID).
-			AddActions(q.ID, label).
+			AddActions(q.ID, uq.IsEdu).
 			Build()
 
-		return ctxBot.Send(
-			tag+": "+questionText,
-			telebot.ModeMarkdownV2,
-			keyboard,
-		)
+		message := fmt.Sprintf(MsgTagQuestion, tag, questionText)
+		return ctxBot.Send(message, telebot.ModeMarkdownV2, keyboard)
 	}
 }
 
-// Новая функция для отображения вопроса после выбора "легко" или "сложно"
-func showQuestionAfterChoice(ctx context.Context, d domain.UseCases) telebot.HandlerFunc {
+func SkipTask(ctx context.Context, d domain.UseCases) telebot.HandlerFunc {
 	return func(ctxBot telebot.Context) error {
-		questionID, err := strconv.Atoi(ctxBot.Data())
-		if err != nil {
-			return err
-		}
-
-		q, err := d.GetQuestionAnswers(ctx, int64(questionID))
-		if err != nil {
-			return err
-		}
-
-		tag := question.EscapeMarkdown(q.R.GetTag().Tag)
-		questionText := question.EscapeMarkdown(q.Question)
-
-		// Используем билдер для создания кнопок навигации
-		keyboard := NewTaskButtonsBuilder().
-			AddNavigation(int64(questionID)).
-			Build()
-
-		return ctxBot.Send(
-			"Выбор сохранён!\n\n"+tag+": "+questionText,
-			telebot.ModeMarkdownV2,
-			keyboard,
-		)
-	}
-}
-
-func skipTask(ctx context.Context, domain domain.UseCases) telebot.HandlerFunc {
-	return func(ctxBot telebot.Context) error {
-		tagData := ctxBot.Data()
+		qData := ctxBot.Data()
+		qID, _ := strconv.Atoi(qData)
 
 		userID := middleware.GetUserFromContext(ctxBot).TGUserID
 
-		uq, err := domain.GetTask(ctx, userID, tagData)
+		q, err := d.GetQuestionAnswers(ctx, int64(qID))
 		if err != nil {
 			return err
 		}
 
-		if uq == nil {
-			return ctxBot.Send("🎉 Все вопросы завершены! Вы великолепны!")
+		if q == nil {
+			return ctxBot.Send(MsgAllTasksCompleted)
 		}
 
-		q := uq.R.GetQuestion()
+		task, err := d.GetTask(ctx, userID, q.R.GetTag().Tag, int64(qID))
+		if err != nil {
+			return ctxBot.Edit(MsgAllTasksCompleted)
+		}
+
+		q = task.R.GetQuestion()
 		tag := question.EscapeMarkdown(q.R.GetTag().Tag)
 		questionText := question.EscapeMarkdown(q.Question)
 
-		label := "🔔"
-		if uq.IsEdu {
-			label = "💤"
-		}
-
-		// Используем билдер
 		keyboard := NewTaskButtonsBuilder().
-			AddShowAnswer(uq.QuestionID).
+			AddShowAnswer(task.QuestionID, true).
 			AddDifficulty(q.ID).
-			AddActions(q.ID, label).
+			AddActions(q.ID, task.IsEdu).
 			Build()
 
-		return ctxBot.Send(
-			"⏩ Вопрос пропущен!\n\n"+tag+": "+questionText,
-			telebot.ModeMarkdownV2,
-			keyboard,
-		)
+		message := fmt.Sprintf(MsgTagQuestion, tag, questionText)
+		return ctxBot.Edit(message, telebot.ModeMarkdownV2, keyboard)
 	}
 }

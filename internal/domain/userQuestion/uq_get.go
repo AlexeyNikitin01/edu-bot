@@ -128,7 +128,12 @@ func (u UserQuestion) GetNearestTimeRepeat(ctx context.Context, userID int64) (t
 	return usersQuestion.TimeRepeat, nil
 }
 
-func (u UserQuestion) GetTask(ctx context.Context, userID int64, tag string) (*edu.UsersQuestion, error) {
+func (u UserQuestion) GetTask(ctx context.Context, userID int64, tag string, notIDs ...int64) (*edu.UsersQuestion, error) {
+	whereIDs := qm.Where("(1 = 1)")
+	if len(notIDs) != 0 {
+		whereIDs = edu.UsersQuestionWhere.QuestionID.NIN(notIDs)
+	}
+	boil.DebugMode = true
 	// Сначала находим минимальный totalSerial для пользователя
 	minSerial, err := edu.UsersQuestions(
 		qm.InnerJoin(
@@ -145,13 +150,16 @@ func (u UserQuestion) GetTask(ctx context.Context, userID int64, tag string) (*e
 		),
 		edu.QuestionWhere.DeletedAt.IsNull(),
 		edu.QuestionWhere.IsTask.EQ(true),
-		edu.TagWhere.IsPause.EQ(false),
 		edu.TagWhere.Tag.EQ(tag),
 		qm.Select(edu.UsersQuestionColumns.TotalSerial),
+		edu.TagWhere.IsPause.EQ(false),
+		edu.UsersQuestionWhere.IsEdu.EQ(true),
+		edu.UsersQuestionWhere.IsPause.EQ(false),
 		edu.UsersQuestionWhere.UserID.EQ(userID),
 		edu.UsersQuestionWhere.IsEdu.EQ(true),
 		edu.UsersQuestionWhere.DeletedAt.IsNull(),
 		qm.OrderBy(edu.UsersQuestionColumns.TotalSerial),
+		whereIDs,
 	).One(ctx, boil.GetContextDB())
 	if err != nil {
 		log.Println("Ошибка при поиске минимального totalSerial:", err)
@@ -186,6 +194,7 @@ func (u UserQuestion) GetTask(ctx context.Context, userID int64, tag string) (*e
 		edu.TagWhere.Tag.EQ(tag),
 		edu.AnswerWhere.DeletedAt.IsNull(),
 		qm.OrderBy("RANDOM()"),
+		whereIDs,
 	).One(ctx, boil.GetContextDB())
 	if err != nil {
 		log.Println("Ошибка при выборке вопроса:", err)

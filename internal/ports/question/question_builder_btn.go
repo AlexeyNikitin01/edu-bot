@@ -390,6 +390,10 @@ func (b *QuestionButtonBuilder) makeData(qID int64) string {
 }
 
 func (b *QuestionButtonBuilder) timeLeftMsg(duration time.Duration) string {
+	if duration < 0 {
+		return "готов"
+	}
+
 	if duration < time.Hour {
 		return fmt.Sprintf("%.0fm", duration.Minutes())
 	}

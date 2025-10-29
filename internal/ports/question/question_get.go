@@ -146,7 +146,7 @@ func GetForUpdate(ctx context.Context, domain domain.UseCases) telebot.HandlerFu
 
 		editQuestion := telebot.InlineButton{
 			Unique: INLINE_EDIT_NAME_QUESTION,
-			Text:   "вопрос: " + q.Question,
+			Text:   q.Question,
 			Data:   fmt.Sprintf("%d", id),
 		}
 
