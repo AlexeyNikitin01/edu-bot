@@ -1,22 +1,24 @@
 package ports
 
 import (
+	"bot/internal/middleware"
 	"context"
 	"log"
 
 	"gopkg.in/telebot.v3"
 
-	"bot/internal/app"
+	"bot/internal/domain"
 )
 
-func StartBot(ctx context.Context, bot *telebot.Bot, domain *app.App) {
-	bot.Use(ContextMiddleware(ctx))
-	bot.Use(AuthMiddleware(ctx, domain))
+func StartBot(ctx context.Context, bot *telebot.Bot, d domain.UseCases) {
+	bot.Use(middleware.ContextMiddleware(ctx))
+	bot.Use(middleware.AuthMiddleware(ctx, d))
 
-	dispatcher := NewDispatcher(ctx, domain, bot)
-
-	routers(bot, domain, dispatcher)
+	routers(ctx, bot, d)
 
 	log.Println("Bot is now running. Press CTRL+C to exit")
-	bot.Start()
+
+	go func() {
+		bot.Start()
+	}()
 }
