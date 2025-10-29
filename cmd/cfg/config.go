@@ -39,6 +39,7 @@ type PG struct {
 	DBName   string `yaml:"dbname"`
 	Password string `yaml:"pass"`
 	SSLmode  string `yaml:"sslmode"`
+	DebugPG  bool   `yaml:"debug_pg"`
 }
 
 func NewCfg() (*Config, error) {

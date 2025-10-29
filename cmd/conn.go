@@ -21,6 +21,7 @@ func ConnectDB(cfg *cfg.PG) {
 		log.Fatal(err)
 	}
 	boil.SetDB(db)
+	boil.DebugMode = cfg.DebugPG
 
 	// авто-миграции
 	driver, err := postgresMigrate.WithInstance(db.DB, &postgresMigrate.Config{

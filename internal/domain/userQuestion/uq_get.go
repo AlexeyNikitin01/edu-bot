@@ -133,7 +133,7 @@ func (u UserQuestion) GetTask(ctx context.Context, userID int64, tag string, not
 	if len(notIDs) != 0 {
 		whereIDs = edu.UsersQuestionWhere.QuestionID.NIN(notIDs)
 	}
-	boil.DebugMode = true
+
 	// Сначала находим минимальный totalSerial для пользователя
 	minSerial, err := edu.UsersQuestions(
 		qm.InnerJoin(
