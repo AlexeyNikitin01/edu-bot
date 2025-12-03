@@ -91,8 +91,8 @@ func setupEditHandlers(b *telebot.Bot, ctx context.Context, d domain.UseCases) {
 
 func setupTaskHandlers(ctx context.Context, b *telebot.Bot, d domain.UseCases) {
 	b.Handle(&telebot.InlineButton{Unique: question.INLINE_BTN_TASK_BY_TAG}, task.NextTask(ctx, d))
-	b.Handle(&telebot.InlineButton{Unique: task.INLINE_REMEMBER_HIGH_TASK}, task.UpdateTaskTotal(ctx, d))
-	b.Handle(&telebot.InlineButton{Unique: task.INLINE_FORGOT_HIGH_TASK}, task.UpdateTaskTotal(ctx, d))
+	b.Handle(&telebot.InlineButton{Unique: task.INLINE_REMEMBER_HIGH_TASK}, task.UpdateTaskTotal(ctx, d, true))
+	b.Handle(&telebot.InlineButton{Unique: task.INLINE_FORGOT_HIGH_TASK}, task.UpdateTaskTotal(ctx, d, false))
 	b.Handle(&telebot.InlineButton{Unique: task.INLINE_NEXT_TASK}, task.NextTask(ctx, d))
 	b.Handle(&telebot.InlineButton{Unique: task.INLINE_SKIP_TASK}, task.SkipTask(ctx, d))
 	b.Handle(&telebot.InlineButton{Unique: task.INLINE_SHOW_ANSWER_TASK}, task.ViewAnswerTask(ctx, d, true))

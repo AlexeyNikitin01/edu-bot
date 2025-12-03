@@ -9,7 +9,7 @@ import (
 	"strconv"
 )
 
-func UpdateTaskTotal(ctx context.Context, d domain.UseCases) telebot.HandlerFunc {
+func UpdateTaskTotal(ctx context.Context, d domain.UseCases, correct bool) telebot.HandlerFunc {
 	return func(ctxBot telebot.Context) error {
 		userID := middleware.GetUserFromContext(ctxBot).TGUserID
 
@@ -24,18 +24,18 @@ func UpdateTaskTotal(ctx context.Context, d domain.UseCases) telebot.HandlerFunc
 			return err
 		}
 
-		if err = d.UpdateRepeatTime(ctx, uq, false); err != nil {
+		if err = d.UpdateRepeatTime(ctx, uq, correct); err != nil {
 			return err
 		}
 
-		choiceSaved := EscapeMarkdown(MsgChoiceSaved)
-
 		keyboard := NewTaskButtonsBuilder().
-			AddNavigation(int64(questionID)).
+			AddNavigation(uq.R.GetQuestion().R.GetTag().Tag).
 			Build()
 
-		message := choiceSaved + fmt.Sprintf(MsgTagQuestion)
-		return ctxBot.Send(message, telebot.ModeMarkdownV2, keyboard)
+		return ctxBot.Edit(EscapeMarkdown(
+			uq.R.GetQuestion().R.GetTag().Tag+
+				uq.R.GetQuestion().Question+": "+
+				uq.R.GetQuestion().R.GetAnswers()[0].Answer), keyboard)
 	}
 }
 

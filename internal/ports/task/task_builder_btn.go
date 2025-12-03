@@ -1,7 +1,6 @@
 package task
 
 import (
-	"bot/internal/ports/menu"
 	"bot/internal/ports/question"
 	"fmt"
 	"gopkg.in/telebot.v3"
@@ -57,18 +56,14 @@ func (b *TaskButtonsBuilder) AddDifficulty(questionID int64) *TaskButtonsBuilder
 	return b
 }
 
-func (b *TaskButtonsBuilder) AddNavigation(qID int64) *TaskButtonsBuilder {
+func (b *TaskButtonsBuilder) AddNavigation(tag string) *TaskButtonsBuilder {
 	nextTaskBtn := telebot.InlineButton{
 		Unique: INLINE_NEXT_TASK,
 		Text:   BtnNextTask,
-		Data:   fmt.Sprintf("%d", qID),
+		Data:   fmt.Sprintf("%s", tag),
 	}
-	continueQuestionsBtn := telebot.InlineButton{
-		Unique: menu.BTN_NEXT_QUESTION,
-		Text:   menu.BTN_NEXT_QUESTION,
-		Data:   fmt.Sprintf("%d", qID),
-	}
-	b.buttons = append(b.buttons, []telebot.InlineButton{nextTaskBtn, continueQuestionsBtn})
+	b.buttons = append(b.buttons, []telebot.InlineButton{nextTaskBtn})
+	fmt.Println("количество кнопок", len(b.buttons))
 	return b
 }
 

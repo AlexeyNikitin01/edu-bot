@@ -20,6 +20,8 @@ func DeleteTask(
 			return ctxBot.Respond(&telebot.CallbackResponse{Text: err.Error()})
 		}
 
+		q, err := d.GetUserQuestion(ctx, userID, int64(questionID))
+
 		if err = d.DeleteQuestionUser(ctx, userID, int64(questionID)); err != nil {
 			return ctxBot.Respond(&telebot.CallbackResponse{Text: err.Error()})
 		}
@@ -29,7 +31,7 @@ func DeleteTask(
 		}
 
 		keyboard := NewTaskButtonsBuilder().
-			AddNavigation(int64(questionID)).
+			AddNavigation(q.R.GetQuestion().R.GetTag().Tag).
 			Build()
 
 		message := MSG_SUCESS_DELETE_QUESTION + "\n\n"
