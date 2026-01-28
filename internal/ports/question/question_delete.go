@@ -33,7 +33,7 @@ func DeleteQuestion(ctx context.Context, d domain.UseCases) telebot.HandlerFunc 
 		tag := strings.Join(parts[2:], "_")
 		userID := middleware.GetUserFromContext(ctxBot).TGUserID
 
-		// Удаляем вопрос
+		//Удаляем вопрос
 		if err = d.DeleteQuestion(ctx, int64(questionID)); err != nil {
 			return err
 		}

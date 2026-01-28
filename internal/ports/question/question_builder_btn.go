@@ -156,8 +156,8 @@ func (b *QuestionButtonBuilder) BuildQuestionRow(uq *edu.UsersQuestion) [][]tele
 	return [][]telebot.InlineButton{
 		{b.BuildQuestionTextButton(uq)},
 		{
-			b.BuildRepeatButton(uq),
-			b.BuildDeleteButton(uq),
+			b.BuildRepeatButtonList(uq),
+			b.BuildDeleteButtonList(uq),
 			b.BuildEditButton(uq),
 			b.BuildTimeButton(uq),
 		},
@@ -216,7 +216,7 @@ func (b *QuestionButtonBuilder) BuildRepeatButtonList(uq *edu.UsersQuestion) tel
 	}
 
 	return telebot.InlineButton{
-		Unique: INLINE_BTN_REPEAT_QUESTION_AFTER_POLL_HIGH,
+		Unique: INLINE_BTN_REPEAT_QUESTION,
 		Text:   label,
 		Data:   b.makeData(uq.QuestionID),
 	}

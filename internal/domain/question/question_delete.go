@@ -10,5 +10,10 @@ func (Question) DeleteQuestion(ctx context.Context, qID int64) error {
 	if _, err := edu.Questions(edu.QuestionWhere.ID.EQ(qID)).DeleteAll(ctx, boil.GetContextDB(), false); err != nil {
 		return err
 	}
+	if _, err := edu.UsersQuestions(
+		edu.UsersQuestionWhere.QuestionID.EQ(qID),
+	).DeleteAll(ctx, boil.GetContextDB(), false); err != nil {
+		return err
+	}
 	return nil
 }
