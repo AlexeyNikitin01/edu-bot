@@ -16,4 +16,7 @@ psql:
     - schema_migrations
     - goose_db_version
 
+ttl:
+  day: "1h"
+
 token: ""

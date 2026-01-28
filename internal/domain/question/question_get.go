@@ -44,7 +44,7 @@ func (q Question) GetAllQuestionsWithPagination(
 		edu.UsersQuestionWhere.DeletedAt.IsNull(),
 		qm.Limit(limit),
 		qm.Offset(offset),
-		qm.OrderBy(fmt.Sprintf("%s DESC", edu.QuestionTableColumns.CreatedAt)),
+		qm.OrderBy(fmt.Sprintf("%s DESC, %s DESC", edu.QuestionTableColumns.CreatedAt, edu.QuestionTableColumns.ID)),
 	).All(ctx, boil.GetContextDB())
 	if err != nil {
 		return nil, 0, err
