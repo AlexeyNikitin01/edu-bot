@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-func QuestionByTag(ctx context.Context, data string, d domain.UseCases) telebot.HandlerFunc {
+func ListQuestions(ctx context.Context, data string, d domain.UseCases) telebot.HandlerFunc {
 	return func(ctxBot telebot.Context) error {
 		tag, tagPage, err := parsePageString(data)
 		if err != nil {
@@ -29,7 +29,7 @@ func showQuestionsPage(
 	ctx context.Context, ctxBot telebot.Context, tag string, page int, userID int64, d domain.UseCases, tagPage int,
 ) error {
 	// Получаем вопросы с пагинацией
-	questions, totalCount, err := d.GetAllQuestionsWithPagination(ctx, userID, tag, QuestionsPerPage, page)
+	questions, totalCount, err := d.GetAllQuestionsWithPagination(ctx, userID, tag, QuestionsPerPage, page*10)
 	if err != nil {
 		return err
 	}

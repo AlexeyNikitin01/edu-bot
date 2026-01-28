@@ -85,7 +85,7 @@ func RememberQuestion(ctx context.Context, d domain.UseCases) telebot.HandlerFun
 		}
 
 		now := time.Now().UTC()
-		if !now.Add(time.Minute*10).After(t) && !uq.R.GetQuestion().IsTask {
+		if !now.Add(time.Minute).After(t) && !uq.R.GetQuestion().IsTask {
 			duration := t.Sub(now)
 
 			msg := fmt.Sprintf("⏳ Следующий вопрос будет доступен через: %s", timeLeftMsg(duration))

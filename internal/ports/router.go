@@ -38,7 +38,7 @@ func questionHandlerCRUD(b *telebot.Bot, ctx context.Context, d domain.UseCases)
 	// Чтение вопросов
 	b.Handle(&telebot.InlineButton{Unique: question.INLINE_NEXT_QUESTION}, question.NextQuestion(ctx, d))
 	b.Handle(&telebot.InlineButton{Unique: tags.INLINE_BTN_QUESTION_BY_TAG}, func(ctxBot telebot.Context) error {
-		return question.QuestionByTag(ctx, ctxBot.Data(), d)(ctxBot)
+		return question.ListQuestions(ctx, ctxBot.Data(), d)(ctxBot)
 	})
 	b.Handle(&telebot.InlineButton{Unique: question.INLINE_SHOW_ANSWER}, question.ViewAnswer(ctx, d, true))
 	b.Handle(&telebot.InlineButton{Unique: question.INLINE_TURN_ANSWER}, question.ViewAnswer(ctx, d, false))
