@@ -3,6 +3,7 @@ package main
 import (
 	initRedis "bot/internal/adapters/cache/redis"
 	"bot/internal/adapters/db/postres"
+	"bot/internal/config"
 	"bot/internal/domain/distpatcher"
 	"bot/internal/domain/user"
 	"bot/internal/domain/userQuestion"
@@ -21,7 +22,6 @@ import (
 
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 
-	"bot/cmd/cfg"
 	"bot/internal/domain"
 	"bot/internal/ports"
 )
@@ -31,9 +31,9 @@ func main() {
 	ctx := context.Background()
 
 	// инициализация подключений к сторонним модулям
-	ConnectDB(cfg.GetConfig().PSQL)
-	c := initRedis.NewCache(ConnectRedis(ctx, cfg.GetConfig().CACHE))
-	bot := ConnectBot(cfg.GetConfig().Token)
+	ConnectDB(config.GetConfig().PSQL)
+	c := initRedis.NewCache(ConnectRedis(ctx, config.GetConfig().CACHE))
+	bot := ConnectBot(config.GetConfig().Token)
 
 	// инициализация сервисов
 	a := domain.NewDomain(
@@ -65,7 +65,7 @@ func waitForShutdown(bot *telebot.Bot, d domain.UseCases) {
 	os.Exit(0)
 }
 
-func ConnectDB(cfg *cfg.PG) {
+func ConnectDB(cfg *config.PG) {
 	db, err := postres.OpenConnectPostgres(cfg)
 	if err != nil {
 		log.Fatal(err)
@@ -111,7 +111,7 @@ func ConnectBot(token string) *telebot.Bot {
 	return b
 }
 
-func ConnectRedis(ctx context.Context, cfg *cfg.Redis) *redis.Client {
+func ConnectRedis(ctx context.Context, cfg *config.Redis) *redis.Client {
 	r, err := initRedis.NewClientRedis(ctx, cfg)
 	if err != nil {
 		log.Fatal(err)

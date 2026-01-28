@@ -1,4 +1,4 @@
-package cfg
+package config
 
 import (
 	"os"
@@ -30,6 +30,20 @@ type Redis struct {
 	MaxIdleConns    int           `yaml:"max_idle_conns" json:"max_idle_conns" env:"REDIS_MAX_IDLE_CONNS" env-default:"10"`
 	ConnMaxLifetime time.Duration `yaml:"conn_max_lifetime" json:"conn_max_lifetime" env:"REDIS_CONN_MAX_LIFETIME" env-default:"30m"`
 	ConnMaxIdleTime time.Duration `yaml:"conn_max_idle_time" json:"conn_max_idle_time" env:"REDIS_CONN_MAX_IDLE_TIME" env-default:"5m"`
+
+	TTL *RedisTTL `yaml:"ttl" json:"ttl"`
+}
+
+type RedisTTL struct {
+	Day time.Duration `yaml:"day" json:"day"`
+}
+
+// GetTTL возвращает TTL в днях
+func (r *Redis) GetTTL() time.Duration {
+	if r.TTL != nil && r.TTL.Day > 0 {
+		return r.TTL.Day
+	}
+	return 7 * 24 * time.Hour // значение по умолчанию: 7 дней
 }
 
 type PG struct {
@@ -42,8 +56,10 @@ type PG struct {
 	DebugPG  bool   `yaml:"debug_pg"`
 }
 
+var PATH_TO_CFG = "./etc/config.yml"
+
 func NewCfg() (*Config, error) {
-	yamlFile, err := os.ReadFile("./etc/config.yml")
+	yamlFile, err := os.ReadFile(PATH_TO_CFG)
 	if err != nil {
 		return nil, errors.Wrap(err, "read file config")
 	}

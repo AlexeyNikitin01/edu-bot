@@ -1,14 +1,14 @@
 package redis
 
 import (
-	"bot/cmd/cfg"
+	"bot/internal/config"
 	"context"
 	"fmt"
 	"github.com/redis/go-redis/v9"
 	"time"
 )
 
-func NewClientRedis(ctx context.Context, cfg *cfg.Redis) (*redis.Client, error) {
+func NewClientRedis(ctx context.Context, cfg *config.Redis) (*redis.Client, error) {
 	db := redis.NewClient(&redis.Options{
 		Addr:         cfg.Addr,
 		Password:     cfg.Password,
@@ -36,6 +36,6 @@ type RedisCache struct {
 func NewCache(client *redis.Client) *RedisCache {
 	return &RedisCache{
 		client: client,
-		ttl:    24 * time.Hour,
+		ttl:    config.GetConfig().CACHE.GetTTL(),
 	}
 }
