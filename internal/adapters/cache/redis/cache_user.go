@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/redis/go-redis/v9"
+	_ "github.com/redis/go-redis/v9"
 	"strconv"
 )
 
@@ -25,7 +26,12 @@ func (r *RedisCache) SetUserWaiting(ctx context.Context, userID int64, waiting b
 		if err := r.client.Set(ctx, userKey, true, r.ttl).Err(); err != nil {
 			return err
 		}
-		return r.client.SAdd(ctx, setKey, userID).Err()
+		// Добавляем пользователя в множество
+		if err := r.client.SAdd(ctx, setKey, userID).Err(); err != nil {
+			return err
+		}
+		// Устанавливаем TTL для множества
+		return r.client.Expire(ctx, setKey, r.ttl).Err()
 	} else {
 		// Удаляем пользователя из множества ожидающих и сбрасываем флаг
 		if err := r.client.Del(ctx, userKey).Err(); err != nil {
