@@ -330,12 +330,10 @@ func (b *QuestionButtonBuilder) BuildTimeButton(uq *edu.UsersQuestion) telebot.I
 func (b *QuestionButtonBuilder) BuildQuestionTextButton(uq *edu.UsersQuestion) telebot.InlineButton {
 	// Получаем текст вопроса
 	questionText := uq.R.Question.Question
-	if len(questionText) > 50 {
-		questionText = questionText[:47] + "..."
-	}
 
 	return telebot.InlineButton{
-		Unique: INLINE_SHOW_ANSWER,
+		// TODO: ПОЛУЧЕНИЕ ВОПРОСА СО СТРАНИЦЫ
+		Unique: "TODO_GET_QUESTION_BY_TAG",
 		Text:   questionText,
 		Data:   b.makeData(uq.QuestionID),
 	}

@@ -30,7 +30,9 @@ func SendQuestion(ctx context.Context, b *telebot.Bot, dis domain.Dispatcher) {
 					BuildAfterSend(uq, false),
 				},
 			)
-			log.Println(err)
+			if err != nil {
+				log.Println(err)
+			}
 		}
 	}
 }
