@@ -250,7 +250,7 @@ func (b *TagButtonsBuilder) GetPaginationInfo() string {
 	start := (b.currentPage-1)*b.pageSize + 1
 	end := start + len(b.getTagsForCurrentPage()) - 1
 
-	return fmt.Sprintf(PAGINATION_INFO_FULL_FORMAT, start, end, b.totalTags, b.currentPage, b.totalPages)
+	return fmt.Sprintf(PAGINATION_INFO_FULL_FORMAT, start, end, b.totalTags)
 }
 
 func (b *TagButtonsBuilder) BuildSingleTagButton(tag *edu.Tag) telebot.InlineButton {
